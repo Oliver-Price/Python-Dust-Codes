@@ -494,3 +494,16 @@ for ta in xrange(0,tno):
                   fill = (255,0,255,255) )
 '''
 comimg.show()        
+
+#%%
+
+'''
+It was in 1949 that Central B.C. Airways was commissioned to do 
+aerial surveys for the giant aluminium and power complexes at 
+Kitimat and Kemano in the rugged mountainous backcountry of 
+British Columbia. During the development of this project, 
+Central B.C. Airways handled 95% of the air support, 
+consisting mainly of heavy industrial freight and workers.
+
+'''
+
