@@ -55,16 +55,17 @@ comobs = orb_obs(comdenom, obsloc, pysav, orbitdir, horiztag)
 #choosing fits file to display and getting pathnames
 fitsin = easygui.fileopenbox(default = os.path.join(imagedir, r"*.fits"))
 fitsinfile = os.path.basename(fitsin)
+filebase = fitsinfile[:string.find(fitsinfile,'.')]
 
 #check if image exists already
-imgsav = os.path.join(imagedir, fitsinfile[:string.find(fitsinfile,'.')])
-imgsav += '.png'
+imgsav = os.path.join(imagedir, filebase + '.png')
 imgexists = os.path.exists(imgsav)
 
 #parameter savefile location
-picklesavefile = os.path.join(pysav, comdenom + '_dustplot_parameters')
+picklesavefile = os.path.join(pysav, filebase + '_dustplot')
+picklexists = os.path.exists(imgsav)
 
-if (imgexists == False):
+if (imgexists == False) or (picklexists == False):
     
     #choose img type
     colormsg = "Please select image type:"
@@ -367,28 +368,29 @@ if (imgexists == False):
     comimg.save(imgsav,'png')
     
     with open(picklesavefile, 'w') as f:
-        pickle.dump([axisdata, comcel, comcel10, rao, deo, rapixl, depixl, \
-                    border, ramin, decmin, pixheight, scale, ctime, dtmin], f)
+        pickle.dump([comcel, comcel10, rao, deo, rapixl, depixl, ramax, decmax\
+                    ,ramin, decmin, border, pixheight, scale, ctime, dtmin], f)
                     
-if (imgexists == True):
+else:
     print "Loading save image and parameter data"
     
     with open(picklesavefile) as f:
         parameters = pickle.load(f)
-        axisdata = parameters[0]
-        comcel = parameters[1]
-        comcel10 = parameters[2]
-        rao = parameters[3]
-        deo = parameters[4]
-        rapixl = parameters[5]
-        depixl = parameters[6]
-        border = parameters[7]
+        comcel = parameters[0]
+        comcel10 = parameters[1]
+        rao = parameters[2]
+        deo = parameters[3]
+        rapixl = parameters[4]
+        depixl = parameters[5]
+        ramax = parameters[6]
+        decmax = parameters[7]
         ramin = parameters[8]
         decmin = parameters[9]
-        pixheight = parameters[10]
-        scale = parameters[11]
-        ctime = parameters[12]
-        dtmin = parameters[13]
+        border = parameters[10]
+        pixheight = parameters[11]
+        scale = parameters[12]
+        ctime = parameters[13]
+        dtmin = parameters[14]
         
     comimg = Image.open(imgsav)
     d = ImageDraw.Draw(comimg)
@@ -456,6 +458,13 @@ while (tidx < tno):
 
 tmax = tno - 1 - np.searchsorted(bmax[::-1], np.arange(bno))
 
+simressavefile = os.path.join(pysav, filebase + '_simres_' + str(betal) + '_'
+                 + str(betau) + '_' + str(bno)+ '_' + str(simtu) + '_'
+                 + str(simtl) + '_' + str(tno))
+
+with open(simressavefile, 'w') as f:
+        pickle.dump([simres, tmax, bmax], f)
+
 #%%
 
 #*****************************
@@ -494,16 +503,3 @@ for ta in xrange(0,tno):
                   fill = (255,0,255,255) )
 '''
 comimg.show()        
-
-#%%
-
-'''
-It was in 1949 that Central B.C. Airways was commissioned to do 
-aerial surveys for the giant aluminium and power complexes at 
-Kitimat and Kemano in the rugged mountainous backcountry of 
-British Columbia. During the development of this project, 
-Central B.C. Airways handled 95% of the air support, 
-consisting mainly of heavy industrial freight and workers.
-
-'''
-
