@@ -63,7 +63,7 @@ imgexists = os.path.exists(imgsav)
 
 #parameter savefile location
 picklesavefile = os.path.join(pysav, filebase + '_dustplot')
-picklexists = os.path.exists(imgsav)
+picklexists = os.path.exists(picklesavefile)
 
 if (imgexists == False) or (picklexists == False):
     
@@ -369,7 +369,8 @@ if (imgexists == False) or (picklexists == False):
     
     with open(picklesavefile, 'w') as f:
         pickle.dump([comcel, comcel10, rao, deo, rapixl, depixl, ramax, decmax\
-                    ,ramin, decmin, border, pixheight, scale, ctime, dtmin], f)
+                    ,ramin, decmin, border, pixheight, scale, ctime, dtmin, \
+                    ra, dec, colr, colb, colg], f)
                     
 else:
     print "Loading save image and parameter data"
@@ -403,8 +404,8 @@ else:
 #***********************************
 
 #choose FP diagram parameters 
-betau = 1; betal = 0.01; bno = 10
-simtu = 150; simtl = 5; tno = 10
+betau = 1; betal = 0.01; bno = 50
+simtu = 150; simtl = 5; tno = 50
 
 #finds maximum possible simulateable time and ensure simtu is bounded by this
 simtmax = np.round(ctime.jd - comveceq10[0,0])
@@ -433,10 +434,10 @@ bmax = np.empty((tno),dtype = int)
 tidx = 0
 while (tidx < tno):
     bidx = 0
-    ra = rao
-    de = deo
-    while ( bidx < bno and ra <= axisdata[7] and ra >= axisdata[6]  and
-            de <= axisdata[9] and de >= axisdata[8]):
+    rasim = rao
+    desim = deo
+    while ( bidx < bno and rasim <= ramax and rasim >= ramin  and
+            desim <= decmax and desim >= decmin):
         pstart = comveceq10[comcel10-int(144*tvals[tidx]),6:12]
         dt = int(np.ceil(tvals[tidx]*0.144))
         sim = part_sim(bvals[bidx],tvals[tidx],dt,pstart,efinp,dtmin)
@@ -447,8 +448,8 @@ while (tidx < tno):
         simres[tidx,bidx,4:10] = sim[1] #finishing pos/vel
         simres[tidx,bidx,10:12] = pos2radec(sim[1][0:3] - \
         obsveceq[int(simres[tidx,bidx,3]),6:9])
-        ra = simres[tidx,bidx,10]
-        de = simres[tidx,bidx,11]
+        rasim = simres[tidx,bidx,10]
+        desim = simres[tidx,bidx,11]
         simres[tidx,bidx,12] = ra2ypix(simres[tidx,bidx,10],border,ramin,scale)
         simres[tidx,bidx,13] = dec2xpix(simres[tidx,bidx,11],border,pixheight,decmin,scale)
         bidx += 1
@@ -458,12 +459,14 @@ while (tidx < tno):
 
 tmax = tno - 1 - np.searchsorted(bmax[::-1], np.arange(bno))
 
-simressavefile = os.path.join(pysav, filebase + '_simres_' + str(betal) + '_'
+simressavefile = os.path.join(pysav, 'simres')
+simressavefile = os.path.join(simressavefile, filebase + '_' + str(betal) + '_'
                  + str(betau) + '_' + str(bno)+ '_' + str(simtu) + '_'
                  + str(simtl) + '_' + str(tno))
+simressavefile = string.replace(simressavefile,'.','\'')
 
 with open(simressavefile, 'w') as f:
-        pickle.dump([simres, tmax, bmax], f)
+        pickle.dump([simres, tmax, bmax, tno, bno], f)
 
 #%%
 
