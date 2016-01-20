@@ -1,8 +1,13 @@
-#************************************************************
-#Various methods for plotting fits images with the PIL module
-#************************************************************
+#**********************************************
+#Various methods for images with the PIL module
+#**********************************************
 import numpy as np
 import math as m
+
+#%%
+#*******************************
+#FINSON PROBSTEIN PLOT FUNCTIONS
+#*******************************
 
 def ra2ypix(ra, border, ramin, scale):
     return border*1.5 + (ra - ramin)*scale

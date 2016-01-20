@@ -2,7 +2,6 @@
 #Program to visualise dustplot of comet in simt and beta space
 #*************************************************************
 
-import urllib2
 import string
 import easygui
 import os
@@ -11,8 +10,8 @@ import pickle
 import numpy as np
 import time
 import matplotlib.path as mplPath
-import matplotlib.pyplot as plt
 from orbitdata_loading_functions import orb_vector, orb_obs
+from PIL import Image, ImageDraw, ImageFont
 
 
 #%%
@@ -181,4 +180,43 @@ for ta in xrange(0, tno-1):
 #THIRD CELL - PLOT DATA ONTO IMAGE
 #*********************************          
             
+simtl = simres[0,0,0]; simtu = simres[tno-1,0,0]
+betal = simres[0,0,1]; betau = simres[0,bno-1,1]
+
+decades = np.logspace(-4,4,9)
+tdecl = np.searchsorted(decades,simtl, side = 'right')-1
+tdecu = np.searchsorted(decades,simtu)
+bdecl = np.searchsorted(decades,betal, side = 'right')-1
+bdecu = np.searchsorted(decades,betau)
+
+t1sfu = float('%.1g' % simtu)
+t1sfl = float('%.1g' % simtl)
+b1sfu = float('%.1g' % betau)
+b1sfl = float('%.1g' % betal)
+
+pixheight = 800
+pixwidth = int(pixheight*(np.log10(t1sfu) - np.log10(t1sfl))/
+                (np.log10(betau) - np.log10(betal)))
+border = 100
+scale = pixheight/(np.log10(betau) - np.log10(betal))
+dustimg = Image.new('RGBA', (pixwidth+int(2.5*border),
+                             pixheight+int(3*border)),(0,0,0,255))
+d = ImageDraw.Draw(dustimg)
+
+
+for ta in xrange(0, tno-1):
+    for ba in xrange(0, bmax[ta+1]):
+        beta1 = 1000 + 500*np.log10(simres[ta,ba,1])
+        simt1 = 500*np.log10(simres[ta,ba,0]) - 349.48500217
+        beta2 = 1000 + 500*np.log10(simres[ta,ba+1,1])
+        simt2 = 500*np.log10(simres[ta,ba+1,0]) - 349.48500217
+        beta3 = 1000 + 500*np.log10(simres[ta+1,ba+1,1])
+        simt3 = 500*np.log10(simres[ta+1,ba+1,0]) - 349.48500217
+        beta4 = 1000 + 500*np.log10(simres[ta+1,ba,1])
+        simt4 = 500*np.log10(simres[ta+1,ba,0]) - 349.48500217
+        a = d.polygon([(simt1,beta1),(simt2,beta2),(simt3,beta3),(simt4,beta4)]
+        ,fill=(srcolors[ta,ba,0],srcolors[ta,ba,1],srcolors[ta,ba,2],255))
+
+dustimg.show()
+
 
