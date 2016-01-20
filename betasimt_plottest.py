@@ -11,6 +11,7 @@ import pickle
 import numpy as np
 import time
 import matplotlib.path as mplPath
+import matplotlib.pyplot as plt
 from orbitdata_loading_functions import orb_vector, orb_obs
 
 
@@ -102,9 +103,11 @@ with open(simin) as f:
 #****************************************************
 #SECOND CELL - FIND RELEVANT DATA FROM ORIGINAL IMAGE
 #****************************************************
-srcolors = np.empty((tno,bno,3),dtype = int)
+#fig = plt.figure()
+srcolors = np.zeros((tno,bno,5),dtype=int)
+rashape1 = np.shape(ra)[1]
 for ta in xrange(0, tno-1):
-    for ba in xrange(0, bmax[ta+1]-1):
+    for ba in xrange(0, bmax[ta+1]):
         boxramin = min(simres[ta,ba,10],simres[ta+1,ba,10],
                        simres[ta,ba+1,10],simres[ta+1,ba+1,10])
         boxdemin = min(simres[ta,ba,11],simres[ta+1,ba,11],
@@ -115,37 +118,49 @@ for ta in xrange(0, tno-1):
                        simres[ta,ba+1,11],simres[ta+1,ba+1,11])  
         ralocs = np.where((ra > boxramin) & (ra < boxramax))   
         delocs = np.where((dec > boxdemin) & (dec < boxdemax))
-        rashape0 = np.shape(ra)[0]
-        ralocs1d = ralocs[0]*rashape0+ralocs[1]
-        delocs1d = delocs[0]*rashape0+delocs[1]   
+        ralocs1d = ralocs[0]*rashape1+ralocs[1]
+        delocs1d = delocs[0]*rashape1+delocs[1]   
         boxlocs1d = np.intersect1d(ralocs1d,delocs1d)
         numin = np.size(boxlocs1d)
         if (numin > 0): 
-            boxlocs = np.empty((numin,3),dtype = int)
-            boxlocs[:,0] = np.floor(boxlocs1d/rashape0)
-            boxlocs[:,1] = boxlocs1d%rashape0
-            bbPath = mplPath.Path(np.array(
+            boxlocs = np.empty((numin,5),dtype = float)
+            boxlocs[:,0] = np.floor(boxlocs1d/rashape1)
+            boxlocs[:,1] = boxlocs1d%rashape1
+            boxpath = np.array(
             [[simres[ta,ba,10], simres[ta,ba,11]],
             [simres[ta+1,ba,10], simres[ta+1,ba,11]],
             [simres[ta+1,ba+1,10], simres[ta+1,ba+1,11]],
-            [simres[ta,ba+1,10], simres[ta,ba+1,11]]]))#
+            [simres[ta,ba+1,10], simres[ta,ba+1,11]]])
+            bbPath = mplPath.Path(boxpath)
+            #ax = fig.add_subplot(1,1,1)
+            #ax.scatter(boxpath[:,0], boxpath[:,1],s=300)
+            #ax.plot(boxpath[0:2,0], boxpath[0:2,1])
+            #ax.plot(boxpath[1:3,0], boxpath[1:3,1])
+            #ax.plot(boxpath[2:,0], boxpath[2:,1])
+            #ax.plot(boxpath[[3,0],0], boxpath[[3,0],1])
             for n in xrange(0,numin):
-                boxlocs[n,2] = bbPath.contains_point((boxlocs[n,0],
-                                                        boxlocs[n,1]))
-            boxlocs = boxlocs[np.where(boxlocs[:,2] == 1)]
+                boxlocs[n,2] = ra[boxlocs[n,0],boxlocs[n,1]]
+                boxlocs[n,3] = dec[boxlocs[n,0],boxlocs[n,1]]
+                boxlocs[n,4] = bbPath.contains_point((boxlocs[n,2],
+                                                      boxlocs[n,3]))
+                #print boxlocs[n,4]
+                #ax.scatter(boxlocs[n,2],boxlocs[n,3],s=100)
+            #plt.show()                                          
+            boxlocs = boxlocs[np.where(boxlocs[:,4] == 1)]
             numin = np.shape(boxlocs)[0]
             if (numin == 1):
                 srcolors[ta,ba,0] = colr[boxlocs[0,0],boxlocs[0,1]]
                 srcolors[ta,ba,1] = colg[boxlocs[0,0],boxlocs[0,1]]
                 srcolors[ta,ba,2] = colb[boxlocs[0,0],boxlocs[0,1]]
             if (numin > 1):
+                rtot = 0; btot = 0; gtot = 0
                 for n in xrange(0,numin):
                      rtot += colr[boxlocs[n,0],boxlocs[n,1]]
                      gtot += colg[boxlocs[n,0],boxlocs[n,1]]
                      btot += colb[boxlocs[n,0],boxlocs[n,1]]
                 srcolors[ta,ba,0] = rtot/numin
                 srcolors[ta,ba,1] = gtot/numin
-                srcolors[ta,ba,2] = btot/numin   
+                srcolors[ta,ba,2] = btot/numin
         if (numin == 0):
             avera = (simres[ta,ba,10] + simres[ta,ba+1,10] +
                     simres[ta+1,ba,10] + simres[ta+1,ba+1,10])/4
@@ -156,6 +171,14 @@ for ta in xrange(0, tno-1):
             srcolors[ta,ba,0] = colr[loc[0][0],loc[1][0]]
             srcolors[ta,ba,1] = colg[loc[0][0],loc[1][0]]
             srcolors[ta,ba,2] = colb[loc[0][0],loc[1][0]]
-            
+        srcolors[ta,ba,3] = numin
+        srcolors[ta,ba,4] = 1
+    print ta*100/(tno-1)
+
+#%%
+
+#*********************************
+#THIRD CELL - PLOT DATA ONTO IMAGE
+#*********************************          
             
 
