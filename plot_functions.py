@@ -5,14 +5,14 @@ import numpy as np
 import math as m
 
 #%%
-#*******************************
-#FINSON PROBSTEIN PLOT FUNCTIONS
-#*******************************
+#***************************************
+#FINSON PROBSTEIN OVERLAY PLOT FUNCTIONS
+#***************************************
 
-def ra2ypix(ra, border, ramin, scale):
+def ra2xpix(ra, border, ramin, scale):
     return border*1.5 + (ra - ramin)*scale
     
-def dec2xpix(dec, border, pixheight, decmin, scale):
+def dec2ypix(dec, border, pixheight, decmin, scale):
     return pixheight + border*1.5 - (dec-decmin)*scale
 
 def setaxisup(ramax,ramin,decmax,decmin,border,pixheight,scale):
@@ -64,3 +64,15 @@ def setaxisup(ramax,ramin,decmax,decmin,border,pixheight,scale):
     
     return(a,b,d,e,f,h,raminb,ramaxb,decminb,decmaxb)
     #don't need the actual values of minor ticks so ignore c and g
+
+#%%
+#*************************
+#DIRECT DUSTPLOT FUNCTIONS
+#*************************
+
+def simt2xpix(simt, border, simtl, scale):
+    return border*1.5 + (np.log10(simt) - np.log10(simtl))*scale
+    
+def beta2ypix(beta, border, pixheight, betal, scale):
+    return pixheight + border*1.5 - (np.log10(beta) - np.log10(betal))*scale
+
