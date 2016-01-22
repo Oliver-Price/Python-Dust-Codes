@@ -11,7 +11,7 @@ import numpy as np
 import time
 import matplotlib.path as mplPath
 from orbitdata_loading_functions import orb_vector, orb_obs
-from plot_functions import beta2ypix, simt2xpix
+from plot_functions import beta2ypix, linsimt2xpix, logsimt2xpix
 from PIL import Image, ImageDraw, ImageFont
 
 
@@ -76,9 +76,6 @@ with open(picklesavefile) as f:
         decmax = dparameters[7]
         ramin = dparameters[8]
         decmin = dparameters[9]
-        border = dparameters[10]
-        pixheight = dparameters[11]
-        scale = dparameters[12]
         ctime = dparameters[13]
         dtmin = dparameters[14]
         ra = dparameters[15]
@@ -90,14 +87,16 @@ with open(picklesavefile) as f:
 #find and import simulation results
 simresdir = os.path.join(pysav, 'simres')
 simin = easygui.fileopenbox(default = os.path.join(simresdir, filebase + '*'))
-with open(simin) as f:
-        sparameters = pickle.load(f)
-        simres = sparameters[0]
-        tmax = sparameters[1]
-        bmax = sparameters[2]
-        tno = sparameters[3]
-        bno = sparameters[4]
-    
+simres = np.load(simin)
+
+with open(simin[:-4] + '_parameters') as f:
+    sparameters = pickle.load(f)
+    tmax = sparameters[0]
+    bmax = sparameters[1]
+    tno = sparameters[2]
+    bno = sparameters[3]
+    tspace = sparameters[4]
+
 #%%
 
 #****************************************************
@@ -180,36 +179,56 @@ t1sfl = float('%.1g' % simtl)
 b1sfu = float('%.1g' % betau)
 b1sfl = float('%.1g' % betal)
 
-pixheight = 800
-pixwidth = int(pixheight*(np.log10(t1sfu) - np.log10(t1sfl))/
-                (np.log10(b1sfu) - np.log10(b1sfl)))
+pixhi = 800
+pixwt = 1600
 border = 100
-scale = pixheight/(np.log10(betau) - np.log10(betal))
-dustimg = Image.new('RGBA', (pixwidth+int(2.5*border),
-                             pixheight+int(3*border)),(0,0,0,255))
+hscle = pixhi/(np.log10(betau) - np.log10(betal))
+if (tspace == 'log'):
+    wscle = pixwt/(np.log10(simtu) - np.log10(simtl))
+elif (tspace == 'lin'):
+    wscle = pixwt/(simtu - simtl)
+    
+dustimg = Image.new('RGBA', (pixwt+int(2.5*border),
+                             pixhi+int(3*border)),(0,0,0,255))
 d = ImageDraw.Draw(dustimg)
+greyscale = True
 
-for ta in xrange(0, tno-1):
-    for ba in xrange(0, bmax[ta+1]):
-        beta1 = beta2ypix(simres[ta,ba,1], border, pixheight, b1sfl, scale)
-        simt1 = simt2xpix(simres[ta,ba,0], border, t1sfl, scale)
-        beta2 = beta2ypix(simres[ta,ba+1,1], border, pixheight, b1sfl, scale)
-        simt2 = simt2xpix(simres[ta,ba+1,0], border, t1sfl, scale)
-        beta3 = beta2ypix(simres[ta+1,ba+1,1], border, pixheight, b1sfl, scale)
-        simt3 = simt2xpix(simres[ta+1,ba+1,0], border, t1sfl, scale)
-        beta4 = beta2ypix(simres[ta+1,ba,1], border, pixheight, b1sfl, scale)
-        simt4 = simt2xpix(simres[ta+1,ba,0], border, t1sfl, scale)
-        a = d.polygon([(simt1,beta1),(simt2,beta2),(simt3,beta3),(simt4,beta4)]
-        ,fill=(srcolors[ta,ba,0],srcolors[ta,ba,1],srcolors[ta,ba,2],255))
-
+if (greyscale == True):  
+    for ta in xrange(0, tno-1):
+        for ba in xrange(0, bmax[ta+1]):
+            fillco = int(round(0.333333333333333333*(srcolors[ta,ba,0] + 
+            srcolors[ta,ba,1] + srcolors[ta,ba,2])))
+            b1 = beta2ypix(simres[ta,ba,1], border, pixhi, b1sfl, hscle)
+            t1 = linsimt2xpix(simres[ta,ba,0], border, t1sfl, wscle)
+            b2 = beta2ypix(simres[ta,ba+1,1], border, pixhi, b1sfl, hscle)
+            t2 = linsimt2xpix(simres[ta,ba+1,0], border, t1sfl, wscle)
+            b3 = beta2ypix(simres[ta+1,ba+1,1], border, pixhi, b1sfl, hscle)
+            t3 = linsimt2xpix(simres[ta+1,ba+1,0], border, t1sfl, wscle)
+            b4 = beta2ypix(simres[ta+1,ba,1], border, pixhi, b1sfl, hscle)
+            t4 = linsimt2xpix(simres[ta+1,ba,0], border, t1sfl, wscle)
+            a = d.polygon([(t1,b1),(t2,b2),(t3,b3),(t4,b4)]
+            ,fill=(fillco,fillco,fillco,255))
+else:
+    for ta in xrange(0, tno-1):
+        for ba in xrange(0, bmax[ta+1]):
+            b1 = beta2ypix(simres[ta,ba,1], border, pixhi, b1sfl, hscle)
+            t1 = linsimt2xpix(simres[ta,ba,0], border, t1sfl, wscle)
+            b2 = beta2ypix(simres[ta,ba+1,1], border, pixhi, b1sfl, hscle)
+            t2 = linsimt2xpix(simres[ta,ba+1,0], border, t1sfl, wscle)
+            b3 = beta2ypix(simres[ta+1,ba+1,1], border, pixhi, b1sfl, hscle)
+            t3 = linsimt2xpix(simres[ta+1,ba+1,0], border, t1sfl, wscle)
+            b4 = beta2ypix(simres[ta+1,ba,1], border, pixhi, b1sfl, hscle)
+            t4 = linsimt2xpix(simres[ta+1,ba,0], border, t1sfl, wscle)
+            a = d.polygon([(t1,b1),(t2,b2),(t3,b3),(t4,b4)]
+            ,fill=(srcolors[ta,ba,0],srcolors[ta,ba,1],srcolors[ta,ba,2],255))   
 #%%
 
 #***********************
 #FOURTH CELL - DRAW AXIS
 #***********************
 
-a = d.polygon([(border,border),(border*2+pixwidth,border), \
-    (border*2+pixwidth,border*2+pixheight),(border,border*2+pixheight)], \
+a = d.polygon([(border,border),(border*2+pixwt,border), \
+    (border*2+pixwt,border*2+pixhi),(border,border*2+pixhi)], \
     outline = (255,255,255,128))
 
 decades = np.logspace(-4,4,9)
@@ -234,14 +253,14 @@ tminticks = tminticks[np.searchsorted(tminticks,t1sfl):
                           np.searchsorted(tminticks,t1sfu)+1]
 tmajticks = np.intersect1d(tminticks,decades)
 
-bminticlocs = beta2ypix(bminticks, border, pixheight, b1sfl, scale)
-tminticlocs = simt2xpix(tminticks, border, t1sfl, scale)
-bmajticlocs = beta2ypix(bmajticks, border, pixheight, b1sfl, scale)
-tmajticlocs = simt2xpix(tmajticks, border, t1sfl, scale)
+bminticlocs = beta2ypix(bminticks, border, pixhi, b1sfl, hscle)
+tminticlocs = linsimt2xpix(tminticks, border, t1sfl, wscle)
+bmajticlocs = beta2ypix(bmajticks, border, pixhi, b1sfl, hscle)
+tmajticlocs = linsimt2xpix(tmajticks, border, t1sfl, wscle)
 
 majt = 20  #major tick length
 mint = 10  #minor tick length
-xaxis = pixheight + border*2
+xaxis = pixhi + border*2
 fontloc = r'C:\Windows\winsxs\amd64_microsoft-windows-f..etype-lucidaconsole_31bf3856ad364e35_6.1.7600.16385_none_5b3be3e0926bd543\lucon.ttf'
 fnt = ImageFont.truetype(fontloc, 20)
 
@@ -268,7 +287,7 @@ for div in xrange(0, (np.size(bmajticlocs))): #beta axis major ticks
     tick, font=fnt, fill=(255,255,255,128))
     
 #axis labels
-d.text((1.5*border + pixwidth*0.5 - 150,pixheight + 2.5*border), \
+d.text((1.5*border + pixwt*0.5 - 150,pixhi + 2.5*border), \
 "Time since ejection (Days)", font=fnt, fill=(255,255,255,128))
 d.text((0.25*border - 10,0.75*border - 20), \
 "Beta", font=fnt, fill=(255,255,255,128))
@@ -276,7 +295,7 @@ d.text((0.25*border - 10,0.75*border - 20), \
 #plot title
 plttitle = (comdenom.upper() + ' ' + comname[:-1] + ' dust tail')
 tfnt = ImageFont.truetype(fontloc, 30)
-d.text((1.5*border + pixwidth*0.5 - len(plttitle)*5 - 100,.35*border), \
+d.text((1.5*border + pixwt*0.5 - len(plttitle)*5 - 100,.35*border), \
 plttitle, font=tfnt, fill=(255,255,255,128))
 
 dustimg.show()

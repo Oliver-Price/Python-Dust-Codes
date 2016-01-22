@@ -57,10 +57,10 @@ def setaxisup(ramax,ramin,decmax,decmin,border,pixheight,scale):
     g = np.arange(declomindiv, dechimindiv+1e-10, divminors[dividx])
     
     #converts these to position on image
-    b = ra2ypix(a,border,ramin,scale)
-    d = ra2ypix(c,border,ramin,scale)
-    f = dec2xpix(e,border,pixheight,decmin,scale)
-    h = dec2xpix(g,border,pixheight,decmin,scale)
+    b = ra2xpix(a,border,ramin,scale)
+    d = ra2xpix(c,border,ramin,scale)
+    f = dec2ypix(e,border,pixheight,decmin,scale)
+    h = dec2ypix(g,border,pixheight,decmin,scale)
     
     return(a,b,d,e,f,h,raminb,ramaxb,decminb,decmaxb)
     #don't need the actual values of minor ticks so ignore c and g
@@ -70,8 +70,11 @@ def setaxisup(ramax,ramin,decmax,decmin,border,pixheight,scale):
 #DIRECT DUSTPLOT FUNCTIONS
 #*************************
 
-def simt2xpix(simt, border, simtl, scale):
+def logsimt2xpix(simt, border, simtl, scale):
     return border*1.5 + (np.log10(simt) - np.log10(simtl))*scale
+    
+def linsimt2xpix(simt, border, simtl, scale):
+    return border*1.5 + (simt - simtl)*scale
     
 def beta2ypix(beta, border, pixheight, betal, scale):
     return pixheight + border*1.5 - (np.log10(beta) - np.log10(betal))*scale

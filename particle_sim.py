@@ -29,7 +29,7 @@ OUTPUTS: Final location and finishing time
 import numpy as np
 
 def part_sim(beta, simt, dt, pstart, efinp, cor): #simt in days, dt in minutes
-    simt = int(simt*1440) + cor
+    simt = int(simt*1440) + cor # simt in minutes
     traj = pstart
     for t in np.arange(0,simt-30,dt):
         traj = rk4(traj, beta, dt) #traj updated to t+1

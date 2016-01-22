@@ -20,6 +20,7 @@ from conversion_routines import pos2radec
 from particle_sim import part_sim
 import idlsave
 import pickle
+import sPickle
 
 #%%
 
@@ -404,8 +405,8 @@ else:
 #***********************************
 
 #choose FP diagram parameters 
-betau = 1; betal = 0.001; bno = 200
-simtu = 200; simtl = 5; tno = 200
+betau = 2; betal = 0.001; bno = 1000
+simtu = 200; simtl = 5; tno = 1000
 
 #finds maximum possible simulateable time and ensure simtu is bounded by this
 simtmax = np.round(ctime.jd - comveceq10[0,0])
@@ -415,10 +416,10 @@ else:
     simtu = simtu
     
 #option for log distributed or linear distributed
-tspace = 'log'
+tspace = 'lin'
 if (tspace == 'log'):
     tvals = np.round(6*np.logspace(np.log10(simtl), np.log10(simtu), num=tno))/6
-else:
+elif (tspace == 'lin'):
     tvals = np.round(6*np.linspace(simtl, simtu, tno))/6
 
 #create log distributed beta values, accounting that log(0) is impossible
@@ -439,14 +440,14 @@ while (tidx < tno):
     while ( bidx < bno and rasim <= ramax and rasim >= ramin  and
             desim <= decmax and desim >= decmin):
         pstart = comveceq10[comcel10-int(144*tvals[tidx]),6:12]
-        dt = int(np.ceil(tvals[tidx]*0.144))
+        dt = int(np.ceil(tvals[tidx]*72))
         sim = part_sim(bvals[bidx],tvals[tidx],dt,pstart,efinp,dtmin)
         simres[tidx,bidx,0] = tvals[tidx]
         simres[tidx,bidx,1] = bvals[bidx]
         simres[tidx,bidx,2] = sim[0] #length of simulation in minutes
         simres[tidx,bidx,3] = comcel-1440*tvals[tidx]+sim[0] #find relevant cell for end of traj
         simres[tidx,bidx,4:10] = sim[1] #finishing pos/vel
-        simres[tidx,bidx,10:12] = pos2radec(sim[1][0:3] - \
+        simres[tidx,bidx,10:12] = pos2radec(sim[1][0:3] - 
         obsveceq[int(simres[tidx,bidx,3]),6:9])
         rasim = simres[tidx,bidx,10]
         desim = simres[tidx,bidx,11]
@@ -465,8 +466,9 @@ simressavefile = os.path.join(simressavefile, filebase + '_' + str(betal) + '_'
                  + str(simtl) + '_' + str(tno))
 simressavefile = string.replace(simressavefile,'.','\'')
 
-with open(simressavefile, 'w') as f:
-        pickle.dump([simres, tmax, bmax, tno, bno], f)
+np.save(simressavefile, simres)
+with open(simressavefile + '_parameters' , 'w') as f:
+    pickle.dump([tmax, bmax, tno, bno, tspace], f)
 
 #%%
 
