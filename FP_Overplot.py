@@ -58,9 +58,15 @@ fitsin = easygui.fileopenbox(default = os.path.join(imagedir, r"*.fits"))
 fitsinfile = os.path.basename(fitsin)
 filebase = fitsinfile[:string.find(fitsinfile,'.')]
 
+inv = True
+
 #check if image exists already
-imgsav = os.path.join(imagedir, filebase + '.png')
-imgexists = os.path.exists(imgsav)
+if inv == False:   
+    imgsav = os.path.join(imagedir, filebase + '.png')
+    imgexists = os.path.exists(imgsav)
+elif inv == True:
+    imgsav = os.path.join(imagedir, filebase + '_inverted.png')
+    imgexists = os.path.exists(imgsav)  
 
 #parameter savefile location
 picklesavefile = os.path.join(pysav, filebase + '_dustplot')
@@ -109,7 +115,11 @@ if (imgexists == False) or (picklexists == False):
     #otherwise, stop the program
     elif reply == "Quit":
         exit()
-    
+        
+    if inv == False:   
+        colcr = colr; colcg = colg; colcb = colb
+    elif inv == True:
+        colcr = 255 - colr; colcg = 255 - colg; colcb = 255 - colb
 #%%
 
 #************************
@@ -162,7 +172,7 @@ if (imgexists == False) or (picklexists == False):
             dec3 = dec2ypix(dec[x+1,y+1],border,pixheight,decmin,scale)
             dec4 = dec2ypix(dec[x,y+1],border,pixheight,decmin,scale)
             a = d.polygon([(ra1,dec1),(ra2,dec2),(ra3,dec3),(ra4,dec4)] ,\
-            fill=(colr[x,y],colg[x,y],colb[x,y],255))
+            fill=(colcr[x,y],colcg[x,y],colcb[x,y],255))
             
     #%%
     
@@ -311,8 +321,8 @@ if (imgexists == False) or (picklexists == False):
         fill = (0,255,255,255))
     
     #creates an array of ra/dec values along sun-comet line
-    cmsam = 1401
-    offsets = np.ones(cmsam) + np.linspace(-0.2,0.5,cmsam)
+    cmsam = 10001
+    offsets = np.ones(cmsam) + np.linspace(-0.3,0.7,cmsam)
     comsun = np.empty((cmsam,4),dtype = float)
     for cs in xrange(0,cmsam):
         ctemp = pos2radec(offsets[cs]*comveceq[ltcomcel,6:9] - 
@@ -405,8 +415,8 @@ else:
 #***********************************
 
 #choose FP diagram parameters 
-betau = 2; betal = 0.001; bno = 1000
-simtu = 200; simtl = 5; tno = 1000
+betau = 20; betal = 0.001; bno = 2
+simtu = 200; simtl = 5; tno = 10
 
 #finds maximum possible simulateable time and ensure simtu is bounded by this
 simtmax = np.round(ctime.jd - comveceq10[0,0])
@@ -475,26 +485,31 @@ with open(simressavefile + '_parameters' , 'w') as f:
 #*****************************
 #EIGHT CELL - Plot dust motion
 #*****************************
-
+if inv ==  False:
+    sfill = (255,255,255,255)
+elif inv ==  True:
+    sfill = (0,0,0,255)
+    
 #DRAW SYNDYNES
 for ba in xrange(0, bno):
     b = d.line([(rapixl,depixl), \
     (simres[0,ba,12],simres[0,ba,13])],\
-    fill = (255,255,255,255))
+    fill = sfill)
     for ta in xrange(0, tmax[ba]):
         b = d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
         (simres[ta+1,ba,12],simres[ta+1,ba,13])],\
-        fill = (255,255,255,255))
-
+        fill = sfill)
+'''
 #DRAW SYNCHRONES
 for ta in xrange(0, tno):
     b = d.line([(rapixl,depixl), \
     (simres[ta,0,12],simres[ta,0,13])],\
-    fill = (255,255,255,255))
+    fill = sfill)
     for ba in xrange(0, bmax[ta]):
         b = d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
         (simres[ta,ba+1,12],simres[ta,ba+1,13])],\
-        fill = (255,255,255,255))
+        fill = sfill)
+'''
 '''
 #DRAW DATAPOINTS
 for ta in xrange(0,tno):

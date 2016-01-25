@@ -105,8 +105,8 @@ with open(simin[:-4] + '_parameters') as f:
 #fig = plt.figure()
 srcolors = np.zeros((tno,bno,5),dtype=int)
 rashape1 = np.shape(ra)[1]
-for ta in xrange(0, tno-1):
-    for ba in xrange(0, bmax[ta+1]):
+for ta in xrange(0, 1): #tno-1):
+    for ba in xrange(0, 1): #bmax[ta+1]):
         boxramin = min(simres[ta,ba,10],simres[ta+1,ba,10],
                        simres[ta,ba+1,10],simres[ta+1,ba+1,10])
         boxdemin = min(simres[ta,ba,11],simres[ta+1,ba,11],
@@ -138,20 +138,16 @@ for ta in xrange(0, tno-1):
                                                       boxlocs[n,3]))                                        
             boxlocs = boxlocs[np.where(boxlocs[:,4] == 1)]
             numin = np.shape(boxlocs)[0]
-            if (numin == 1):
-                srcolors[ta,ba,0] = colr[boxlocs[0,0],boxlocs[0,1]]
-                srcolors[ta,ba,1] = colg[boxlocs[0,0],boxlocs[0,1]]
-                srcolors[ta,ba,2] = colb[boxlocs[0,0],boxlocs[0,1]]
-            if (numin > 1):
-                rtot = 0; btot = 0; gtot = 0
-                for n in xrange(0,numin):
-                     rtot += colr[boxlocs[n,0],boxlocs[n,1]]
-                     gtot += colg[boxlocs[n,0],boxlocs[n,1]]
-                     btot += colb[boxlocs[n,0],boxlocs[n,1]]
-                srcolors[ta,ba,0] = rtot/numin
-                srcolors[ta,ba,1] = gtot/numin
-                srcolors[ta,ba,2] = btot/numin
-        if (numin == 0):
+        if (numin > 0):
+            for n in xrange(0,numin):
+                rtot = 0; gtot = 0; btot = 0
+                rtot += colr[boxlocs[n,0],boxlocs[n,1]]
+                gtot += colg[boxlocs[n,0],boxlocs[n,1]]
+                btot += colb[boxlocs[n,0],boxlocs[n,1]]
+            srcolors[ta,ba,0] = rtot/numin
+            srcolors[ta,ba,1] = gtot/numin
+            srcolors[ta,ba,2] = btot/numin
+        else:
             avera = (simres[ta,ba,10] + simres[ta,ba+1,10] +
                     simres[ta+1,ba,10] + simres[ta+1,ba+1,10])/4
             avedec = (simres[ta,ba,11] + simres[ta,ba+1,11] +
@@ -163,7 +159,7 @@ for ta in xrange(0, tno-1):
             srcolors[ta,ba,2] = colb[loc[0][0],loc[1][0]]
         srcolors[ta,ba,3] = numin
         srcolors[ta,ba,4] = 1
-    print ta*100/(tno-1)
+    print float(ta*tno)/tno
 
 #%%
 
