@@ -9,13 +9,13 @@ import math as m
 #FINSON PROBSTEIN OVERLAY PLOT FUNCTIONS
 #***************************************
 
-def ra2xpix(ra, border, ramin, scale):
-    return border*1.5 + (ra - ramin)*scale
+def ra2xpix(ra, border, pixwidth, ramin, scale):
+    return pixwidth + border*1.5 - (ra - ramin)*scale
     
 def dec2ypix(dec, border, pixheight, decmin, scale):
     return pixheight + border*1.5 - (dec-decmin)*scale
 
-def setaxisup(ramax,ramin,decmax,decmin,border,pixheight,scale):
+def setaxisup(ramax,ramin,decmax,decmin,border,pixheight,pixwidth,scale):
     
     #Tables with various sets of possible major/minor division sizes
     divmajors = np.array([0.01,0.02,0.05,0.1,0.2,0.5,1,2,5])
@@ -57,8 +57,8 @@ def setaxisup(ramax,ramin,decmax,decmin,border,pixheight,scale):
     g = np.arange(declomindiv, dechimindiv+1e-10, divminors[dividx])
     
     #converts these to position on image
-    b = ra2xpix(a,border,ramin,scale)
-    d = ra2xpix(c,border,ramin,scale)
+    b = ra2xpix(a,border,pixwidth,ramin,scale)
+    d = ra2xpix(c,border,pixwidth,ramin,scale)
     f = dec2ypix(e,border,pixheight,decmin,scale)
     h = dec2ypix(g,border,pixheight,decmin,scale)
     

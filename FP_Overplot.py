@@ -20,7 +20,6 @@ from conversion_routines import pos2radec
 from particle_sim import part_sim
 import idlsave
 import pickle
-import sPickle
 
 #%%
 
@@ -163,10 +162,10 @@ if (imgexists == False) or (picklexists == False):
     #plots image on canvas
     for x in xrange(0, ya-2):
         for y in xrange(0, xa-2):
-            ra1 = ra2xpix(ra[x,y],border,ramin,scale)
-            ra2 = ra2xpix(ra[x+1,y],border,ramin,scale)
-            ra3 = ra2xpix(ra[x+1,y+1],border,ramin,scale)
-            ra4 = ra2xpix(ra[x,y+1],border,ramin,scale)
+            ra1 = ra2xpix(ra[x,y],border,pixwidth,ramin,scale)
+            ra2 = ra2xpix(ra[x+1,y],border,pixwidth,ramin,scale)
+            ra3 = ra2xpix(ra[x+1,y+1],border,pixwidth,ramin,scale)
+            ra4 = ra2xpix(ra[x,y+1],border,pixwidth,ramin,scale)
             dec1 = dec2ypix(dec[x,y],border,pixheight,decmin,scale)
             dec2 = dec2ypix(dec[x+1,y],border,pixheight,decmin,scale)
             dec3 = dec2ypix(dec[x+1,y+1],border,pixheight,decmin,scale)
@@ -186,7 +185,7 @@ if (imgexists == False) or (picklexists == False):
     outline = (255,255,255,128))
     
     #most of the dirty stuff is bunged into this function
-    axisdata = setaxisup(ramax,ramin,decmax,decmin,border,pixheight,scale)
+    axisdata = setaxisup(ramax,ramin,decmax,decmin,border,pixheight,pixwidth,scale)
     
     #axisdata 0/1 - ra major divisions --- values and pixel locations
     #axisdata 2 - ra minor divisions --- pixel locations
@@ -314,7 +313,7 @@ if (imgexists == False) or (picklexists == False):
     ltcomcel = vtraj[vtrajcel,4]
     
     #convert to ra and dec, and plot
-    vtraj[:,2] = ra2xpix(vtraj[:,0],border,ramin,scale)
+    vtraj[:,2] = ra2xpix(vtraj[:,0],border,pixwidth,ramin,scale)
     vtraj[:,3] = dec2ypix(vtraj[:,1],border,pixheight,decmin,scale)
     for ta in xrange(0, (np.shape(vtraj)[0]-1)):
         b = d.line([(vtraj[ta,2],vtraj[ta,3]),(vtraj[ta+1,2],vtraj[ta+1,3])],\
@@ -339,7 +338,7 @@ if (imgexists == False) or (picklexists == False):
     comsun = comsun[csvrange[0]:csvrange[-1],:]
     
     #convert to ra and dec, and plot
-    comsun[:,2] = ra2xpix(comsun[:,0],border,ramin,scale)
+    comsun[:,2] = ra2xpix(comsun[:,0],border,pixwidth,ramin,scale)
     comsun[:,3] = dec2ypix(comsun[:,1],border,pixheight,decmin,scale)
     for ca in xrange(0, (np.shape(comsun)[0]-1)):
         b = d.line([(comsun[ca,2],comsun[ca,3]),
@@ -461,8 +460,10 @@ while (tidx < tno):
         obsveceq[int(simres[tidx,bidx,3]),6:9])
         rasim = simres[tidx,bidx,10]
         desim = simres[tidx,bidx,11]
-        simres[tidx,bidx,12] = ra2xpix(simres[tidx,bidx,10],border,ramin,scale)
-        simres[tidx,bidx,13] = dec2ypix(simres[tidx,bidx,11],border,pixheight,decmin,scale)
+        simres[tidx,bidx,12] = ra2xpix(simres[tidx,bidx,10],
+                                        border,pixwidth,ramin,scale)
+        simres[tidx,bidx,13] = dec2ypix(simres[tidx,bidx,11],
+                                        border,pixheight,decmin,scale)
         bidx += 1
     bmax[tidx] = bidx - 1
     tidx += 1
