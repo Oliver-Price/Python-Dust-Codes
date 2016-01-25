@@ -105,6 +105,11 @@ with open(simin[:-4] + '_parameters') as f:
 #fig = plt.figure()
 srcolors = np.zeros((tno,bno,5),dtype=int)
 rashape1 = np.shape(ra)[1]
+
+raonly = simres[:,:,10]
+deconly = simres[:,:,11]
+
+
 for ta in xrange(0, 1): #tno-1):
     for ba in xrange(0, 1): #bmax[ta+1]):
         boxramin = min(simres[ta,ba,10],simres[ta+1,ba,10],
@@ -216,7 +221,8 @@ else:
             b4 = beta2ypix(simres[ta+1,ba,1], border, pixhi, b1sfl, hscle)
             t4 = linsimt2xpix(simres[ta+1,ba,0], border, t1sfl, wscle)
             a = d.polygon([(t1,b1),(t2,b2),(t3,b3),(t4,b4)]
-            ,fill=(srcolors[ta,ba,0],srcolors[ta,ba,1],srcolors[ta,ba,2],255))   
+            ,fill=(srcolors[ta,ba,0],srcolors[ta,ba,1],srcolors[ta,ba,2],255))
+            
 #%%
 
 #***********************
