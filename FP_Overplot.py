@@ -379,8 +379,8 @@ if (imgexists == False) or (picklexists == False):
     
     with open(picklesavefile, 'w') as f:
         pickle.dump([comcel, comcel10, rao, deo, rapixl, depixl, ramax, decmax\
-                    ,ramin, decmin, border, pixheight, scale, ctime, dtmin, \
-                    ra, dec, colr, colb, colg], f)
+                    ,ramin, decmin, border, pixheight, pixwidth, scale, ctime\
+                    ,dtmin, ra, dec, colr, colb, colg], f)
                     
 else:
     print "Loading save image and parameter data"
@@ -399,9 +399,10 @@ else:
         decmin = parameters[9]
         border = parameters[10]
         pixheight = parameters[11]
-        scale = parameters[12]
-        ctime = parameters[13]
-        dtmin = parameters[14]
+        pixwidth = parameters[12]
+        scale = parameters[13]
+        ctime = parameters[14]
+        dtmin = parameters[15]
         
     comimg = Image.open(imgsav)
     d = ImageDraw.Draw(comimg)
@@ -414,8 +415,8 @@ else:
 #***********************************
 
 #choose FP diagram parameters 
-betau = 20; betal = 0.001; bno = 2
-simtu = 200; simtl = 5; tno = 10
+betau = 2; betal = 0.001; bno = 200
+simtu = 200; simtl = 1; tno = 200
 
 #finds maximum possible simulateable time and ensure simtu is bounded by this
 simtmax = np.round(ctime.jd - comveceq10[0,0])
@@ -464,6 +465,7 @@ while (tidx < tno):
                                         border,pixwidth,ramin,scale)
         simres[tidx,bidx,13] = dec2ypix(simres[tidx,bidx,11],
                                         border,pixheight,decmin,scale)
+                                        
         bidx += 1
     bmax[tidx] = bidx - 1
     tidx += 1
@@ -489,8 +491,9 @@ with open(simressavefile + '_parameters' , 'w') as f:
 if inv ==  False:
     sfill = (255,255,255,255)
 elif inv ==  True:
-    sfill = (0,0,0,255)
+    sfill = (255,0,0,255)
     
+ 
 #DRAW SYNDYNES
 for ba in xrange(0, bno):
     b = d.line([(rapixl,depixl), \
@@ -500,6 +503,7 @@ for ba in xrange(0, bno):
         b = d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
         (simres[ta+1,ba,12],simres[ta+1,ba,13])],\
         fill = sfill)
+
 '''
 #DRAW SYNCHRONES
 for ta in xrange(0, tno):
