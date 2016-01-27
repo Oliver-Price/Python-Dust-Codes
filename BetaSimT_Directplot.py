@@ -11,7 +11,7 @@ import numpy as np
 import time
 import matplotlib.path as mplPath
 from orbitdata_loading_functions import orb_vector, orb_obs
-from plot_functions import beta2ypix, linsimt2xpix, logsimt2xpix
+from plot_functions import beta2ypix, linsimt2xpix, logsimt2xpix, radec_slim
 from PIL import Image, ImageDraw, ImageFont
 
 
@@ -76,13 +76,13 @@ with open(picklesavefile) as f:
         decmax = dparameters[7]
         ramin = dparameters[8]
         decmin = dparameters[9]
-        ctime = dparameters[13]
-        dtmin = dparameters[14]
-        ra = dparameters[15]
-        dec = dparameters[16]
-        colr = dparameters[17]
-        colg = dparameters[18]
-        colb = dparameters[19]
+        ctime = dparameters[14]
+        dtmin = dparameters[15]
+        ra = dparameters[16]
+        dec = dparameters[17]
+        colr = dparameters[18]
+        colg = dparameters[19]
+        colb = dparameters[20]
         
 #find and import simulation results
 simresdir = os.path.join(pysav, 'simres')
@@ -99,14 +99,17 @@ with open(simin[:-4] + '_parameters') as f:
 
 #%%
 
-#****************************************************
-#SECOND CELL - FIND RELEVANT DATA FROM ORIGINAL IMAGE
-#****************************************************
+#***********************************************************
+#SECOND CELL - IDENTIFYING PIXEL VALUES TO USE FOR BETA/SIMT
+#***********************************************************
 #fig = plt.figure()
 srcolors = np.zeros((tno,bno,5),dtype=int)
-rashape1 = np.shape(ra)[1]
-for ta in xrange(0, 1): #tno-1):
-    for ba in xrange(0, 1): #bmax[ta+1]):
+
+for ta in xrange(0, tno-1):
+    [ra_ta, dec_ta, ra_ta_d0, ra_ta_d1] = radec_slim(ra, dec,
+                                            simres[ta,:,10], simres[ta,:,11])
+    rashape1 = np.shape(ra_ta)[1]
+    for ba in xrange(0, bmax[ta+1]):
         boxramin = min(simres[ta,ba,10],simres[ta+1,ba,10],
                        simres[ta,ba+1,10],simres[ta+1,ba+1,10])
         boxdemin = min(simres[ta,ba,11],simres[ta+1,ba,11],
@@ -115,8 +118,9 @@ for ta in xrange(0, 1): #tno-1):
                        simres[ta,ba+1,10],simres[ta+1,ba+1,10])
         boxdemax = max(simres[ta,ba,11],simres[ta+1,ba,11],
                        simres[ta,ba+1,11],simres[ta+1,ba+1,11])  
-        ralocs = np.where((ra > boxramin) & (ra < boxramax))   
-        delocs = np.where((dec > boxdemin) & (dec < boxdemax))
+        ralocs = np.where((ra_ta > boxramin) & (ra_ta < boxramax))   
+        delocs = np.where((dec_ta > boxdemin) & (dec_ta < boxdemax))
+        
         ralocs1d = ralocs[0]*rashape1+ralocs[1]
         delocs1d = delocs[0]*rashape1+delocs[1]   
         boxlocs1d = np.intersect1d(ralocs1d,delocs1d)
@@ -132,18 +136,18 @@ for ta in xrange(0, 1): #tno-1):
             [simres[ta,ba+1,10], simres[ta,ba+1,11]]])
             bbPath = mplPath.Path(boxpath)
             for n in xrange(0,numin):
-                boxlocs[n,2] = ra[boxlocs[n,0],boxlocs[n,1]]
-                boxlocs[n,3] = dec[boxlocs[n,0],boxlocs[n,1]]
+                boxlocs[n,2] = ra_ta[boxlocs[n,0],boxlocs[n,1]]
+                boxlocs[n,3] = dec_ta[boxlocs[n,0],boxlocs[n,1]]
                 boxlocs[n,4] = bbPath.contains_point((boxlocs[n,2],
                                                       boxlocs[n,3]))                                        
             boxlocs = boxlocs[np.where(boxlocs[:,4] == 1)]
             numin = np.shape(boxlocs)[0]
         if (numin > 0):
+            rtot = 0; gtot = 0; btot = 0
             for n in xrange(0,numin):
-                rtot = 0; gtot = 0; btot = 0
-                rtot += colr[boxlocs[n,0],boxlocs[n,1]]
-                gtot += colg[boxlocs[n,0],boxlocs[n,1]]
-                btot += colb[boxlocs[n,0],boxlocs[n,1]]
+                rtot += colr[boxlocs[n,0]+ra_ta_d0,boxlocs[n,1]+ra_ta_d1]
+                gtot += colg[boxlocs[n,0]+ra_ta_d0,boxlocs[n,1]+ra_ta_d1]
+                btot += colb[boxlocs[n,0]+ra_ta_d0,boxlocs[n,1]+ra_ta_d1]
             srcolors[ta,ba,0] = rtot/numin
             srcolors[ta,ba,1] = gtot/numin
             srcolors[ta,ba,2] = btot/numin
@@ -159,7 +163,7 @@ for ta in xrange(0, 1): #tno-1):
             srcolors[ta,ba,2] = colb[loc[0][0],loc[1][0]]
         srcolors[ta,ba,3] = numin
         srcolors[ta,ba,4] = 1
-    print float(ta*tno)/tno
+    print float(ta*100)/tno
 
 #%%
 
@@ -187,7 +191,8 @@ elif (tspace == 'lin'):
 dustimg = Image.new('RGBA', (pixwt+int(2.5*border),
                              pixhi+int(3*border)),(0,0,0,255))
 d = ImageDraw.Draw(dustimg)
-greyscale = True
+greyscale = False
+nmmax = np.log(np.max(srcolors[:,:,3])+1)
 
 if (greyscale == True):  
     for ta in xrange(0, tno-1):
@@ -216,7 +221,8 @@ else:
             b4 = beta2ypix(simres[ta+1,ba,1], border, pixhi, b1sfl, hscle)
             t4 = linsimt2xpix(simres[ta+1,ba,0], border, t1sfl, wscle)
             a = d.polygon([(t1,b1),(t2,b2),(t3,b3),(t4,b4)]
-            ,fill=(srcolors[ta,ba,0],srcolors[ta,ba,1],srcolors[ta,ba,2],255))   
+            ,fill=(srcolors[ta,ba,0],srcolors[ta,ba,1],srcolors[ta,ba,2],255))
+            
 #%%
 
 #***********************
