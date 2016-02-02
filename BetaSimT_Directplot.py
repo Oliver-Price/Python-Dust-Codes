@@ -120,7 +120,6 @@ for ta in xrange(0, tno-1):
                        simres[ta,ba+1,11],simres[ta+1,ba+1,11])  
         ralocs = np.where((ra_ta > boxramin) & (ra_ta < boxramax))   
         delocs = np.where((dec_ta > boxdemin) & (dec_ta < boxdemax))
-        
         ralocs1d = ralocs[0]*rashape1+ralocs[1]
         delocs1d = delocs[0]*rashape1+delocs[1]   
         boxlocs1d = np.intersect1d(ralocs1d,delocs1d)

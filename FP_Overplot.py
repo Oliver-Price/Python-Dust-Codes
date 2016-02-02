@@ -71,7 +71,8 @@ elif inv == True:
 picklesavefile = os.path.join(pysav, filebase + '_dustplot')
 picklexists = os.path.exists(picklesavefile)
 
-if (imgexists == False) or (picklexists == False):
+forceredraw = True
+if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     
     #choose img type
     colormsg = "Please select image type:"
@@ -155,7 +156,7 @@ if (imgexists == False) or (picklexists == False):
     pixwidth = int(pixheight*(ramax - ramin)/(decmax - decmin))
     border = 100
     scale = pixheight/(decmax - decmin)
-    comimg = Image.new('RGBA', (pixwidth+int(2.5*border),
+    comimg = Image.new('RGBA', (pixwidth+int(3.5*border),
                                 pixheight+int(3*border)),(0,0,0,255))
     d = ImageDraw.Draw(comimg)
     
@@ -352,7 +353,7 @@ if (imgexists == False) or (picklexists == False):
     for ua in xrange(0, np.size(ura)-2):
         b = d.line([(ura[ua],udec[ua]),(ura[ua+1],udec[ua+1])],  
         fill = (0,100,255,255))
-        
+       
     '''
     #plot comet location
     b = d.line( [ ( vtraj[vtrajcel,2]-5 , vtraj[vtrajcel,3]-5 ) ,
@@ -415,8 +416,8 @@ else:
 #***********************************
 
 #choose FP diagram parameters 
-betau = 2; betal = 0.001; bno = 200
-simtu = 200; simtl = 1; tno = 200
+betau = 2; betal = 0.001; bno = 20
+simtu = 400; simtl = 400; tno = 1
 
 #finds maximum possible simulateable time and ensure simtu is bounded by this
 simtmax = np.round(ctime.jd - comveceq10[0,0])
@@ -493,7 +494,7 @@ if inv ==  False:
 elif inv ==  True:
     sfill = (255,0,0,255)
     
- 
+'''
 #DRAW SYNDYNES
 for ba in xrange(0, bno):
     b = d.line([(rapixl,depixl), \
@@ -503,8 +504,8 @@ for ba in xrange(0, bno):
         b = d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
         (simres[ta+1,ba,12],simres[ta+1,ba,13])],\
         fill = sfill)
-
 '''
+
 #DRAW SYNCHRONES
 for ta in xrange(0, tno):
     b = d.line([(rapixl,depixl), \
@@ -514,7 +515,7 @@ for ta in xrange(0, tno):
         b = d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
         (simres[ta,ba+1,12],simres[ta,ba+1,13])],\
         fill = sfill)
-'''
+
 '''
 #DRAW DATAPOINTS
 for ta in xrange(0,tno):
@@ -527,4 +528,6 @@ for ta in xrange(0,tno):
                   ( simres[ta,ba,12] + xsiz , simres[ta,ba,13] - xsiz ) ] ,
                   fill = (255,0,255,255) )
 '''
-comimg.show()        
+comimg.show()    
+cimgsav = os.path.join(imagedir, 'temp.png')    
+comimg.save(cimgsav,'png')
