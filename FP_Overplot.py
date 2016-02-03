@@ -236,6 +236,8 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     d.text((1.5*border + pixwidth*0.5 - len(plttitle)*5 - 60,.35*border), \
     plttitle, font=tfnt, fill=(255,255,255,128))
     
+    pix = comimg.load()
+    
     #%%
     
     #****************************
@@ -277,9 +279,14 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     
     #%%
     
-    #****************************************************************************
-    #FIFTH CELL - Plot Comet Traj, Comet-Sun Vector, Comet Location + Uncertainty
-    #****************************************************************************
+    #************************************************************
+    #FIFTH CELL - Plot Comet Traj, Comet-Sun Vector + Uncertainty
+    #************************************************************
+    
+    #setting RGBA colours of lines
+    trajfill = (0,255,255,255)
+    trajucfill = (0,100,255,255)
+    comsunfill = (0,255,0,255)
     
     #find rough cell range of traj from observer data
     obsraloc = np.where((comobs[:,5] > axisdata[6]) \
@@ -318,7 +325,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     vtraj[:,3] = dec2ypix(vtraj[:,1],border,pixheight,decmin,scale)
     for ta in xrange(0, (np.shape(vtraj)[0]-1)):
         b = d.line([(vtraj[ta,2],vtraj[ta,3]),(vtraj[ta+1,2],vtraj[ta+1,3])],\
-        fill = (0,255,255,255))
+        fill = trajfill)
     
     #creates an array of ra/dec values along sun-comet line
     cmsam = 10001
@@ -344,7 +351,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     for ca in xrange(0, (np.shape(comsun)[0]-1)):
         b = d.line([(comsun[ca,2],comsun[ca,3]),
                     (comsun[ca+1,2],comsun[ca+1,3])],
-                    fill = (0,255,0,255))
+                    fill = comsunfill)
         
     #draw range of uncertainty in comet position
     sig_t = int(float(idls.sig_t))
@@ -352,6 +359,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     udec = vtraj [ (vtrajcel - sig_t) : (vtrajcel + sig_t) , 3 ]
     for ua in xrange(0, np.size(ura)-2):
         b = d.line([(ura[ua],udec[ua]),(ura[ua+1],udec[ua+1])],  
+<<<<<<< HEAD
         fill = (0,100,255,255))
        
     '''
@@ -363,6 +371,10 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
                   ( vtraj[vtrajcel,2]+5, vtraj[vtrajcel,3]-5) ] ,
                   fill = (255,0,0,255), width = 3)    
     '''
+=======
+        fill = trajucfill)
+        
+>>>>>>> refs/remotes/origin/Beta_Simt_test
 #%%
 
 #*************************************************************
@@ -379,9 +391,10 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     comimg.save(imgsav,'png')
     
     with open(picklesavefile, 'w') as f:
-        pickle.dump([comcel, comcel10, rao, deo, rapixl, depixl, ramax, decmax\
-                    ,ramin, decmin, border, pixheight, pixwidth, scale, ctime\
-                    ,dtmin, ra, dec, colr, colb, colg], f)
+        pickle.dump([comcel, comcel10, rao, deo, rapixl, depixl, ramax, decmax
+                    ,ramin, decmin, border, pixheight, pixwidth, scale, ctime
+                    ,dtmin, ra, dec, colr, colb, colg, trajfill, trajucfill,
+                    comsunfill], f)
                     
 else:
     print "Loading save image and parameter data"
@@ -404,6 +417,9 @@ else:
         scale = parameters[13]
         ctime = parameters[14]
         dtmin = parameters[15]
+        trajfill = parameters[21]
+        trajucfill = parameters[22]
+        comsunfill = parameters[23]
         
     comimg = Image.open(imgsav)
     d = ImageDraw.Draw(comimg)
@@ -440,10 +456,19 @@ if (betal == 0):
 else:
     bvals = np.logspace(np.log10(betal), np.log10(betau), num=(bno))
 
-simres = np.empty((tno,bno,14),dtype = float)
+#this is for identifying pixels where lines are present on grid
+linevalfalses = np.ones((256,256,256), dtype = int)
+linevalfalses[trajfill[0],trajfill[1],trajfill[2]] = 0
+linevalfalses[trajucfill[0],trajucfill[1],trajucfill[2]] = 0
+linevalfalses[comsunfill[0],comsunfill[1],comsunfill[2]] = 0
+
+#prep for simulation loop
+simres = np.empty((tno,bno,16),dtype = float)
 efinp = obsveceq[comcel,6:9]
 bmax = np.empty((tno),dtype = int)
 tidx = 0
+pix = comimg.load()
+
 while (tidx < tno):
     bidx = 0
     rasim = rao
@@ -466,13 +491,25 @@ while (tidx < tno):
                                         border,pixwidth,ramin,scale)
         simres[tidx,bidx,13] = dec2ypix(simres[tidx,bidx,11],
                                         border,pixheight,decmin,scale)
-                                        
+        pv = pix[ int( round( simres[tidx,bidx,12] ) ),
+        int( round( simres[tidx,bidx,13] ) ) ][0:3]        
+        simres[tidx,bidx,14] = linevalfalses[pv[0],pv[1],pv[2]]*np.average(pv)                     
+        simres[tidx,bidx,15] = 1
         bidx += 1
     bmax[tidx] = bidx - 1
     tidx += 1
     print tidx*100/tno
-
+    
 tmax = tno - 1 - np.searchsorted(bmax[::-1], np.arange(bno))
+
+if inv == True:
+        zero_locs = np.where(simres[:,:,14] <= 20)
+elif inv == False:
+        zero_locs = np.where(simres[:,:,14] >= 235)
+
+zero_size = np.size(zero_locs[0])
+for z in xrange(0, zero_size):
+    simres[zero_locs[0][z],zero_locs[1][z],15] = 0
 
 simressavefile = os.path.join(pysav, 'simres')
 simressavefile = os.path.join(simressavefile, filebase + '_' + str(betal) + '_'

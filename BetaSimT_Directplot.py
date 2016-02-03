@@ -92,7 +92,6 @@ simres = np.load(simin)
 with open(simin[:-4] + '_parameters') as f:
     sparameters = pickle.load(f)
     tmax = sparameters[0]
-    bmax = sparameters[1]
     tno = sparameters[2]
     bno = sparameters[3]
     tspace = sparameters[4]
@@ -104,12 +103,13 @@ with open(simin[:-4] + '_parameters') as f:
 #***********************************************************
 #fig = plt.figure()
 srcolors = np.zeros((tno,bno,5),dtype=int)
+timearr = np.zeros((tno,bno,2), dtype=float)
 
 for ta in xrange(0, tno-1):
     [ra_ta, dec_ta, ra_ta_d0, ra_ta_d1] = radec_slim(ra, dec,
                                             simres[ta,:,10], simres[ta,:,11])
     rashape1 = np.shape(ra_ta)[1]
-    for ba in xrange(0, bmax[ta+1]):
+    for ba in np.where(simres[ta+1,:,15] == 1)[0][:-1].tolist():
         boxramin = min(simres[ta,ba,10],simres[ta+1,ba,10],
                        simres[ta,ba+1,10],simres[ta+1,ba+1,10])
         boxdemin = min(simres[ta,ba,11],simres[ta+1,ba,11],
@@ -162,6 +162,8 @@ for ta in xrange(0, tno-1):
             srcolors[ta,ba,2] = colb[loc[0][0],loc[1][0]]
         srcolors[ta,ba,3] = numin
         srcolors[ta,ba,4] = 1
+        timearr[ta,ba,0] = time.time()
+        timearr[ta,ba,1] = numin
     print float(ta*100)/tno
 
 #%%
@@ -195,7 +197,7 @@ nmmax = np.log(np.max(srcolors[:,:,3])+1)
 
 if (greyscale == True):  
     for ta in xrange(0, tno-1):
-        for ba in xrange(0, bmax[ta+1]):
+        for ba in np.where(simres[ta+1,:,15] == 1)[0][:-1].tolist():
             fillco = int(round(0.333333333333333333*(srcolors[ta,ba,0] + 
             srcolors[ta,ba,1] + srcolors[ta,ba,2])))
             b1 = beta2ypix(simres[ta,ba,1], border, pixhi, b1sfl, hscle)
@@ -210,7 +212,7 @@ if (greyscale == True):
             ,fill=(fillco,fillco,fillco,255))
 else:
     for ta in xrange(0, tno-1):
-        for ba in xrange(0, bmax[ta+1]):
+        for ba in np.where(simres[ta+1,:,15] == 1)[0][:-1].tolist():
             b1 = beta2ypix(simres[ta,ba,1], border, pixhi, b1sfl, hscle)
             t1 = linsimt2xpix(simres[ta,ba,0], border, t1sfl, wscle)
             b2 = beta2ypix(simres[ta,ba+1,1], border, pixhi, b1sfl, hscle)
