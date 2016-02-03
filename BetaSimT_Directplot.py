@@ -104,6 +104,7 @@ with open(simin[:-4] + '_parameters') as f:
 #***********************************************************
 #fig = plt.figure()
 srcolors = np.zeros((tno,bno,5),dtype=int)
+timearr = np.zeros((tno,bno,2), dtype=float)
 
 for ta in xrange(0, tno-1):
     [ra_ta, dec_ta, ra_ta_d0, ra_ta_d1] = radec_slim(ra, dec,
@@ -163,6 +164,8 @@ for ta in xrange(0, tno-1):
             srcolors[ta,ba,2] = colb[loc[0][0],loc[1][0]]
         srcolors[ta,ba,3] = numin
         srcolors[ta,ba,4] = 1
+        timearr[ta,ba,0] = time.time()
+        timearr[ta,ba,1] = numin
     print float(ta*100)/tno
 
 #%%
