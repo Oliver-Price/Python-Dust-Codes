@@ -236,6 +236,8 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     d.text((1.5*border + pixwidth*0.5 - len(plttitle)*5 - 60,.35*border), \
     plttitle, font=tfnt, fill=(255,255,255,128))
     
+    pix = comimg.load()
+    
     #%%
     
     #****************************
@@ -440,10 +442,11 @@ if (betal == 0):
 else:
     bvals = np.logspace(np.log10(betal), np.log10(betau), num=(bno))
 
-simres = np.empty((tno,bno,14),dtype = float)
+simres = np.empty((tno,bno,15),dtype = float)
 efinp = obsveceq[comcel,6:9]
 bmax = np.empty((tno),dtype = int)
 tidx = 0
+
 while (tidx < tno):
     bidx = 0
     rasim = rao
@@ -466,7 +469,9 @@ while (tidx < tno):
                                         border,pixwidth,ramin,scale)
         simres[tidx,bidx,13] = dec2ypix(simres[tidx,bidx,11],
                                         border,pixheight,decmin,scale)
-                                        
+        simres[tidx,bidx,14] = np.average(pix[
+        int( round( simres[tidx,bidx,12] ) ),
+        int( round( simres[tidx,bidx,13] ) ) ][0:3])                                       
         bidx += 1
     bmax[tidx] = bidx - 1
     tidx += 1
