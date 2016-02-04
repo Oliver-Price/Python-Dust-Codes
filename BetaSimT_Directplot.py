@@ -103,7 +103,8 @@ with open(simin[:-4] + '_parameters') as f:
 #***********************************************************
 #fig = plt.figure()
 srcolors = np.zeros((tno,bno,5),dtype=int)
-timearr = np.zeros((tno,bno,2), dtype=float)
+timearr = np.zeros((tno*bno,6), dtype=float)
+time_count = 0
 
 for ta in xrange(0, tno-1):
     [ra_ta, dec_ta, ra_ta_d0, ra_ta_d1] = radec_slim(ra, dec,
@@ -117,13 +118,16 @@ for ta in xrange(0, tno-1):
         boxramax = max(simres[ta,ba,10],simres[ta+1,ba,10],
                        simres[ta,ba+1,10],simres[ta+1,ba+1,10])
         boxdemax = max(simres[ta,ba,11],simres[ta+1,ba,11],
-                       simres[ta,ba+1,11],simres[ta+1,ba+1,11])  
+                       simres[ta,ba+1,11],simres[ta+1,ba+1,11])
+        timearr[time_count,0] = time.time()
         ralocs = np.where((ra_ta > boxramin) & (ra_ta < boxramax))   
         delocs = np.where((dec_ta > boxdemin) & (dec_ta < boxdemax))
+        timearr[time_count,1] = time.time()
         ralocs1d = ralocs[0]*rashape1+ralocs[1]
         delocs1d = delocs[0]*rashape1+delocs[1]   
         boxlocs1d = np.intersect1d(ralocs1d,delocs1d)
         numin = np.size(boxlocs1d)
+        timearr[time_count,2] = time.time()
         if (numin > 0): 
             boxlocs = np.empty((numin,5),dtype = float)
             boxlocs[:,0] = np.floor(boxlocs1d/rashape1)
@@ -141,6 +145,7 @@ for ta in xrange(0, tno-1):
                                                       boxlocs[n,3]))                                        
             boxlocs = boxlocs[np.where(boxlocs[:,4] == 1)]
             numin = np.shape(boxlocs)[0]
+        timearr[time_count,3] = time.time()
         if (numin > 0):
             rtot = 0; gtot = 0; btot = 0
             for n in xrange(0,numin):
@@ -150,20 +155,22 @@ for ta in xrange(0, tno-1):
             srcolors[ta,ba,0] = rtot/numin
             srcolors[ta,ba,1] = gtot/numin
             srcolors[ta,ba,2] = btot/numin
+            timearr[time_count,5] = 1
         else:
             avera = (simres[ta,ba,10] + simres[ta,ba+1,10] +
                     simres[ta+1,ba,10] + simres[ta+1,ba+1,10])/4
             avedec = (simres[ta,ba,11] + simres[ta,ba+1,11] +
                     simres[ta+1,ba,11] + simres[ta+1,ba+1,11])/4       
-            distarr = abs(ra - avera) + abs(dec - avedec)
+            distarr = abs(ra_ta - avera) + abs(dec_ta - avedec)
             loc = np.where(distarr == np.min(distarr))
-            srcolors[ta,ba,0] = colr[loc[0][0],loc[1][0]]
-            srcolors[ta,ba,1] = colg[loc[0][0],loc[1][0]]
-            srcolors[ta,ba,2] = colb[loc[0][0],loc[1][0]]
+            srcolors[ta,ba,0] = colr[loc[0][0]+ra_ta_d0,loc[1][0]+ra_ta_d1]
+            srcolors[ta,ba,1] = colg[loc[0][0]+ra_ta_d0,loc[1][0]+ra_ta_d1]
+            srcolors[ta,ba,2] = colb[loc[0][0]+ra_ta_d0,loc[1][0]+ra_ta_d1]
+            timearr[time_count,5] = 0
+        timearr[time_count,4] = time.time()
         srcolors[ta,ba,3] = numin
         srcolors[ta,ba,4] = 1
-        timearr[ta,ba,0] = time.time()
-        timearr[ta,ba,1] = numin
+        time_count += 1
     print float(ta*100)/tno
 
 #%%

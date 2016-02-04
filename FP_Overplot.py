@@ -57,7 +57,7 @@ fitsin = easygui.fileopenbox(default = os.path.join(imagedir, r"*.fits"))
 fitsinfile = os.path.basename(fitsin)
 filebase = fitsinfile[:string.find(fitsinfile,'.')]
 
-inv = True
+inv = False
 
 #check if image exists already
 if inv == False:   
@@ -71,7 +71,7 @@ elif inv == True:
 picklesavefile = os.path.join(pysav, filebase + '_dustplot')
 picklexists = os.path.exists(picklesavefile)
 
-forceredraw = True
+forceredraw = False
 if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     
     #choose img type
@@ -273,8 +273,8 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     
     #display orbit plane angle
     cimgopa = comobs[comcel,7]
-    d.text((0.25*border + pixwidth - 90,0.75*border - 20), \
-    "Orbit Plane Angle = " + "%.2f" % cimgopa ,
+    d.text((0.25*border + pixwidth - 50,0.75*border - 20), \
+    "Plane Angle = " + "%.2f" % cimgopa ,
     font=fnt, fill=(255,255,255,128))
     
     #%%
@@ -359,22 +359,8 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     udec = vtraj [ (vtrajcel - sig_t) : (vtrajcel + sig_t) , 3 ]
     for ua in xrange(0, np.size(ura)-2):
         b = d.line([(ura[ua],udec[ua]),(ura[ua+1],udec[ua+1])],  
-<<<<<<< HEAD
-        fill = (0,100,255,255))
-       
-    '''
-    #plot comet location
-    b = d.line( [ ( vtraj[vtrajcel,2]-5 , vtraj[vtrajcel,3]-5 ) ,
-                  ( vtraj[vtrajcel,2]+5 , vtraj[vtrajcel,3]+5 ) ] ,
-                  fill = (255,0,0,255), width = 3)
-    b = d.line( [ ( vtraj[vtrajcel,2]-5, vtraj[vtrajcel,3]+5) ,
-                  ( vtraj[vtrajcel,2]+5, vtraj[vtrajcel,3]-5) ] ,
-                  fill = (255,0,0,255), width = 3)    
-    '''
-=======
         fill = trajucfill)
-        
->>>>>>> refs/remotes/origin/Beta_Simt_test
+
 #%%
 
 #*************************************************************
@@ -432,8 +418,12 @@ else:
 #***********************************
 
 #choose FP diagram parameters 
-betau = 2; betal = 0.001; bno = 20
-simtu = 400; simtl = 400; tno = 1
+betau = 1; betal = 0.001; bno = 400
+simtu = 30; simtl = 0.2; tno = 400
+
+#Other parameters
+threshold = 10
+drawopts = 'chr'
 
 #finds maximum possible simulateable time and ensure simtu is bounded by this
 simtmax = np.round(ctime.jd - comveceq10[0,0])
@@ -445,9 +435,9 @@ else:
 #option for log distributed or linear distributed
 tspace = 'lin'
 if (tspace == 'log'):
-    tvals = np.round(6*np.logspace(np.log10(simtl), np.log10(simtu), num=tno))/6
+    tvals = np.logspace(np.log10(simtl), np.log10(simtu), num=tno)
 elif (tspace == 'lin'):
-    tvals = np.round(6*np.linspace(simtl, simtu, tno))/6
+    tvals = np.linspace(simtl, simtu, tno)
 
 #create log distributed beta values, accounting that log(0) is impossible
 if (betal == 0):
@@ -496,6 +486,7 @@ while (tidx < tno):
         simres[tidx,bidx,14] = linevalfalses[pv[0],pv[1],pv[2]]*np.average(pv)                     
         simres[tidx,bidx,15] = 1
         bidx += 1
+    simres[tidx,bidx-1,15] = 0
     bmax[tidx] = bidx - 1
     tidx += 1
     print tidx*100/tno
@@ -503,9 +494,9 @@ while (tidx < tno):
 tmax = tno - 1 - np.searchsorted(bmax[::-1], np.arange(bno))
 
 if inv == True:
-        zero_locs = np.where(simres[:,:,14] <= 20)
+        zero_locs = np.where(simres[:,:,14] <= threshold)
 elif inv == False:
-        zero_locs = np.where(simres[:,:,14] >= 235)
+        zero_locs = np.where(simres[:,:,14] >= (255 - threshold))
 
 zero_size = np.size(zero_locs[0])
 for z in xrange(0, zero_size):
@@ -526,45 +517,44 @@ with open(simressavefile + '_parameters' , 'w') as f:
 #*****************************
 #EIGHT CELL - Plot dust motion
 #*****************************
+
 if inv ==  False:
     sfill = (255,255,255,255)
 elif inv ==  True:
     sfill = (255,0,0,255)
     
-'''
-#DRAW SYNDYNES
-for ba in xrange(0, bno):
-    b = d.line([(rapixl,depixl), \
-    (simres[0,ba,12],simres[0,ba,13])],\
-    fill = sfill)
-    for ta in xrange(0, tmax[ba]):
-        b = d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
-        (simres[ta+1,ba,12],simres[ta+1,ba,13])],\
+if "dyn" in drawopts: #DRAW SYNDYNES
+    for ba in xrange(0, bno):
+        b = d.line([(rapixl,depixl), \
+        (simres[0,ba,12],simres[0,ba,13])],\
         fill = sfill)
-'''
+        for ta in xrange(0, tmax[ba]):
+            b = d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
+            (simres[ta+1,ba,12],simres[ta+1,ba,13])],\
+            fill = sfill)
 
-#DRAW SYNCHRONES
-for ta in xrange(0, tno):
-    b = d.line([(rapixl,depixl), \
-    (simres[ta,0,12],simres[ta,0,13])],\
-    fill = sfill)
-    for ba in xrange(0, bmax[ta]):
-        b = d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
-        (simres[ta,ba+1,12],simres[ta,ba+1,13])],\
+if "chr" in drawopts: #DRAW SYNCHRONES
+    for ta in xrange(0, tno):
+        b = d.line([(rapixl,depixl), \
+        (simres[ta,0,12],simres[ta,0,13])],\
         fill = sfill)
+        for ba in xrange(0, bmax[ta]):
+            b = d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
+            (simres[ta,ba+1,12],simres[ta,ba+1,13])],\
+            fill = sfill)
 
-'''
-#DRAW DATAPOINTS
-for ta in xrange(0,tno):
-    for ba in xrange(0, bmax[ta]):
-        xsiz = 2
-        b = d.line( [ ( simres[ta,ba,12] - xsiz , simres[ta,ba,13] - xsiz ) ,
-                  ( simres[ta,ba,12] + xsiz , simres[ta,ba,13] + xsiz ) ] ,
-                  fill = (255,0,255,255) )  
-        b = d.line( [ ( simres[ta,ba,12] - xsiz , simres[ta,ba,13] + xsiz ) ,
-                  ( simres[ta,ba,12] + xsiz , simres[ta,ba,13] - xsiz ) ] ,
-                  fill = (255,0,255,255) )
-'''
-comimg.show()    
-cimgsav = os.path.join(imagedir, 'temp.png')    
-comimg.save(cimgsav,'png')
+if "dat" in drawopts: #DRAW DATAPOINTS
+    for ta in xrange(0,tno):
+        for ba in xrange(0, bmax[ta]):
+            xsiz = 2
+            b = d.line( [ ( simres[ta,ba,12] - xsiz , simres[ta,ba,13] - xsiz ) ,
+                      ( simres[ta,ba,12] + xsiz , simres[ta,ba,13] + xsiz ) ] ,
+                      fill = (255,0,255,255) )  
+            b = d.line( [ ( simres[ta,ba,12] - xsiz , simres[ta,ba,13] + xsiz ) ,
+                      ( simres[ta,ba,12] + xsiz , simres[ta,ba,13] - xsiz ) ] ,
+                      fill = (255,0,255,255) )
+
+if ("dat" in drawopts) or ("chr" in drawopts) or ("dyn" in drawopts):
+    comimg.show()    
+    cimgsav = os.path.join(imagedir, 'temp.png')    
+    comimg.save(cimgsav,'png')
