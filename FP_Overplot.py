@@ -21,9 +21,7 @@ from particle_sim import part_sim
 import idlsave
 import pickle
 
-#%%
-
-#************************
+#%%**********************
 #FIRST CELL - GET DATA IN
 #************************
 
@@ -120,9 +118,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         colcr = colr; colcg = colg; colcb = colb
     elif inv == True:
         colcr = 255 - colr; colcg = 255 - colg; colcb = 255 - colb
-#%%
-
-#************************
+#%%**********************
 #SECOND CELL - Plot Image
 #************************
 
@@ -156,7 +152,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     pixwidth = int(pixheight*(ramax - ramin)/(decmax - decmin))
     border = 100
     scale = pixheight/(decmax - decmin)
-    comimg = Image.new('RGBA', (pixwidth+int(3.5*border),
+    comimg = Image.new('RGBA', (pixwidth+int(4*border),
                                 pixheight+int(3*border)),(0,0,0,255))
     d = ImageDraw.Draw(comimg)
     
@@ -174,9 +170,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
             a = d.polygon([(ra1,dec1),(ra2,dec2),(ra3,dec3),(ra4,dec4)] ,\
             fill=(colcr[x,y],colcg[x,y],colcb[x,y],255))
             
-    #%%
-    
-    #**********************
+    #%%********************
     #THIRD CELL - Draw Axis
     #**********************
     
@@ -238,9 +232,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     
     pix = comimg.load()
     
-    #%%
-    
-    #****************************
+    #%%**************************
     #FOURTH CELL - Get Imgtimehdr
     #****************************
     
@@ -277,9 +269,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     "Plane Angle = " + "%.2f" % cimgopa ,
     font=fnt, fill=(255,255,255,128))
     
-    #%%
-    
-    #************************************************************
+    #%%**********************************************************
     #FIFTH CELL - Plot Comet Traj, Comet-Sun Vector + Uncertainty
     #************************************************************
     
@@ -361,9 +351,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         b = d.line([(ura[ua],udec[ua]),(ura[ua+1],udec[ua+1])],  
         fill = trajucfill)
 
-#%%
-
-#*************************************************************
+#%%***********************************************************
 #SIXTH CELL - Save image and parameters or load existing image
 #*************************************************************
     
@@ -411,15 +399,13 @@ else:
     d = ImageDraw.Draw(comimg)
     comimg.show()
    
-#%%
-
-#***********************************
+#%%*********************************
 #SEVENTH CELL - Simulate dust motion
 #***********************************
 
 #choose FP diagram parameters 
-betau = 1; betal = 0.001; bno = 400
-simtu = 30; simtl = 0.2; tno = 400
+betau = 1; betal = 0.001; bno = 100
+simtu = 10; simtl = 0.1; tno = 200
 
 #Other parameters
 threshold = 10
@@ -465,8 +451,8 @@ while (tidx < tno):
     desim = deo
     while ( bidx < bno and rasim <= ramax and rasim >= ramin  and
             desim <= decmax and desim >= decmin):
-        pstart = comveceq10[comcel10-int(144*tvals[tidx]),6:12]
-        dt = int(np.ceil(tvals[tidx]*72))
+        pstart = comveceq10[comcel10-int(round(144*tvals[tidx])),6:12]
+        dt = int(np.ceil(tvals[tidx]*36))
         sim = part_sim(bvals[bidx],tvals[tidx],dt,pstart,efinp,dtmin)
         simres[tidx,bidx,0] = tvals[tidx]
         simres[tidx,bidx,1] = bvals[bidx]
@@ -489,7 +475,7 @@ while (tidx < tno):
     simres[tidx,bidx-1,15] = 0
     bmax[tidx] = bidx - 1
     tidx += 1
-    print tidx*100/tno
+    #print tidx*100/tno
     
 tmax = tno - 1 - np.searchsorted(bmax[::-1], np.arange(bno))
 
@@ -502,19 +488,18 @@ zero_size = np.size(zero_locs[0])
 for z in xrange(0, zero_size):
     simres[zero_locs[0][z],zero_locs[1][z],15] = 0
 
-simressavefile = os.path.join(pysav, 'simres')
-simressavefile = os.path.join(simressavefile, filebase + '_' + str(betal) + '_'
-                 + str(betau) + '_' + str(bno)+ '_' + str(simtu) + '_'
-                 + str(simtl) + '_' + str(tno))
-simressavefile = string.replace(simressavefile,'.','\'')
+sav = False
+if (sav == True):
+    simressavefile = os.path.join(pysav, 'simres')
+    simressavefile = os.path.join(simressavefile, filebase + '_' + str(betal) + '_'
+                     + str(betau) + '_' + str(bno)+ '_' + str(simtu) + '_'
+                     + str(simtl) + '_' + str(tno))
+    simressavefile = string.replace(simressavefile,'.','\'')
+    np.save(simressavefile, simres)
+    with open(simressavefile + '_parameters' , 'w') as f:
+        pickle.dump([tmax, bmax, tno, bno, tspace], f)
 
-np.save(simressavefile, simres)
-with open(simressavefile + '_parameters' , 'w') as f:
-    pickle.dump([tmax, bmax, tno, bno, tspace], f)
-
-#%%
-
-#*****************************
+#%%***************************
 #EIGHT CELL - Plot dust motion
 #*****************************
 
