@@ -12,6 +12,7 @@ import time
 import matplotlib.path as mplPath
 from orbitdata_loading_functions import orb_vector, orb_obs
 from plot_functions import beta2ypix, linsimt2xpix, logsimt2xpix, radec_slim
+from plot_functions import remap_contrast_greyscale
 from PIL import Image, ImageDraw, ImageFont
 
 
@@ -199,14 +200,16 @@ elif (tspace == 'lin'):
 dustimg = Image.new('RGBA', (pixwt+int(2.5*border),
                              pixhi+int(3*border)),(0,0,0,255))
 d = ImageDraw.Draw(dustimg)
-greyscale = False
+greyscale = True
 nmmax = np.log(np.max(srcolors[:,:,3])+1)
+
+newmap = remap_contrast_greyscale(100,45)
 
 if (greyscale == True):  
     for ta in xrange(0, tno-1):
         for ba in np.where(simres[ta+1,:,15] == 1)[0][:-1].tolist():
-            fillco = int(round(0.333333333333333333*(srcolors[ta,ba,0] + 
-            srcolors[ta,ba,1] + srcolors[ta,ba,2])))
+            fillco = newmap[int(round(0.333333333333333333*(srcolors[ta,ba,0] + 
+            srcolors[ta,ba,1] + srcolors[ta,ba,2])))]
             b1 = beta2ypix(simres[ta,ba,1], border, pixhi, b1sfl, hscle)
             t1 = linsimt2xpix(simres[ta,ba,0], border, t1sfl, wscle)
             b2 = beta2ypix(simres[ta,ba+1,1], border, pixhi, b1sfl, hscle)

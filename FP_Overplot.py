@@ -116,8 +116,12 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         
     if inv == False:   
         colcr = colr; colcg = colg; colcb = colb
+        backgr_fill = (0,0,0,255)
+        featur_fill = (255,255,255,255)
     elif inv == True:
         colcr = 255 - colr; colcg = 255 - colg; colcb = 255 - colb
+        backgr_fill = (255,255,255,255)
+        featur_fill = (0,0,0,255)
 #%%**********************
 #SECOND CELL - Plot Image
 #************************
@@ -153,7 +157,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     border = 100
     scale = pixheight/(decmax - decmin)
     comimg = Image.new('RGBA', (pixwidth+int(4*border),
-                                pixheight+int(3*border)),(0,0,0,255))
+                                pixheight+int(3*border)),backgr_fill)
     d = ImageDraw.Draw(comimg)
     
     #plots image on canvas
@@ -177,7 +181,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     #draws a border       
     a = d.polygon([(border,border),(border*2+pixwidth,border), \
     (border*2+pixwidth,border*2+pixheight),(border,border*2+pixheight)], \
-    outline = (255,255,255,128))
+    outline = featur_fill)
     
     #most of the dirty stuff is bunged into this function
     axisdata = setaxisup(ramax,ramin,decmax,decmin,border,pixheight,pixwidth,scale)
@@ -198,37 +202,37 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     
     for div in xrange(0, (np.size(axisdata[1]))): #RA axis major ticks
         b = d.line([(axisdata[1][div],rdaxis-majt),(axisdata[1][div],rdaxis)],\
-        fill = (255,255,255,128))
+        fill = featur_fill)
         tick = str(axisdata[0][div])
         d.text((axisdata[1][div] - len(tick)*5,rdaxis + 10), \
-        tick, font=fnt, fill=(255,255,255,128))
+        tick, font=fnt, fill= featur_fill)
         
     for div in xrange(0, (np.size(axisdata[2]))): #RA axis minor ticks
         b = d.line([(axisdata[2][div],rdaxis-mint),(axisdata[2][div],rdaxis)],\
-        fill = (255,255,255,128))
+        fill= featur_fill)
     
     for div in xrange(0, (np.size(axisdata[4]))): #DEC axis major ticks
         b = d.line([(border+majt,axisdata[4][div]),(border,axisdata[4][div])],\
-        fill = (255,255,255,128))
+        fill= featur_fill)
         tick = str(axisdata[3][div])
         d.text((border - len(tick)*5 - 40,axisdata[4][div] - 10 ), \
         tick, font=fnt, fill=(255,255,255,128))
         
     for div in xrange(0, (np.size(axisdata[5]))): #DEC axis minor ticks
         b = d.line([(border+mint,axisdata[5][div]),(border,axisdata[5][div])],\
-        fill = (255,255,255,128))
+        fill= featur_fill)
     
     #axis labels
     d.text((1.5*border + pixwidth*0.5 - 145,pixheight + 2.5*border), \
-    "Right Ascension (Degrees)", font=fnt, fill=(255,255,255,128))
+    "Right Ascension (Degrees)", font=fnt, fill= featur_fill)
     d.text((0.25*border - 10,0.75*border - 20), \
-    "Declination (Degrees)", font=fnt, fill=(255,255,255,128))
+    "Declination (Degrees)", font=fnt, fill= featur_fill)
     
     #plot title
     plttitle = (comdenom.upper() + ' ' + comname)
     tfnt = ImageFont.truetype(fontloc, 30)
     d.text((1.5*border + pixwidth*0.5 - len(plttitle)*5 - 60,.35*border), \
-    plttitle, font=tfnt, fill=(255,255,255,128))
+    plttitle, font=tfnt, fill= featur_fill)
     
     pix = comimg.load()
     
@@ -267,7 +271,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     cimgopa = comobs[comcel,7]
     d.text((0.25*border + pixwidth - 50,0.75*border - 20), \
     "Plane Angle = " + "%.2f" % cimgopa ,
-    font=fnt, fill=(255,255,255,128))
+    font=fnt, fill= featur_fill)
     
     #%%**********************************************************
     #FIFTH CELL - Plot Comet Traj, Comet-Sun Vector + Uncertainty
@@ -368,7 +372,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         pickle.dump([comcel, comcel10, rao, deo, rapixl, depixl, ramax, decmax
                     ,ramin, decmin, border, pixheight, pixwidth, scale, ctime
                     ,dtmin, ra, dec, colr, colb, colg, trajfill, trajucfill,
-                    comsunfill], f)
+                    comsunfill, backgr_fill], f)
                     
 else:
     print "Loading save image and parameter data"
@@ -394,6 +398,7 @@ else:
         trajfill = parameters[21]
         trajucfill = parameters[22]
         comsunfill = parameters[23]
+        backgr_fill = parameters[24]
         
     comimg = Image.open(imgsav)
     d = ImageDraw.Draw(comimg)
@@ -404,12 +409,12 @@ else:
 #***********************************
 
 #choose FP diagram parameters 
-betau = 1; betal = 0.001; bno = 100
-simtu = 10; simtl = 0.1; tno = 200
+betau = 1; betal = 0.11; bno = 200
+simtu = 10; simtl = 1; tno = 200
 
 #Other parameters
 threshold = 10
-drawopts = 'chr'
+drawopts = 'dyn'
 
 #finds maximum possible simulateable time and ensure simtu is bounded by this
 simtmax = np.round(ctime.jd - comveceq10[0,0])
@@ -437,6 +442,7 @@ linevalfalses = np.ones((256,256,256), dtype = int)
 linevalfalses[trajfill[0],trajfill[1],trajfill[2]] = 0
 linevalfalses[trajucfill[0],trajucfill[1],trajucfill[2]] = 0
 linevalfalses[comsunfill[0],comsunfill[1],comsunfill[2]] = 0
+linevalfalses[backgr_fill[0],backgr_fill[1],backgr_fill[2]] = 0
 
 #prep for simulation loop
 simres = np.empty((tno,bno,16),dtype = float)
@@ -451,31 +457,29 @@ while (tidx < tno):
     desim = deo
     while ( bidx < bno and rasim <= ramax and rasim >= ramin  and
             desim <= decmax and desim >= decmin):
-        pstart = comveceq10[comcel10-int(round(144*tvals[tidx])),6:12]
-        dt = int(np.ceil(tvals[tidx]*36))
-        sim = part_sim(bvals[bidx],tvals[tidx],dt,pstart,efinp,dtmin)
-        simres[tidx,bidx,0] = tvals[tidx]
+        simt10min = int(round(144*tvals[tidx]))
+        pstart = comveceq10[comcel10-simt10min,6:12]
+        sim = part_sim(bvals[bidx],simt10min,30,3,pstart,efinp,dtmin)
+        simres[tidx,bidx,0] = float(simt10min)/144
         simres[tidx,bidx,1] = bvals[bidx]
         simres[tidx,bidx,2] = sim[0] #length of simulation in minutes
-        simres[tidx,bidx,3] = comcel-1440*tvals[tidx]+sim[0] #find relevant cell for end of traj
+        simres[tidx,bidx,3] = comcel-10*simt10min+sim[0] #find relevant cell for end of traj
         simres[tidx,bidx,4:10] = sim[1] #finishing pos/vel
         simres[tidx,bidx,10:12] = pos2radec(sim[1][0:3] - 
         obsveceq[int(simres[tidx,bidx,3]),6:9])
         rasim = simres[tidx,bidx,10]
         desim = simres[tidx,bidx,11]
-        simres[tidx,bidx,12] = ra2xpix(simres[tidx,bidx,10],
-                                        border,pixwidth,ramin,scale)
-        simres[tidx,bidx,13] = dec2ypix(simres[tidx,bidx,11],
-                                        border,pixheight,decmin,scale)
-        pv = pix[ int( round( simres[tidx,bidx,12] ) ),
-        int( round( simres[tidx,bidx,13] ) ) ][0:3]        
+        simres[tidx,bidx,12] = ra2xpix(rasim,border,pixwidth,ramin,scale)
+        simres[tidx,bidx,13] = dec2ypix(desim,border,pixheight,decmin,scale)
+        pv = pix[ int( round( abs( simres[tidx,bidx,12] ) ) ),
+        int( round( abs( simres[tidx,bidx,13] ) ) ) ][0:3]        
         simres[tidx,bidx,14] = linevalfalses[pv[0],pv[1],pv[2]]*np.average(pv)                     
         simres[tidx,bidx,15] = 1
         bidx += 1
     simres[tidx,bidx-1,15] = 0
     bmax[tidx] = bidx - 1
     tidx += 1
-    #print tidx*100/tno
+    print float(tidx)*100/tno
     
 tmax = tno - 1 - np.searchsorted(bmax[::-1], np.arange(bno))
 
@@ -488,7 +492,7 @@ zero_size = np.size(zero_locs[0])
 for z in xrange(0, zero_size):
     simres[zero_locs[0][z],zero_locs[1][z],15] = 0
 
-sav = False
+sav = True
 if (sav == True):
     simressavefile = os.path.join(pysav, 'simres')
     simressavefile = os.path.join(simressavefile, filebase + '_' + str(betal) + '_'
@@ -504,7 +508,7 @@ if (sav == True):
 #*****************************
 
 if inv ==  False:
-    sfill = (255,255,255,255)
+    sfill = (255,0,0,255)
 elif inv ==  True:
     sfill = (255,0,0,255)
     

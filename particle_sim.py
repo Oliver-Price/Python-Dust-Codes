@@ -3,6 +3,9 @@
 INPUTS: BETA, TIME TO SIMULATE FOR, DT,
         INPUT POSITION AND VELOCITIES, POSITION OF EARTH AT FINISHING TIME
 
+simt in 10s of minutes , ndt is now number of dt
+ltdt is the dt when calculated lt correction
+
 Diff function does this:
 Input = Particle[r,v]	(Array with position and velocity)
 dr = v;
@@ -28,17 +31,19 @@ OUTPUTS: Final location and finishing time
 '''
 import numpy as np
 
-def part_sim(beta, simt, dt, pstart, efinp, cor): #simt in days, dt in minutes
-    simt = int(simt*1440) + cor # simt in minutes
+def part_sim(beta, simt, ndt, ltdt, pstart, efinp, cor): 
+    simt = simt*10 + cor #simt in minutes
+    t = 0
+    dt = (simt-30)/ndt
     traj = pstart
-    for t in np.arange(0,simt-30,dt):
-        traj = rk4(traj, beta, dt) #traj updated to t+1
-    t += dt    
+    for n in xrange(0,ndt,1): #go to up to 30 minutes before current
+        traj = rk4(traj, beta, dt) #traj updated
+        t += dt    
     dr = np.linalg.norm(traj[0:3] - efinp)
     tret = t + 8.316746397269274*dr    
     while (tret < simt):
-        traj = rk4(traj, beta, dt) #traj updated to t+1
-        t += dt
+        traj = rk4(traj, beta, ltdt) #traj updated b the minute
+        t += ltdt
         dr = np.linalg.norm(traj[0:3] - efinp)
         tret = t + 8.316746397269274*dr
     return (t,traj)
@@ -52,7 +57,7 @@ def diff(pstate, beta):
     return diffed
     
 def rk4(pstate, beta, dt): 
-    dt = int(dt*60) #DT INPUT IN MINUTES
+    dt = dt*60 #DT INPUT IN MINUTES
     k1 = diff(pstate, beta)*dt
     k2 = diff(pstate+k1*0.5, beta)*dt
     k3 = diff(pstate+k2*0.5, beta)*dt

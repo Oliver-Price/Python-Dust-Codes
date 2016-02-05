@@ -116,3 +116,23 @@ def radec_slim(ra_data, dec_data, ra_ref, dec_ref):
     dec_slim = dec_data[down_index_0:up_index_0,down_index_1:up_index_1]
 
     return(ra_slim, dec_slim, down_index_0, down_index_1)
+    
+#some kind of scaling function to increase contrast
+def remap_contrast_greyscale(upper_saturation,lower_saturation):
+    
+    newmap = np.zeros((256),dtype=int)
+    grad = 255/(upper_saturation - lower_saturation)
+    for col in xrange(upper_saturation, 256):
+        newmap[col] = 255
+    for col in xrange(0, lower_saturation):
+        newmap[col] = 0
+    for col in xrange(lower_saturation, upper_saturation):
+        newmap[col] = int(round((col - lower_saturation)*grad))
+    return newmap
+    
+    
+    
+    
+    
+    
+    
