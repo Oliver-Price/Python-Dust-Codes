@@ -17,6 +17,7 @@ from PIL import Image, ImageDraw, ImageFont
 from orbitdata_loading_functions import orb_vector, orb_obs
 from plot_functions import ra2xpix, dec2ypix, setaxisup
 from conversion_routines import pos2radec
+from Overplot_Simulation_Setup import simulation_setup
 from particle_sim import part_sim
 import idlsave
 import pickle
@@ -65,7 +66,7 @@ elif inv == True:
     imgsav = os.path.join(imagedir, filebase + '_inverted.png')
     imgexists = os.path.exists(imgsav)  
 
-#parameter savefile location
+#parameter savefile locations
 picklesavefile = os.path.join(pysav, filebase + '_dustplot')
 picklexists = os.path.exists(picklesavefile)
 
@@ -122,6 +123,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         colcr = 255 - colr; colcg = 255 - colg; colcb = 255 - colb
         backgr_fill = (255,255,255,255)
         featur_fill = (0,0,0,255)
+        
 #%%**********************
 #SECOND CELL - Plot Image
 #************************
@@ -269,8 +271,13 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     
     #display orbit plane angle
     cimgopa = comobs[comcel,7]
-    d.text((0.25*border + pixwidth - 50,0.75*border - 20), \
-    "Plane Angle = " + "%.2f" % cimgopa ,
+    d.text((2*border + pixwidth + 30,border), \
+    "Plane Angle:" + '\n' + '  ' + "%.2f" % cimgopa ,
+    font=fnt, fill= featur_fill)
+    
+    #display image author
+    d.text((2*border + pixwidth + 30,border + 50), \
+    "Image From: " + '\n' + '  ' + filebase.split('_')[-1] ,
     font=fnt, fill= featur_fill)
     
     #%%**********************************************************
@@ -354,7 +361,23 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     for ua in xrange(0, np.size(ura)-2):
         b = d.line([(ura[ua],udec[ua]),(ura[ua+1],udec[ua+1])],  
         fill = trajucfill)
-
+        
+    d.text((2*border + pixwidth + 30,border + 100), \
+    "Orbital Path:",font=fnt, fill= featur_fill)
+    d.line([(2*border + pixwidth + 30,border + 130),
+            (2*border + pixwidth + 170,border + 130)], fill = trajfill)
+            
+    d.text((2*border + pixwidth + 30,border + 150), \
+    "Orbital\nUncertainty:",font=fnt, fill= featur_fill)
+    d.line([(2*border + pixwidth + 30,border + 194),
+            (2*border + pixwidth + 170,border + 194)], fill = trajucfill)
+            
+    d.text((2*border + pixwidth + 30,border + 210), \
+    "Comet-Sun\nVector:",font=fnt, fill= featur_fill)
+    d.line([(2*border + pixwidth + 30,border + 255),
+            (2*border + pixwidth + 170,border + 255)], fill = comsunfill) 
+            
+            
 #%%***********************************************************
 #SIXTH CELL - Save image and parameters or load existing image
 #*************************************************************
@@ -404,17 +427,13 @@ else:
     d = ImageDraw.Draw(comimg)
     comimg.show()
    
-#%%*********************************
-#SEVENTH CELL - Simulate dust motion
-#***********************************
+#%%**********************************************
+#SEVENTH CELL - Preparing to simulate dust motion
+#************************************************
 
-#choose FP diagram parameters 
-betau = 1; betal = 0.11; bno = 200
-simtu = 10; simtl = 1; tno = 200
-
-#Other parameters
-threshold = 10
-drawopts = 'dyn'
+simsavefile = os.path.join(pysav, filebase + '_simsetup')
+[betau, betal, bno, simtu, simtl, tno, tspace, threshold, drawopts] = \
+simulation_setup(simsavefile)
 
 #finds maximum possible simulateable time and ensure simtu is bounded by this
 simtmax = np.round(ctime.jd - comveceq10[0,0])
@@ -424,10 +443,9 @@ else:
     simtu = simtu
     
 #option for log distributed or linear distributed
-tspace = 'lin'
-if (tspace == 'log'):
+if (tspace == 'Logarithmic'):
     tvals = np.logspace(np.log10(simtl), np.log10(simtu), num=tno)
-elif (tspace == 'lin'):
+elif (tspace == 'Linear'):
     tvals = np.linspace(simtl, simtu, tno)
 
 #create log distributed beta values, accounting that log(0) is impossible
@@ -450,6 +468,10 @@ efinp = obsveceq[comcel,6:9]
 bmax = np.empty((tno),dtype = int)
 tidx = 0
 pix = comimg.load()
+
+#%%*********************************
+#EIGHT CELL - Simulating Dust Motion
+#***********************************
 
 while (tidx < tno):
     bidx = 0
@@ -504,7 +526,7 @@ if (sav == True):
         pickle.dump([tmax, bmax, tno, bno, tspace], f)
 
 #%%***************************
-#EIGHT CELL - Plot dust motion
+#NINTH CELL - Plot dust motion
 #*****************************
 
 if inv ==  False:

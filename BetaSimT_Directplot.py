@@ -11,10 +11,9 @@ import numpy as np
 import time
 import matplotlib.path as mplPath
 from orbitdata_loading_functions import orb_vector, orb_obs
-from plot_functions import beta2ypix, linsimt2xpix, logsimt2xpix, radec_slim
-from plot_functions import remap_contrast_greyscale
+from plot_functions import beta2ypix, linsimt2xpix, logsimt2xpix, radec_slim, \
+greyscale_remap
 from PIL import Image, ImageDraw, ImageFont
-
 
 #%%
 
@@ -203,7 +202,7 @@ d = ImageDraw.Draw(dustimg)
 greyscale = True
 nmmax = np.log(np.max(srcolors[:,:,3])+1)
 
-newmap = remap_contrast_greyscale(100,45)
+newmap = greyscale_remap(200,120,mode = 'lin')
 
 if (greyscale == True):  
     for ta in xrange(0, tno-1):
@@ -245,8 +244,7 @@ a = d.polygon([(border,border),(border*2+pixwt,border), \
     outline = (255,255,255,128))
 
 decades = np.logspace(-4,4,9)
-tdecl = np.searchsorted(decades,simtl, side = 'right')-1
-tdecu = np.searchsorted(decades,simtu)
+
 bdecl = np.searchsorted(decades,betal, side = 'right')-1
 bdecu = np.searchsorted(decades,betau)
 
@@ -257,18 +255,34 @@ for bdec in xrange(bdecl+1, bdecu):
 bminticks = bminticks[np.searchsorted(bminticks,b1sfl):
                           np.searchsorted(bminticks,b1sfu)+1]
 bmajticks = np.intersect1d(bminticks,decades)
-
-tminticks = np.linspace(decades[tdecl],decades[tdecl+1],10)
-for tdec in xrange(tdecl+1, tdecu):
-    tminticks = np.concatenate((tminticks,
-                      np.linspace(decades[tdec],decades[tdec+1],10)[1:10]))
-tminticks = tminticks[np.searchsorted(tminticks,t1sfl):
-                          np.searchsorted(tminticks,t1sfu)+1]
-tmajticks = np.intersect1d(tminticks,decades)
-
 bminticlocs = beta2ypix(bminticks, border, pixhi, b1sfl, hscle)
-tminticlocs = linsimt2xpix(tminticks, border, t1sfl, wscle)
 bmajticlocs = beta2ypix(bmajticks, border, pixhi, b1sfl, hscle)
+
+if tspace == 'log':
+    tdecl = np.searchsorted(decades,simtl, side = 'right')-1
+    tdecu = np.searchsorted(decades,simtu)
+    
+    tminticks = np.linspace(decades[tdecl],decades[tdecl+1],10)
+    for tdec in xrange(tdecl+1, tdecu):
+        tminticks = np.concatenate((tminticks,
+                          np.linspace(decades[tdec],decades[tdec+1],10)[1:10]))
+    tminticks = tminticks[np.searchsorted(tminticks,t1sfl):
+                              np.searchsorted(tminticks,t1sfu)+1]
+    tmajticks = np.intersect1d(tminticks,decades)
+    
+if tspace == 'lin':
+    
+    lindivmajors = np.array([0.1,0.2,0.5,1,2,5,10,20,50,100,200])
+    lindivrecips = np.array([10,5,2,1,0.5,0.2,0.1,0.05,0.02,0.01,0.005])
+    
+    tdivnos = lindivrecips * (t1sfu - t1sfl)
+    nodivs = 10
+    tdividx = (np.abs(tdivnos-nodivs)).argmin()
+    tlodi = np.floor(t1sfl*lindivrecips[tdividx])*lindivmajors[tdividx]
+    thidi = np.ceil(t1sfu*lindivrecips[tdividx])*lindivmajors[tdividx]
+    tmajticks = np.arange(tlodi, thidi+1e-10, lindivmajors[tdividx])
+    
+#tminticlocs = linsimt2xpix(tminticks, border, t1sfl, wscle)
 tmajticlocs = linsimt2xpix(tmajticks, border, t1sfl, wscle)
 
 majt = 20  #major tick length
@@ -277,9 +291,9 @@ xaxis = pixhi + border*2
 fontloc = r'C:\Windows\winsxs\amd64_microsoft-windows-f..etype-lucidaconsole_31bf3856ad364e35_6.1.7600.16385_none_5b3be3e0926bd543\lucon.ttf'
 fnt = ImageFont.truetype(fontloc, 20)
 
-for div in xrange(0, (np.size(tminticlocs))): #simt axis minor ticks
-    b = d.line([(tminticlocs[div],xaxis-mint),(tminticlocs[div],xaxis)],\
-    fill = (255,255,255,128))
+#for div in xrange(0, (np.size(tminticlocs))): #simt axis minor ticks
+#    b = d.line([(tminticlocs[div],xaxis-mint),(tminticlocs[div],xaxis)],\
+#    fill = (255,255,255,128))
 
 for div in xrange(0, (np.size(bminticlocs))): #beta axis minor ticks
     b = d.line([(border+mint,bminticlocs[div]),(border,bminticlocs[div])],\
