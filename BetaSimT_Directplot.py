@@ -8,7 +8,6 @@ import os
 import sys
 import pickle
 import numpy as np
-import time
 import matplotlib.path as mplPath
 from orbitdata_loading_functions import orb_vector, orb_obs
 from plot_functions import beta2ypix, linsimt2xpix, logsimt2xpix, radec_slim, \
@@ -96,88 +95,100 @@ with open(simin[:-4] + '_parameters') as f:
     bno = sparameters[3]
     tspace = sparameters[4]
 
-#%%
-
-#***********************************************************
+#%%*********************************************************
 #SECOND CELL - IDENTIFYING PIXEL VALUES TO USE FOR BETA/SIMT
 #***********************************************************
-#fig = plt.figure()
-srcolors = np.zeros((tno,bno,5),dtype=int)
-timearr = np.zeros((tno*bno,6), dtype=float)
-time_count = 0
 
-for ta in xrange(0, tno-1):
-    [ra_ta, dec_ta, ra_ta_d0, ra_ta_d1] = radec_slim(ra, dec,
-                                            simres[ta,:,10], simres[ta,:,11])
-    rashape1 = np.shape(ra_ta)[1]
-    for ba in np.where(simres[ta+1,:,15] == 1)[0][:-1].tolist():
-        boxramin = min(simres[ta,ba,10],simres[ta+1,ba,10],
-                       simres[ta,ba+1,10],simres[ta+1,ba+1,10])
-        boxdemin = min(simres[ta,ba,11],simres[ta+1,ba,11],
-                       simres[ta,ba+1,11],simres[ta+1,ba+1,11])
-        boxramax = max(simres[ta,ba,10],simres[ta+1,ba,10],
-                       simres[ta,ba+1,10],simres[ta+1,ba+1,10])
-        boxdemax = max(simres[ta,ba,11],simres[ta+1,ba,11],
-                       simres[ta,ba+1,11],simres[ta+1,ba+1,11])
-        timearr[time_count,0] = time.time()
-        ralocs = np.where((ra_ta > boxramin) & (ra_ta < boxramax))   
-        delocs = np.where((dec_ta > boxdemin) & (dec_ta < boxdemax))
-        timearr[time_count,1] = time.time()
-        ralocs1d = ralocs[0]*rashape1+ralocs[1]
-        delocs1d = delocs[0]*rashape1+delocs[1]   
-        boxlocs1d = np.intersect1d(ralocs1d,delocs1d)
-        numin = np.size(boxlocs1d)
-        timearr[time_count,2] = time.time()
-        if (numin > 0): 
-            boxlocs = np.empty((numin,5),dtype = float)
-            boxlocs[:,0] = np.floor(boxlocs1d/rashape1)
-            boxlocs[:,1] = boxlocs1d%rashape1
-            boxpath = np.array(
-            [[simres[ta,ba,10], simres[ta,ba,11]],
-            [simres[ta+1,ba,10], simres[ta+1,ba,11]],
-            [simres[ta+1,ba+1,10], simres[ta+1,ba+1,11]],
-            [simres[ta,ba+1,10], simres[ta,ba+1,11]]])
-            bbPath = mplPath.Path(boxpath)
-            for n in xrange(0,numin):
-                boxlocs[n,2] = ra_ta[boxlocs[n,0],boxlocs[n,1]]
-                boxlocs[n,3] = dec_ta[boxlocs[n,0],boxlocs[n,1]]
-                boxlocs[n,4] = bbPath.contains_point((boxlocs[n,2],
-                                                      boxlocs[n,3]))                                        
-            boxlocs = boxlocs[np.where(boxlocs[:,4] == 1)]
-            numin = np.shape(boxlocs)[0]
-        timearr[time_count,3] = time.time()
-        if (numin > 0):
-            rtot = 0; gtot = 0; btot = 0
-            for n in xrange(0,numin):
-                rtot += colr[boxlocs[n,0]+ra_ta_d0,boxlocs[n,1]+ra_ta_d1]
-                gtot += colg[boxlocs[n,0]+ra_ta_d0,boxlocs[n,1]+ra_ta_d1]
-                btot += colb[boxlocs[n,0]+ra_ta_d0,boxlocs[n,1]+ra_ta_d1]
-            srcolors[ta,ba,0] = rtot/numin
-            srcolors[ta,ba,1] = gtot/numin
-            srcolors[ta,ba,2] = btot/numin
-            timearr[time_count,5] = 1
-        else:
-            avera = (simres[ta,ba,10] + simres[ta,ba+1,10] +
-                    simres[ta+1,ba,10] + simres[ta+1,ba+1,10])/4
-            avedec = (simres[ta,ba,11] + simres[ta,ba+1,11] +
-                    simres[ta+1,ba,11] + simres[ta+1,ba+1,11])/4       
-            distarr = abs(ra_ta - avera) + abs(dec_ta - avedec)
-            loc = np.where(distarr == np.min(distarr))
-            srcolors[ta,ba,0] = colr[loc[0][0]+ra_ta_d0,loc[1][0]+ra_ta_d1]
-            srcolors[ta,ba,1] = colg[loc[0][0]+ra_ta_d0,loc[1][0]+ra_ta_d1]
-            srcolors[ta,ba,2] = colb[loc[0][0]+ra_ta_d0,loc[1][0]+ra_ta_d1]
-            timearr[time_count,5] = 0
-        timearr[time_count,4] = time.time()
-        srcolors[ta,ba,3] = numin
-        srcolors[ta,ba,4] = 1
-        time_count += 1
-    print float(ta*100)/tno
+#check if this has already been done
+colmapsav = simin[:-4] + '_srcolors.npy'
+locmapsav = simin[:-4] + '_pixelmapping.txt'
+colmapsavexists = os.path.exists(colmapsav)
 
-#%%
-
-#*********************************
-#THIRD CELL - PLOT DATA ONTO IMAGE
-#*********************************          
+if (colmapsavexists == True): #load if it has
+    srcolors = np.load(colmapsav)
+    
+elif (colmapsavexists == False): #do if it hasnt
+    srcolors = np.zeros((tno,bno,5),dtype=int)
+    
+    with open(locmapsav, "w") as text_file: #write stuff to txt file
+                
+        for ta in xrange(0, tno-1):
+            [ra_ta, dec_ta, ra_ta_d0, ra_ta_d1] = radec_slim(ra, dec,
+                                                    simres[ta,:,10], simres[ta,:,11])
+            rashape1 = np.shape(ra_ta)[1]
+            for ba in np.where(simres[ta+1,:,15] == 1)[0][:-1].tolist():
+                text_file.write(str(simres[ta,ba,0]) + ' ,' + 
+                                str(simres[ta,ba,1]) + ' ,')
+                boxramin = min(simres[ta,ba,10],simres[ta+1,ba,10],
+                               simres[ta,ba+1,10],simres[ta+1,ba+1,10])
+                boxdemin = min(simres[ta,ba,11],simres[ta+1,ba,11],
+                               simres[ta,ba+1,11],simres[ta+1,ba+1,11])
+                boxramax = max(simres[ta,ba,10],simres[ta+1,ba,10],
+                               simres[ta,ba+1,10],simres[ta+1,ba+1,10])
+                boxdemax = max(simres[ta,ba,11],simres[ta+1,ba,11],
+                               simres[ta,ba+1,11],simres[ta+1,ba+1,11])
+                ralocs = np.where((ra_ta > boxramin) & (ra_ta < boxramax))   
+                delocs = np.where((dec_ta > boxdemin) & (dec_ta < boxdemax))
+                ralocs1d = ralocs[0]*rashape1+ralocs[1]
+                delocs1d = delocs[0]*rashape1+delocs[1]   
+                boxlocs1d = np.intersect1d(ralocs1d,delocs1d)
+                numin = np.size(boxlocs1d)
+                if (numin > 0): 
+                    boxlocs = np.empty((numin,5),dtype = float)
+                    boxlocs[:,0] = np.floor(boxlocs1d/rashape1)
+                    boxlocs[:,1] = boxlocs1d%rashape1
+                    boxpath = np.array(
+                    [[simres[ta,ba,10], simres[ta,ba,11]],
+                    [simres[ta+1,ba,10], simres[ta+1,ba,11]],
+                    [simres[ta+1,ba+1,10], simres[ta+1,ba+1,11]],
+                    [simres[ta,ba+1,10], simres[ta,ba+1,11]]])
+                    bbPath = mplPath.Path(boxpath)
+                    for n in xrange(0,numin):
+                        boxlocs[n,2] = ra_ta[boxlocs[n,0],boxlocs[n,1]]
+                        boxlocs[n,3] = dec_ta[boxlocs[n,0],boxlocs[n,1]]
+                        boxlocs[n,4] = bbPath.contains_point((boxlocs[n,2],
+                                                              boxlocs[n,3]))                                        
+                    boxlocs = boxlocs[np.where(boxlocs[:,4] == 1)]
+                    numin = np.shape(boxlocs)[0]
+                if (numin > 0):
+                    text_file.write('Average Enclosed' + ' ,')
+                    rtot = 0; gtot = 0; btot = 0
+                    for n in xrange(0,numin):
+                        rtot += colr[boxlocs[n,0]+ra_ta_d0,boxlocs[n,1]+ra_ta_d1]
+                        gtot += colg[boxlocs[n,0]+ra_ta_d0,boxlocs[n,1]+ra_ta_d1]
+                        btot += colb[boxlocs[n,0]+ra_ta_d0,boxlocs[n,1]+ra_ta_d1]
+                        text_file.write(str(boxlocs[n,0]+ra_ta_d0) + ' ,' +
+                                        str(boxlocs[n,1]+ra_ta_d1) + ' ,')                    
+                    srcolors[ta,ba,0] = rtot/numin
+                    srcolors[ta,ba,1] = gtot/numin
+                    srcolors[ta,ba,2] = btot/numin
+                else:
+                    text_file.write('Nearest Neighbour' + ' ,')
+                    avera = (simres[ta,ba,10] + simres[ta,ba+1,10] +
+                            simres[ta+1,ba,10] + simres[ta+1,ba+1,10])/4
+                    avedec = (simres[ta,ba,11] + simres[ta,ba+1,11] +
+                            simres[ta+1,ba,11] + simres[ta+1,ba+1,11])/4       
+                    distarr = abs(ra_ta - avera) + abs(dec_ta - avedec)
+                    loc = np.where(distarr == np.min(distarr))
+                    srcolors[ta,ba,0] = colr[loc[0][0]+ra_ta_d0,loc[1][0]+ra_ta_d1]
+                    srcolors[ta,ba,1] = colg[loc[0][0]+ra_ta_d0,loc[1][0]+ra_ta_d1]
+                    srcolors[ta,ba,2] = colb[loc[0][0]+ra_ta_d0,loc[1][0]+ra_ta_d1]
+                    text_file.write(str(loc[0][0] + ra_ta_d0) + ' ,' +
+                                    str(loc[1][0] + ra_ta_d1) + ' ,')
+                srcolors[ta,ba,3] = numin
+                srcolors[ta,ba,4] = 1
+                text_file.write('\n')
+            print float(ta*100)/tno
+        
+#%%****************************
+#THIRD CELL - SAVE DATA TO FITS
+#******************************       
+        
+#to be added
+       
+#%%********************************
+#FOURTH CELL - PLOT DATA ONTO IMAGE
+#**********************************          
             
 simtl = simres[0,0,0]; simtu = simres[tno-1,0,0]
 betal = simres[0,0,1]; betau = simres[0,bno-1,1]
@@ -233,11 +244,11 @@ else:
             a = d.polygon([(t1,b1),(t2,b2),(t3,b3),(t4,b4)]
             ,fill=(srcolors[ta,ba,0],srcolors[ta,ba,1],srcolors[ta,ba,2],255))
             
-#%%
-
-#***********************
-#FOURTH CELL - DRAW AXIS
-#***********************
+#%%*******************
+#FIFTHCELL - DRAW AXIS
+#*********************
+            
+#LINEAR AXIS STUFF NEEDS FIXING TB
 
 a = d.polygon([(border,border),(border*2+pixwt,border), \
     (border*2+pixwt,border*2+pixhi),(border,border*2+pixhi)], \

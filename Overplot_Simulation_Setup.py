@@ -41,12 +41,12 @@ def simulation_setup(savefile):
                        'Change Threshold', 'OK All'),
                        image=None)
                        
-        if reply == None: exit()
+        if reply == None: sys.exit()
         if reply == 'Change Beta Values':
     
             bmsg = "Choose Beta Values"
             btitle = "Changing Beta Values"
-            bfieldNames = ["Beta Upper", "Beta Lower",
+            bfieldNames = ["Beta Lower", "Beta Upper",
                           "Number of Datapoints"]
             bfieldValues = []  #values to be assigned
             bfieldValues = easygui.multenterbox(bmsg,btitle, bfieldNames)
@@ -62,15 +62,15 @@ def simulation_setup(savefile):
                 bfieldValues = easygui.multenterbox(errbmsg, btitle,
                                                     bfieldNames, bfieldValues)
                                                     
-            betau = float(bfieldValues[0])
-            betal = float(bfieldValues[1])
+            betau = float(bfieldValues[1])
+            betal = float(bfieldValues[0])
             bno = int(bfieldValues[2])
                 
         if reply == 'Change Ejection Time Values':
     
             tmsg = "Choose Ejection Time Values"
             ttitle = "Changing Ejection Time Values"
-            tfieldNames = ["Ejection Time Upper", "Ejection Time Lower",
+            tfieldNames = ["Ejection Time Lower", "Ejection Time Upper",
                           "Number of Datapoints"]
             tfieldValues = []  #values to be assigned
             tfieldValues = easygui.multenterbox(tmsg,ttitle, tfieldNames)
@@ -86,8 +86,8 @@ def simulation_setup(savefile):
                 tfieldValues = easygui.multenterbox(errtmsg, ttitle,
                                                     tfieldNames, tfieldValues)
             
-            simtu = float(tfieldValues[0])
-            simtl = float(tfieldValues[1])
+            simtu = float(tfieldValues[1])
+            simtl = float(tfieldValues[0])
             tno = int(tfieldValues[2])
                                        
         if reply == 'Change Time Spacing':
@@ -105,7 +105,7 @@ def simulation_setup(savefile):
             dchoices = ["Synchrones Only", "Syndynes only",
                         "Synchrones and Syndynes",
                         "Synchrones, Syndynes and Data Points",
-                        "Data Region Enclosed"]
+                        "Data Region Enclosed","No Image"]
             drawopts = easygui.choicebox(dmsg, dtitle, dchoices)    
             
         if reply == 'Change Threshold':   

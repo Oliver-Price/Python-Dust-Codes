@@ -9,6 +9,7 @@ import easygui
 import os
 import numpy as np
 import math as m
+import sys
 from astropy.io import fits
 from astropy import wcs
 import astropy.time
@@ -70,7 +71,7 @@ elif inv == True:
 picklesavefile = os.path.join(pysav, filebase + '_dustplot')
 picklexists = os.path.exists(picklesavefile)
 
-forceredraw = False
+forceredraw = True
 if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     
     #choose img type
@@ -113,7 +114,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     
     #otherwise, stop the program
     elif reply == "Quit":
-        exit()
+        sys.exit()
         
     if inv == False:   
         colcr = colr; colcg = colg; colcb = colb
@@ -158,8 +159,9 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     pixwidth = int(pixheight*(ramax - ramin)/(decmax - decmin))
     border = 100
     scale = pixheight/(decmax - decmin)
-    comimg = Image.new('RGBA', (pixwidth+int(4*border),
-                                pixheight+int(3*border)),backgr_fill)
+    imgwidth = pixwidth+int(4*border)
+    imgheight = pixheight+int(3*border)
+    comimg = Image.new('RGBA', ( imgwidth , imgheight ) ,backgr_fill)
     d = ImageDraw.Draw(comimg)
     
     #plots image on canvas
@@ -280,6 +282,16 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     "Image From: " + '\n' + '  ' + filebase.split('_')[-1] ,
     font=fnt, fill= featur_fill)
     
+    #display date
+    d.text((2*border + pixwidth + 30,border + 100), \
+    "Image Date: " + '\n' + '  ' + ctime.isot[0:10] ,
+    font=fnt, fill= featur_fill)
+
+    #display time
+    d.text((2*border + pixwidth + 30,border + 150), \
+    "Image Time: " + '\n' + '  ' + ctime.isot[11:16] ,
+    font=fnt, fill= featur_fill)    
+
     #%%**********************************************************
     #FIFTH CELL - Plot Comet Traj, Comet-Sun Vector + Uncertainty
     #************************************************************
@@ -362,20 +374,20 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         b = d.line([(ura[ua],udec[ua]),(ura[ua+1],udec[ua+1])],  
         fill = trajucfill)
         
-    d.text((2*border + pixwidth + 30,border + 100), \
+    d.text((2*border + pixwidth + 30,border + 200), \
     "Orbital Path:",font=fnt, fill= featur_fill)
-    d.line([(2*border + pixwidth + 30,border + 130),
-            (2*border + pixwidth + 170,border + 130)], fill = trajfill)
+    d.line([(2*border + pixwidth + 30,border + 230),
+            (2*border + pixwidth + 170,border + 230)], fill = trajfill)
             
-    d.text((2*border + pixwidth + 30,border + 150), \
+    d.text((2*border + pixwidth + 30,border + 250), \
     "Orbital\nUncertainty:",font=fnt, fill= featur_fill)
-    d.line([(2*border + pixwidth + 30,border + 194),
-            (2*border + pixwidth + 170,border + 194)], fill = trajucfill)
+    d.line([(2*border + pixwidth + 30,border + 294),
+            (2*border + pixwidth + 170,border + 294)], fill = trajucfill)
             
-    d.text((2*border + pixwidth + 30,border + 210), \
+    d.text((2*border + pixwidth + 30,border + 310), \
     "Comet-Sun\nVector:",font=fnt, fill= featur_fill)
-    d.line([(2*border + pixwidth + 30,border + 255),
-            (2*border + pixwidth + 170,border + 255)], fill = comsunfill) 
+    d.line([(2*border + pixwidth + 30,border + 355),
+            (2*border + pixwidth + 170,border + 355)], fill = comsunfill) 
             
             
 #%%***********************************************************
@@ -395,7 +407,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         pickle.dump([comcel, comcel10, rao, deo, rapixl, depixl, ramax, decmax
                     ,ramin, decmin, border, pixheight, pixwidth, scale, ctime
                     ,dtmin, ra, dec, colr, colb, colg, trajfill, trajucfill,
-                    comsunfill, backgr_fill], f)
+                    comsunfill, backgr_fill, imgwidth, imgheight], f)
                     
 else:
     print "Loading save image and parameter data"
@@ -422,6 +434,8 @@ else:
         trajucfill = parameters[22]
         comsunfill = parameters[23]
         backgr_fill = parameters[24]
+        imgwidth = parameters[25]
+        imghegiht = parameters[26]
         
     comimg = Image.open(imgsav)
     d = ImageDraw.Draw(comimg)
@@ -493,8 +507,8 @@ while (tidx < tno):
         desim = simres[tidx,bidx,11]
         simres[tidx,bidx,12] = ra2xpix(rasim,border,pixwidth,ramin,scale)
         simres[tidx,bidx,13] = dec2ypix(desim,border,pixheight,decmin,scale)
-        pv = pix[ int( round( abs( simres[tidx,bidx,12] ) ) ),
-        int( round( abs( simres[tidx,bidx,13] ) ) ) ][0:3]        
+        pv = pix[ int( round( sorted([0, simres[tidx,bidx,12], pixwidth])[1] ) ),
+        int( round(  sorted([0, simres[tidx,bidx,13], pixheight])[1] ) ) ][0:3]        
         simres[tidx,bidx,14] = linevalfalses[pv[0],pv[1],pv[2]]*np.average(pv)                     
         simres[tidx,bidx,15] = 1
         bidx += 1
@@ -534,7 +548,7 @@ if inv ==  False:
 elif inv ==  True:
     sfill = (255,0,0,255)
     
-if "dyn" in drawopts: #DRAW SYNDYNES
+if "Syndynes" in drawopts: #DRAW SYNDYNES
     for ba in xrange(0, bno):
         b = d.line([(rapixl,depixl), \
         (simres[0,ba,12],simres[0,ba,13])],\
@@ -544,7 +558,7 @@ if "dyn" in drawopts: #DRAW SYNDYNES
             (simres[ta+1,ba,12],simres[ta+1,ba,13])],\
             fill = sfill)
 
-if "chr" in drawopts: #DRAW SYNCHRONES
+if "Synchrones" in drawopts: #DRAW SYNCHRONES
     for ta in xrange(0, tno):
         b = d.line([(rapixl,depixl), \
         (simres[ta,0,12],simres[ta,0,13])],\
@@ -554,7 +568,7 @@ if "chr" in drawopts: #DRAW SYNCHRONES
             (simres[ta,ba+1,12],simres[ta,ba+1,13])],\
             fill = sfill)
 
-if "dat" in drawopts: #DRAW DATAPOINTS
+if "Data Points" in drawopts: #DRAW DATAPOINTS
     for ta in xrange(0,tno):
         for ba in xrange(0, bmax[ta]):
             xsiz = 2
@@ -565,7 +579,23 @@ if "dat" in drawopts: #DRAW DATAPOINTS
                       ( simres[ta,ba,12] + xsiz , simres[ta,ba,13] - xsiz ) ] ,
                       fill = (255,0,255,255) )
 
-if ("dat" in drawopts) or ("chr" in drawopts) or ("dyn" in drawopts):
+if drawopts == "Data Region Enclosed":
+    b = d.line( [ ( simres[0,0,12]  , simres[0,0,13] ) ,
+                  ( simres[tno-1,0,12] , simres[tno-1,0,13] ) ] ,
+                    fill = (255,0,255,255) )
+    b = d.line( [ ( simres[0,0,12]  , simres[0,0,13] ) ,
+                  ( simres[0,bmax[0],12] , simres[0,bmax[0],13] ) ] ,
+                    fill = (255,0,255,255) )
+    b = d.line( [ ( simres[tno-1,0,12]  , simres[tno-1,0,13] ) ,
+                  ( simres[tno-1,bmax[tno-1],12] ,
+                   simres[tno-1,bmax[tno-1],13] ) ] ,    
+                    fill = (255,0,255,255) )           
+    for ta in xrange(0,tno - 1):
+        b = d.line( [ ( simres[ta,bmax[ta],12]  , simres[ta,bmax[ta],13] ) ,
+                      ( simres[ta+1,bmax[ta+1],12] , simres[ta+1,bmax[ta+1],13] ) ]
+                      , fill = (255,0,255,255) )
+
+if (drawopts != "No Image"):
     comimg.show()    
     cimgsav = os.path.join(imagedir, 'temp.png')    
     comimg.save(cimgsav,'png')
