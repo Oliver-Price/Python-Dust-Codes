@@ -12,6 +12,7 @@ import matplotlib.path as mplPath
 from orbitdata_loading_functions import orb_vector, orb_obs
 from plot_functions import beta2ypix, linsimt2xpix, logsimt2xpix, radec_slim, \
 greyscale_remap
+from astropy.io import fits
 from PIL import Image, ImageDraw, ImageFont
 
 #%%
@@ -57,6 +58,8 @@ imgexists = os.path.exists(imgsav)
 #parameter savefile location
 picklesavefile = os.path.join(pysav, filebase + '_dustplot')
 picklexists = os.path.exists(picklesavefile)
+
+greyscale = True
 
 #check vital information exists
 if (picklexists == False):
@@ -117,8 +120,8 @@ elif (colmapsavexists == False): #do if it hasnt
                                                     simres[ta,:,10], simres[ta,:,11])
             rashape1 = np.shape(ra_ta)[1]
             for ba in np.where(simres[ta+1,:,15] == 1)[0][:-1].tolist():
-                text_file.write(str(simres[ta,ba,0]) + ' ,' + 
-                                str(simres[ta,ba,1]) + ' ,')
+                text_file.write(('%.3g ,%.3g ,') %
+                                (simres[ta,ba,0] , simres[ta,ba,1]))
                 boxramin = min(simres[ta,ba,10],simres[ta+1,ba,10],
                                simres[ta,ba+1,10],simres[ta+1,ba+1,10])
                 boxdemin = min(simres[ta,ba,11],simres[ta+1,ba,11],
@@ -159,9 +162,9 @@ elif (colmapsavexists == False): #do if it hasnt
                         btot += colb[boxlocs[n,0]+ra_ta_d0,boxlocs[n,1]+ra_ta_d1]
                         text_file.write(str(boxlocs[n,0]+ra_ta_d0) + ' ,' +
                                         str(boxlocs[n,1]+ra_ta_d1) + ' ,')                    
-                    srcolors[ta,ba,0] = rtot/numin
-                    srcolors[ta,ba,1] = gtot/numin
-                    srcolors[ta,ba,2] = btot/numin
+                    srcolors[ta,ba,0] = int(round(float(rtot)/numin))
+                    srcolors[ta,ba,1] = int(round(float(gtot)/numin))
+                    srcolors[ta,ba,2] = int(round(float(btot)/numin))
                 else:
                     text_file.write('Nearest Neighbour' + ' ,')
                     avera = (simres[ta,ba,10] + simres[ta,ba+1,10] +
@@ -179,13 +182,28 @@ elif (colmapsavexists == False): #do if it hasnt
                 srcolors[ta,ba,4] = 1
                 text_file.write('\n')
             print float(ta*100)/tno
+    np.save(colmapsav,srcolors)
         
 #%%****************************
 #THIRD CELL - SAVE DATA TO FITS
 #******************************       
-        
-#to be added
-       
+
+greyscale_arr = (srcolors[:,:,0] + srcolors[:,:,1] + srcolors[:,:,2])/3
+
+dustplotsave = os.path.join(os.path.dirname(imgsav), 'dustplots')
+if not os.path.exists(dustplotsave):
+    os.makedirs(dustplotsave)
+dustplotsave = os.path.join(dustplotsave, simin.split('\\')[-1][:-4] + '.fits')
+
+hdu = fits.PrimaryHDU(greyscale_arr)    
+fitshdr = fits.Header()
+
+fitshdr['COMMENT'] = "We'll add the mapping later here"
+
+hduhdr = fits.PrimaryHDU(header=fitshdr)
+hdulist = fits.HDUList([hdu])
+hdulist.writeto(dustplotsave)
+
 #%%********************************
 #FOURTH CELL - PLOT DATA ONTO IMAGE
 #**********************************          
@@ -202,24 +220,23 @@ pixhi = 800
 pixwt = 1600
 border = 100
 hscle = pixhi/(np.log10(betau) - np.log10(betal))
-if (tspace == 'log'):
+if (tspace == 'Logarithmic'):
     wscle = pixwt/(np.log10(simtu) - np.log10(simtl))
-elif (tspace == 'lin'):
+elif (tspace == 'Linear'):
     wscle = pixwt/(simtu - simtl)
     
 dustimg = Image.new('RGBA', (pixwt+int(2.5*border),
                              pixhi+int(3*border)),(0,0,0,255))
 d = ImageDraw.Draw(dustimg)
-greyscale = True
 nmmax = np.log(np.max(srcolors[:,:,3])+1)
 
-newmap = greyscale_remap(200,120,mode = 'lin')
+newmap = greyscale_remap(200,120,mode = 'Linear')
 
-if (greyscale == True):  
+greyscale_disp = True
+if (greyscale_disp == True):  
     for ta in xrange(0, tno-1):
         for ba in np.where(simres[ta+1,:,15] == 1)[0][:-1].tolist():
-            fillco = newmap[int(round(0.333333333333333333*(srcolors[ta,ba,0] + 
-            srcolors[ta,ba,1] + srcolors[ta,ba,2])))]
+            fillco = newmap[greyscale_arr]
             b1 = beta2ypix(simres[ta,ba,1], border, pixhi, b1sfl, hscle)
             t1 = linsimt2xpix(simres[ta,ba,0], border, t1sfl, wscle)
             b2 = beta2ypix(simres[ta,ba+1,1], border, pixhi, b1sfl, hscle)
@@ -269,7 +286,7 @@ bmajticks = np.intersect1d(bminticks,decades)
 bminticlocs = beta2ypix(bminticks, border, pixhi, b1sfl, hscle)
 bmajticlocs = beta2ypix(bmajticks, border, pixhi, b1sfl, hscle)
 
-if tspace == 'log':
+if tspace == 'Logarithmic':
     tdecl = np.searchsorted(decades,simtl, side = 'right')-1
     tdecu = np.searchsorted(decades,simtu)
     
@@ -281,7 +298,7 @@ if tspace == 'log':
                               np.searchsorted(tminticks,t1sfu)+1]
     tmajticks = np.intersect1d(tminticks,decades)
     
-if tspace == 'lin':
+if tspace == 'Linear':
     
     lindivmajors = np.array([0.1,0.2,0.5,1,2,5,10,20,50,100,200])
     lindivrecips = np.array([10,5,2,1,0.5,0.2,0.1,0.05,0.02,0.01,0.005])

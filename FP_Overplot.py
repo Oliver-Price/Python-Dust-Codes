@@ -71,7 +71,7 @@ elif inv == True:
 picklesavefile = os.path.join(pysav, filebase + '_dustplot')
 picklexists = os.path.exists(picklesavefile)
 
-forceredraw = True
+forceredraw = False
 if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     
     #choose img type
@@ -410,7 +410,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
                     comsunfill, backgr_fill, imgwidth, imgheight], f)
                     
 else:
-    print "Loading save image and parameter data"
+    print "Loading parameter data"
     
     with open(picklesavefile) as f:
         parameters = pickle.load(f)
@@ -435,167 +435,230 @@ else:
         comsunfill = parameters[23]
         backgr_fill = parameters[24]
         imgwidth = parameters[25]
-        imghegiht = parameters[26]
-        
+        imgheight = parameters[26]
+
     comimg = Image.open(imgsav)
-    d = ImageDraw.Draw(comimg)
     comimg.show()
    
 #%%**********************************************
 #SEVENTH CELL - Preparing to simulate dust motion
 #************************************************
 
-simsavefile = os.path.join(pysav, filebase + '_simsetup')
-[betau, betal, bno, simtu, simtl, tno, tspace, threshold, drawopts] = \
-simulation_setup(simsavefile)
 
-#finds maximum possible simulateable time and ensure simtu is bounded by this
-simtmax = np.round(ctime.jd - comveceq10[0,0])
-if (simtu > simtmax):
-    simtu = simtmax 
-else:
-    simtu = simtu
+test_mode = True
+while test_mode == True:
     
-#option for log distributed or linear distributed
-if (tspace == 'Logarithmic'):
-    tvals = np.logspace(np.log10(simtl), np.log10(simtu), num=tno)
-elif (tspace == 'Linear'):
-    tvals = np.linspace(simtl, simtu, tno)
-
-#create log distributed beta values, accounting that log(0) is impossible
-if (betal == 0):
-    bvals = np.logspace(np.log10(0.001), np.log10(betau), num=(bno-1))
-    bvals = np.concatenate((np.array([0]), bvals))
-else:
-    bvals = np.logspace(np.log10(betal), np.log10(betau), num=(bno))
-
-#this is for identifying pixels where lines are present on grid
-linevalfalses = np.ones((256,256,256), dtype = int)
-linevalfalses[trajfill[0],trajfill[1],trajfill[2]] = 0
-linevalfalses[trajucfill[0],trajucfill[1],trajucfill[2]] = 0
-linevalfalses[comsunfill[0],comsunfill[1],comsunfill[2]] = 0
-linevalfalses[backgr_fill[0],backgr_fill[1],backgr_fill[2]] = 0
-
-#prep for simulation loop
-simres = np.empty((tno,bno,16),dtype = float)
-efinp = obsveceq[comcel,6:9]
-bmax = np.empty((tno),dtype = int)
-tidx = 0
-pix = comimg.load()
-
+    comimg = Image.open(imgsav)
+    d = ImageDraw.Draw(comimg)
+    
+    simsavefile = os.path.join(pysav, filebase + '_simsetup')
+    [betau, betal, bno, simtu, simtl, tno, tspace, threshold, drawopts,
+     sav_bool, test_mode] \
+    = simulation_setup(simsavefile)
+    
+    #finds maximum possible simulateable time and ensure simtu is bounded by this
+    simtmax = np.round(ctime.jd - comveceq10[0,0])
+    if (simtu > simtmax):
+        simtu = simtmax 
+    else:
+        simtu = simtu
+        
+    #option for log distributed or linear distributed
+    if (tspace == 'Logarithmic'):
+        tvals = np.logspace(np.log10(simtl), np.log10(simtu), num=tno)
+    elif (tspace == 'Linear'):
+        tvals = np.linspace(simtl, simtu, tno)
+    
+    #create log distributed beta values, accounting that log(0) is impossible
+    if (betal == 0):
+        bvals = np.logspace(np.log10(0.001), np.log10(betau), num=(bno-1))
+        bvals = np.concatenate((np.array([0]), bvals))
+    else:
+        bvals = np.logspace(np.log10(betal), np.log10(betau), num=(bno))
+    
+    #this is for identifying pixels where lines are present on grid
+    linevalfalses = np.ones((256,256,256), dtype = int)
+    linevalfalses[trajfill[0],trajfill[1],trajfill[2]] = 0
+    linevalfalses[trajucfill[0],trajucfill[1],trajucfill[2]] = 0
+    linevalfalses[comsunfill[0],comsunfill[1],comsunfill[2]] = 0
+    linevalfalses[backgr_fill[0],backgr_fill[1],backgr_fill[2]] = 0
+    
+    #prep for simulation loop
+    simres = np.empty((tno,bno,16),dtype = float)
+    efinp = obsveceq[comcel,6:9]
+    bmax = np.empty((tno),dtype = int)
+    tidx = 0
+    pix = comimg.load()
+    
 #%%*********************************
 #EIGHT CELL - Simulating Dust Motion
 #***********************************
-
-while (tidx < tno):
-    bidx = 0
-    rasim = rao
-    desim = deo
-    while ( bidx < bno and rasim <= ramax and rasim >= ramin  and
-            desim <= decmax and desim >= decmin):
-        simt10min = int(round(144*tvals[tidx]))
-        pstart = comveceq10[comcel10-simt10min,6:12]
-        sim = part_sim(bvals[bidx],simt10min,30,3,pstart,efinp,dtmin)
-        simres[tidx,bidx,0] = float(simt10min)/144
-        simres[tidx,bidx,1] = bvals[bidx]
-        simres[tidx,bidx,2] = sim[0] #length of simulation in minutes
-        simres[tidx,bidx,3] = comcel-10*simt10min+sim[0] #find relevant cell for end of traj
-        simres[tidx,bidx,4:10] = sim[1] #finishing pos/vel
-        simres[tidx,bidx,10:12] = pos2radec(sim[1][0:3] - 
-        obsveceq[int(simres[tidx,bidx,3]),6:9])
-        rasim = simres[tidx,bidx,10]
-        desim = simres[tidx,bidx,11]
-        simres[tidx,bidx,12] = ra2xpix(rasim,border,pixwidth,ramin,scale)
-        simres[tidx,bidx,13] = dec2ypix(desim,border,pixheight,decmin,scale)
-        pv = pix[ int( round( sorted([0, simres[tidx,bidx,12], pixwidth])[1] ) ),
-        int( round(  sorted([0, simres[tidx,bidx,13], pixheight])[1] ) ) ][0:3]        
-        simres[tidx,bidx,14] = linevalfalses[pv[0],pv[1],pv[2]]*np.average(pv)                     
-        simres[tidx,bidx,15] = 1
-        bidx += 1
-    simres[tidx,bidx-1,15] = 0
-    bmax[tidx] = bidx - 1
-    tidx += 1
-    print float(tidx)*100/tno
     
-tmax = tno - 1 - np.searchsorted(bmax[::-1], np.arange(bno))
+    #this is the loop that does the business
+    while (tidx < tno):
+        bidx = 0
+        rasim = rao
+        desim = deo
+        while ( bidx < bno and rasim <= ramax and rasim >= ramin  and
+                desim <= decmax and desim >= decmin):
+            simt10min = int(round(144*tvals[tidx]))
+            pstart = comveceq10[comcel10-simt10min,6:12]
+            sim = part_sim(bvals[bidx],simt10min,30,3,pstart,efinp,dtmin)
+            simres[tidx,bidx,0] = float(simt10min)/144
+            simres[tidx,bidx,1] = bvals[bidx]
+            simres[tidx,bidx,2] = sim[0] #length of simulation in minutes
+            simres[tidx,bidx,3] = comcel-10*simt10min+sim[0] #find relevant cell for end of traj
+            simres[tidx,bidx,4:10] = sim[1] #finishing pos/vel
+            simres[tidx,bidx,10:12] = pos2radec(sim[1][0:3] - 
+            obsveceq[int(simres[tidx,bidx,3]),6:9])
+            rasim = simres[tidx,bidx,10]
+            desim = simres[tidx,bidx,11]
+            simres[tidx,bidx,12] = ra2xpix(rasim,border,pixwidth,ramin,scale)
+            simres[tidx,bidx,13] = dec2ypix(desim,border,pixheight,decmin,scale)
+            pv = pix[ int( round( sorted([0, simres[tidx,bidx,12], pixwidth])[1] ) ),
+            int( round(  sorted([0, simres[tidx,bidx,13], pixheight])[1] ) ) ][0:3]        
+            simres[tidx,bidx,14] = linevalfalses[pv[0],pv[1],pv[2]]*np.average(pv)                     
+            simres[tidx,bidx,15] = 1
+            bidx += 1
+        simres[tidx,bidx-1,15] = 0
+        bmax[tidx] = bidx - 1
+        tidx += 1
+        print float(tidx)*100/tno
+        
+    tmax = tno - 1 - np.searchsorted(bmax[::-1], np.arange(bno))
+    
+    if inv == True:
+            zero_locs = np.where(simres[:,:,14] <= threshold)
+            featur_fill = (0,0,0,255)
+    elif inv == False:
+            zero_locs = np.where(simres[:,:,14] >= (255 - threshold))
+            featur_fill = (255,255,255,255)
 
-if inv == True:
-        zero_locs = np.where(simres[:,:,14] <= threshold)
-elif inv == False:
-        zero_locs = np.where(simres[:,:,14] >= (255 - threshold))
-
-zero_size = np.size(zero_locs[0])
-for z in xrange(0, zero_size):
-    simres[zero_locs[0][z],zero_locs[1][z],15] = 0
-
-sav = True
-if (sav == True):
-    simressavefile = os.path.join(pysav, 'simres')
-    simressavefile = os.path.join(simressavefile, filebase + '_' + str(betal) + '_'
-                     + str(betau) + '_' + str(bno)+ '_' + str(simtu) + '_'
-                     + str(simtl) + '_' + str(tno))
-    simressavefile = string.replace(simressavefile,'.','\'')
-    np.save(simressavefile, simres)
-    with open(simressavefile + '_parameters' , 'w') as f:
-        pickle.dump([tmax, bmax, tno, bno, tspace], f)
-
+    zero_size = np.size(zero_locs[0])
+    for z in xrange(0, zero_size):
+        simres[zero_locs[0][z],zero_locs[1][z],15] = 0
+    
+    if (sav_bool == True):
+        simressavefile = os.path.join(pysav, 'simres')
+        simressavefile = os.path.join(simressavefile, filebase + '_' + str(betal) + '_'
+                         + str(betau) + '_' + str(bno)+ '_' + str(simtu) + '_'
+                         + str(simtl) + '_' + str(tno))
+        simressavefile = string.replace(simressavefile,'.','\'')
+        np.save(simressavefile, simres)
+        with open(simressavefile + '_parameters' , 'w') as f:
+            pickle.dump([tmax, bmax, tno, bno, tspace], f)
+    
 #%%***************************
 #NINTH CELL - Plot dust motion
 #*****************************
 
-if inv ==  False:
-    sfill = (255,0,0,255)
-elif inv ==  True:
-    sfill = (255,0,0,255)
+    dynfill = (255,0,0,255) #syndynes
+    chrfill = (200,92,0,255) #synchrones
+    drfill = (255,0,255,255) #data points and data region
+        
+    if "Syndynes" in drawopts: #DRAW SYNDYNES
+        for ba in xrange(0, bno):
+            b = d.line([(rapixl,depixl), \
+            (simres[0,ba,12],simres[0,ba,13])],\
+            fill = dynfill)
+            for ta in xrange(0, tmax[ba]):
+                b = d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
+                (simres[ta+1,ba,12],simres[ta+1,ba,13])],\
+                fill = dynfill)
     
-if "Syndynes" in drawopts: #DRAW SYNDYNES
-    for ba in xrange(0, bno):
-        b = d.line([(rapixl,depixl), \
-        (simres[0,ba,12],simres[0,ba,13])],\
-        fill = sfill)
-        for ta in xrange(0, tmax[ba]):
-            b = d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
-            (simres[ta+1,ba,12],simres[ta+1,ba,13])],\
-            fill = sfill)
+    if "Synchrones" in drawopts: #DRAW SYNCHRONES
+        for ta in xrange(0, tno):
+            b = d.line([(rapixl,depixl), \
+            (simres[ta,0,12],simres[ta,0,13])],\
+            fill = chrfill)
+            for ba in xrange(0, bmax[ta]):
+                b = d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
+                (simres[ta,ba+1,12],simres[ta,ba+1,13])],\
+                fill = chrfill)
+    
+    if "Data Points" in drawopts: #DRAW DATAPOINTS
+        for ta in xrange(0,tno):
+            for ba in xrange(0, bmax[ta]):
+                xsiz = 2
+                b = d.line( [ ( simres[ta,ba,12] - xsiz , simres[ta,ba,13] - xsiz ) ,
+                          ( simres[ta,ba,12] + xsiz , simres[ta,ba,13] + xsiz ) ] ,
+                          fill = drfill )  
+                b = d.line( [ ( simres[ta,ba,12] - xsiz , simres[ta,ba,13] + xsiz ) ,
+                          ( simres[ta,ba,12] + xsiz , simres[ta,ba,13] - xsiz ) ] ,
+                          fill = drfill )
+    
+    if drawopts == "Data Region Enclosed":
+        b = d.line( [ ( simres[0,0,12]  , simres[0,0,13] ) ,
+                      ( simres[0,bmax[0],12] , simres[0,bmax[0],13] ) ] ,
+                        fill = drfill )
+        b = d.line( [ ( simres[tno-1,0,12]  , simres[tno-1,0,13] ) ,
+                      ( simres[tno-1,bmax[tno-1],12] ,
+                       simres[tno-1,bmax[tno-1],13] ) ] ,    
+                        fill = drfill )           
+        for ta in xrange(0,tno - 1):
+            b = d.line( [ ( simres[ta,bmax[ta],12]  , simres[ta,bmax[ta],13] ) ,
+                          ( simres[ta+1,bmax[ta+1],12] , simres[ta+1,bmax[ta+1],13] ) ]
+                          , fill = drfill )
+            b = d.line( [ ( simres[ta,0,12]  , simres[ta,0,13] ) ,
+                          ( simres[ta+1,0,12] , simres[ta+1,0,13] ) ]
+                          , fill = drfill )
+                          
+        d.text((2*border + pixwidth + 30,border + 370), \
+                "Data Region:",font=fnt, fill= featur_fill)
+        d.line([(2*border + pixwidth + 30,border + 405),
+                (2*border + pixwidth + 170,border + 405)], fill = drfill)
+  
+#%%************************
+#TENTH CELL - ANNOTATE PLOT
+#**************************
+                        
+    fontloc = r'C:\Windows\winsxs\amd64_microsoft-windows-f..etype-lucidaconsole_31bf3856ad364e35_6.1.7600.16385_none_5b3be3e0926bd543\lucon.ttf'
+    fnt = ImageFont.truetype(fontloc, 20)    
 
-if "Synchrones" in drawopts: #DRAW SYNCHRONES
-    for ta in xrange(0, tno):
-        b = d.line([(rapixl,depixl), \
-        (simres[ta,0,12],simres[ta,0,13])],\
-        fill = sfill)
-        for ba in xrange(0, bmax[ta]):
-            b = d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
-            (simres[ta,ba+1,12],simres[ta,ba+1,13])],\
-            fill = sfill)
-
-if "Data Points" in drawopts: #DRAW DATAPOINTS
-    for ta in xrange(0,tno):
-        for ba in xrange(0, bmax[ta]):
-            xsiz = 2
-            b = d.line( [ ( simres[ta,ba,12] - xsiz , simres[ta,ba,13] - xsiz ) ,
-                      ( simres[ta,ba,12] + xsiz , simres[ta,ba,13] + xsiz ) ] ,
-                      fill = (255,0,255,255) )  
-            b = d.line( [ ( simres[ta,ba,12] - xsiz , simres[ta,ba,13] + xsiz ) ,
-                      ( simres[ta,ba,12] + xsiz , simres[ta,ba,13] - xsiz ) ] ,
-                      fill = (255,0,255,255) )
-
-if drawopts == "Data Region Enclosed":
-    b = d.line( [ ( simres[0,0,12]  , simres[0,0,13] ) ,
-                  ( simres[tno-1,0,12] , simres[tno-1,0,13] ) ] ,
-                    fill = (255,0,255,255) )
-    b = d.line( [ ( simres[0,0,12]  , simres[0,0,13] ) ,
-                  ( simres[0,bmax[0],12] , simres[0,bmax[0],13] ) ] ,
-                    fill = (255,0,255,255) )
-    b = d.line( [ ( simres[tno-1,0,12]  , simres[tno-1,0,13] ) ,
-                  ( simres[tno-1,bmax[tno-1],12] ,
-                   simres[tno-1,bmax[tno-1],13] ) ] ,    
-                    fill = (255,0,255,255) )           
-    for ta in xrange(0,tno - 1):
-        b = d.line( [ ( simres[ta,bmax[ta],12]  , simres[ta,bmax[ta],13] ) ,
-                      ( simres[ta+1,bmax[ta+1],12] , simres[ta+1,bmax[ta+1],13] ) ]
-                      , fill = (255,0,255,255) )
-
-if (drawopts != "No Image"):
-    comimg.show()    
-    cimgsav = os.path.join(imagedir, 'temp.png')    
-    comimg.save(cimgsav,'png')
+    if (drawopts == "Synchrones Only"):
+            
+        d.text((2*border + pixwidth + 30,border + 370), \
+                "Synchrones:",font=fnt, fill= featur_fill)
+        d.line([(2*border + pixwidth + 30,border + 405),
+                (2*border + pixwidth + 170,border + 405)], fill = chrfill) 
+            
+    if (drawopts == "Syndynes only"):
+        
+        d.text((2*border + pixwidth + 30,border + 370), \
+                "Syndynes:",font=fnt, fill= featur_fill)
+        d.line([(2*border + pixwidth + 30,border + 405),
+                (2*border + pixwidth + 170,border + 405)], fill = dynfill) 
+        
+    if (drawopts == "Synchrones and Syndynes"):
+        
+        d.text((2*border + pixwidth + 30,border + 370), \
+                "Syndynes:",font=fnt, fill= featur_fill)
+        d.line([(2*border + pixwidth + 30,border + 405),
+                (2*border + pixwidth + 170,border + 405)], fill = dynfill) 
+                
+        d.text((2*border + pixwidth + 30,border + 420), \
+                "Synchrones:",font=fnt, fill= featur_fill)
+        d.line([(2*border + pixwidth + 30,border + 455),
+                (2*border + pixwidth + 170,border + 455)], fill = chrfill) 
+        
+    if (drawopts == "Synchrones, Syndynes and Data Points"):
+        
+        d.text((2*border + pixwidth + 30,border + 370), \
+                "Syndynes:",font=fnt, fill= featur_fill)
+        d.line([(2*border + pixwidth + 30,border + 405),
+                (2*border + pixwidth + 170,border + 405)], fill = dynfill) 
+                
+        d.text((2*border + pixwidth + 30,border + 420), \
+                "Synchrones:",font=fnt, fill= featur_fill)
+        d.line([(2*border + pixwidth + 30,border + 455),
+                (2*border + pixwidth + 170,border + 455)], fill = chrfill) 
+                
+        d.text((2*border + pixwidth + 30,border + 470), \
+                "Data Points:",font=fnt, fill= featur_fill)
+        d.line([(2*border + pixwidth + 30,border + 505),
+                (2*border + pixwidth + 170,border + 505)], fill = drfill)        
+    
+    if (drawopts != "No Image"):
+        comimg.show()    
+        cimgsav = os.path.join(imagedir, 'temp.png')    
+        comimg.save(cimgsav,'png')

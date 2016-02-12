@@ -12,6 +12,8 @@ def simulation_setup(savefile):
         simtu = 100; simtl = 1; tno = 50; tspace = 'Linear'
         threshold = 10
         drawopts = "Synchrones Only"
+        sav_bool = True
+        test_mode = False
     elif (saveexists == True):
         with open(savefile) as f:
             sparameters = pickle.load(f)
@@ -24,6 +26,8 @@ def simulation_setup(savefile):
             tspace = sparameters[6]
             threshold = sparameters[7]
             drawopts = sparameters[8]
+            sav_bool = sparameters[9]
+            test_mode = sparameters[10]
             
     while 1:
         
@@ -33,12 +37,15 @@ def simulation_setup(savefile):
         +' : ' + str(tno) + ' values\n')
         message += ('Ejection Time Spacing: ' + tspace + ' \n')
         message += ('Draw Options: ' + drawopts + ' \n')
-        message += ('Blocking Threshold ' + str(threshold))
+        message += ('Blocking Threshold = ' + str(threshold)+ ' \n')
+        message += ('Save Data: ' + str(sav_bool) + ' \n')
+        message += ('Test Mode: ' + str(test_mode) + ' \n')
         reply = easygui.buttonbox(msg= message,
                                   title='Choosing Simulation Parameters',
               choices=('Change Beta Values', 'Change Ejection Time Values',
-                       'Change Time Spacing', 'Change Draw Options',
-                       'Change Threshold', 'OK All'),
+                       'Toggle Time Spacing', 'Change Draw Options',
+                       'Change Threshold', 'Toggle Data Save',
+                       'Toggle Test Mode', 'OK All'),
                        image=None)
                        
         if reply == None: sys.exit()
@@ -90,13 +97,10 @@ def simulation_setup(savefile):
             simtl = float(tfieldValues[0])
             tno = int(tfieldValues[2])
                                        
-        if reply == 'Change Time Spacing':
+        if reply == 'Toggle Time Spacing':
            
-            tmsg = "Choose Ejection Time Distribution"
-            ttitle = "Changing Ejection Time Distribution"
-            tchoices=('Logarithmic', 'Linear')                              
-            tspace = easygui.buttonbox(msg= tmsg, title=ttitle,
-                                      choices = tchoices, image=None)
+            if tspace == 'Logarithmic': tspace = 'Linear'                  
+            elif tspace == 'Linear': tspace = 'Logarithmic' 
                                       
         if reply == 'Change Draw Options':
 
@@ -124,10 +128,13 @@ def simulation_setup(savefile):
                 hreply = easygui.enterbox(errmsg, htitle)
             threshold = int(hreply)
         
+        if reply == 'Toggle Data Save': sav_bool = not sav_bool       
+        if reply == 'Toggle Test Mode': test_mode = not test_mode
         if reply == 'OK All': break  
             
     with open(savefile, 'w') as f:
         pickle.dump([betau, betal, bno, simtu, simtl, tno, tspace, threshold,
-                     drawopts], f)
+                     drawopts, sav_bool, test_mode], f)
     
-    return (betau, betal, bno, simtu, simtl, tno, tspace, threshold, drawopts)
+    return (betau, betal, bno, simtu, simtl, tno, tspace, threshold, drawopts,
+            sav_bool, test_mode)
