@@ -53,7 +53,8 @@ comveceq10 = orb_vector(comdenom, obsloc, pysav, orbitdir,
 comobs = orb_obs(comdenom, obsloc, pysav, orbitdir, horiztag)
 
 #choosing fits file to display and getting pathnames
-fitsin = easygui.fileopenbox(default = os.path.join(imagedir, r"*.fits"))
+fitsin = easygui.fileopenbox(default = os.path.join(imagedir, r"*.fits"),
+                             filetypes= r"*.fits")
 fitsinfile = os.path.basename(fitsin)
 filebase = fitsinfile[:string.find(fitsinfile,'.')]
 
@@ -234,9 +235,9 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     
     #plot title
     plttitle = (comdenom.upper() + ' ' + comname)
-    tfnt = ImageFont.truetype(fontloc, 30)
+    titlefnt = ImageFont.truetype(fontloc, 30)
     d.text((1.5*border + pixwidth*0.5 - len(plttitle)*5 - 60,.35*border), \
-    plttitle, font=tfnt, fill= featur_fill)
+    plttitle, font=titlefnt, fill= featur_fill)
     
     pix = comimg.load()
     
@@ -310,7 +311,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     
     #use this to calculate ra and dec of comet for a purposely oversized range
     vno = 0; vext = int(np.size(trajrough))
-    vtraj = np.empty((np.size(trajrough)+2*vext-1,6),dtype = float)
+    vtraj = np.empty((np.size(trajrough)+2*vext-1,11),dtype = float)
     tcellmax = min(trajrough[-1] + vext, np.shape(comveceq)[0])
     for tcell in xrange(trajrough[0] - vext,tcellmax):
         vtemp = comveceq[tcell,6:9] - obsveceq[comcel,6:9]    
@@ -319,6 +320,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         vtraj[vno,1] = ptemp[1]
         vtraj[vno,4] = tcell
         vtraj[vno,5] = tcell + round(np.linalg.norm(vtemp)*8.316746397269274)
+        vtraj[vno,6:11] = comveceq[tcell,1:6]
         vno +=1
         
     #use these ra and dec values to slim data down to within image borders
@@ -339,7 +341,43 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     for ta in xrange(0, (np.shape(vtraj)[0]-1)):
         b = d.line([(vtraj[ta,2],vtraj[ta,3]),(vtraj[ta+1,2],vtraj[ta+1,3])],\
         fill = trajfill)
+        
+    #find locations to plot on orbit
+    orbit_fnt = ImageFont.truetype(fontloc, 10)
+    mnsiz = 5
+    max_orbit_points = 10
+    orbit_cells = np.where(vtraj[:,10] == 0)[0]
+    if np.size(orbit_cells) > max_orbit_points:
+        orbit_cells = np.intersect1d(np.where(vtraj[:,9]%3 == 0)[0],
+                                     orbit_cells)
+    if np.size(orbit_cells) > max_orbit_points:
+        orbit_cells = np.intersect1d(np.where(vtraj[:,9]%6 == 0)[0],
+                                     orbit_cells)
+    if np.size(orbit_cells) > max_orbit_points:
+        orbit_cells = np.intersect1d(np.where(vtraj[:,9]%12 == 0)[0],
+                                     orbit_cells)
+    if np.size(orbit_cells) > max_orbit_points:
+        orbit_cells = np.intersect1d(np.where(vtraj[:,9]%24 == 0)[0],
+                                     orbit_cells)
     
+    #plot these locations on the orbit                                
+    for midn in orbit_cells.tolist():
+        b = d.line( [ (vtraj[midn,2] + mnsiz ,vtraj[midn,3]+ mnsiz ), 
+        (vtraj[midn,2]- mnsiz ,vtraj[midn,3]- mnsiz ) ],
+        fill = featur_fill )
+        b = d.line([(vtraj[midn,2] - mnsiz ,vtraj[midn,3]+ mnsiz ),
+        (vtraj[midn,2]+ mnsiz ,vtraj[midn,3]- mnsiz )],
+        fill = featur_fill)
+        orbtxtx = 2; orbtxty = 2;
+        if (vtraj[midn,3] > 0.93*pixheight+1.5*border):
+            orbtxty = 0; orbtxtx = 3
+        if (vtraj[midn,2] > 0.93*pixwidth+1.5*border):
+            orbtxtx = -13
+        d.text((vtraj[midn,2] + orbtxtx*mnsiz,vtraj[midn,3] + orbtxty*mnsiz),
+        (str(int(vtraj[midn,6])) + '/' + str(int(vtraj[midn,7])) + '/' + 
+        str(int(vtraj[midn,8])) + "\n%02d:00") % int(vtraj[midn,9]) ,
+        font=orbit_fnt, fill= featur_fill)    
+
     #creates an array of ra/dec values along sun-comet line
     cmsam = 10001
     offsets = np.ones(cmsam) + np.linspace(-0.3,0.7,cmsam)
@@ -443,7 +481,6 @@ else:
 #%%**********************************************
 #SEVENTH CELL - Preparing to simulate dust motion
 #************************************************
-
 
 test_mode = True
 while test_mode == True:
@@ -586,6 +623,9 @@ while test_mode == True:
                 b = d.line( [ ( simres[ta,ba,12] - xsiz , simres[ta,ba,13] + xsiz ) ,
                           ( simres[ta,ba,12] + xsiz , simres[ta,ba,13] - xsiz ) ] ,
                           fill = drfill )
+                            
+    fontloc = r'C:\Windows\winsxs\amd64_microsoft-windows-f..etype-lucidaconsole_31bf3856ad364e35_6.1.7600.16385_none_5b3be3e0926bd543\lucon.ttf'
+    fnt = ImageFont.truetype(fontloc, 20)  
     
     if drawopts == "Data Region Enclosed":
         b = d.line( [ ( simres[0,0,12]  , simres[0,0,13] ) ,
@@ -611,10 +651,7 @@ while test_mode == True:
 #%%************************
 #TENTH CELL - ANNOTATE PLOT
 #**************************
-                        
-    fontloc = r'C:\Windows\winsxs\amd64_microsoft-windows-f..etype-lucidaconsole_31bf3856ad364e35_6.1.7600.16385_none_5b3be3e0926bd543\lucon.ttf'
-    fnt = ImageFont.truetype(fontloc, 20)    
-
+  
     if (drawopts == "Synchrones Only"):
             
         d.text((2*border + pixwidth + 30,border + 370), \

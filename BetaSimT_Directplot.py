@@ -51,10 +51,6 @@ fitsin = easygui.fileopenbox(default = os.path.join(imagedir, r"*.fits"))
 fitsinfile = os.path.basename(fitsin)
 filebase = fitsinfile[:string.find(fitsinfile,'.')]
 
-#check if image exists already
-imgsav = os.path.join(imagedir, filebase + '.png')
-imgexists = os.path.exists(imgsav)
-
 #parameter savefile location
 picklesavefile = os.path.join(pysav, filebase + '_dustplot')
 picklexists = os.path.exists(picklesavefile)
@@ -190,12 +186,12 @@ elif (colmapsavexists == False): #do if it hasnt
 
 greyscale_arr = (srcolors[:,:,0] + srcolors[:,:,1] + srcolors[:,:,2])/3
 
-dustplotsave = os.path.join(os.path.dirname(imgsav), 'dustplots')
+dustplotsave = os.path.join(imagedir, 'dustplots')
 if not os.path.exists(dustplotsave):
     os.makedirs(dustplotsave)
 dustplotsave = os.path.join(dustplotsave, simin.split('\\')[-1][:-4] + '.fits')
 
-hdu = fits.PrimaryHDU(greyscale_arr)    
+hdu = fits.PrimaryHDU(greyscale_arr.T)    
 fitshdr = fits.Header()
 
 fitshdr['COMMENT'] = "We'll add the mapping later here"
@@ -230,13 +226,13 @@ dustimg = Image.new('RGBA', (pixwt+int(2.5*border),
 d = ImageDraw.Draw(dustimg)
 nmmax = np.log(np.max(srcolors[:,:,3])+1)
 
-newmap = greyscale_remap(200,120,mode = 'Linear')
+newmap = greyscale_remap(200,50,mode = 'Linear')
 
 greyscale_disp = True
 if (greyscale_disp == True):  
     for ta in xrange(0, tno-1):
         for ba in np.where(simres[ta+1,:,15] == 1)[0][:-1].tolist():
-            fillco = newmap[greyscale_arr]
+            fillco = newmap[greyscale_arr[ta,ba]]
             b1 = beta2ypix(simres[ta,ba,1], border, pixhi, b1sfl, hscle)
             t1 = linsimt2xpix(simres[ta,ba,0], border, t1sfl, wscle)
             b2 = beta2ypix(simres[ta,ba+1,1], border, pixhi, b1sfl, hscle)
