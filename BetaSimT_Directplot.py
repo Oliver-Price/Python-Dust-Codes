@@ -189,17 +189,28 @@ greyscale_arr = (srcolors[:,:,0] + srcolors[:,:,1] + srcolors[:,:,2])/3
 dustplotsave = os.path.join(imagedir, 'dustplots')
 if not os.path.exists(dustplotsave):
     os.makedirs(dustplotsave)
-dustplotsave = os.path.join(dustplotsave, simin.split('\\')[-1][:-4] + '.fits')
+dustplotsave = os.path.join(dustplotsave, simin.split('\\')[-1][:-4])
+dustplotfits = dustplotsave + '.fits'
+dustplotvals = dustplotsave + '.txt'
 
-hdu = fits.PrimaryHDU(greyscale_arr.T)    
-fitshdr = fits.Header()
+if not os.path.exists(dustplotfits):
+    hdu = fits.PrimaryHDU(greyscale_arr.T)    
+    fitshdr = fits.Header()
+    fitshdr['COMMENT'] = "Beta / Ejection time to be added later"
+    hduhdr = fits.PrimaryHDU(header=fitshdr)
+    hdulist = fits.HDUList([hdu])
+    hdulist.writeto(dustplotfits)
 
-fitshdr['COMMENT'] = "We'll add the mapping later here"
-
-hduhdr = fits.PrimaryHDU(header=fitshdr)
-hdulist = fits.HDUList([hdu])
-hdulist.writeto(dustplotsave)
-
+with open(dustplotvals, "w") as text_file:
+    text_file.write('Ejection Times from ' + str(simres[0,0,0]) + ' to ' +
+    str(simres[-1,0,0]))
+    if tspace == 'Linear':
+        text_file.write(' with linear spacing of ' + 
+                        str(np.round(24*60*(simres[1,0,0] - simres[0,0,0]),1)))  
+    text_file.write('\nBeta from ' + str(simres[0,0,1]) + ' to ' +
+    str(simres[-1,0,0]))  
+    text_file.write('\nEjection Time Values:\n ' +  str(simres[:,0,0])[1:-1] +
+                    '\nBeta Values:\n ' + str(simres[0,:,1])[1:-1] )
 #%%********************************
 #FOURTH CELL - PLOT DATA ONTO IMAGE
 #**********************************          
