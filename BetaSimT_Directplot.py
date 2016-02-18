@@ -15,9 +15,7 @@ greyscale_remap
 from astropy.io import fits
 from PIL import Image, ImageDraw, ImageFont
 
-#%%
-
-#************************
+#%%**********************
 #FIRST CELL - GET DATA IN
 #************************
 
@@ -185,6 +183,7 @@ elif (colmapsavexists == False): #do if it hasnt
 #******************************       
 
 greyscale_arr = (srcolors[:,:,0] + srcolors[:,:,1] + srcolors[:,:,2])/3
+fits_arr = greyscale_arr.T #indexed by beta first then ejec_t
 
 dustplotsave = os.path.join(imagedir, 'dustplots')
 if not os.path.exists(dustplotsave):
@@ -194,172 +193,263 @@ dustplotfits = dustplotsave + '.fits'
 dustplotvals = dustplotsave + '.txt'
 
 if not os.path.exists(dustplotfits):
-    hdu = fits.PrimaryHDU(greyscale_arr.T)    
+    hdu = fits.PrimaryHDU(fits_arr)    
     fitshdr = fits.Header()
-    fitshdr['COMMENT'] = "Beta / Ejection time to be added later"
+    fitshdr['COMMENT'] = "Beta / Ejection time in file"
     hduhdr = fits.PrimaryHDU(header=fitshdr)
     hdulist = fits.HDUList([hdu])
     hdulist.writeto(dustplotfits)
 
 with open(dustplotvals, "w") as text_file:
     text_file.write('Ejection Times from ' + str(simres[0,0,0]) + ' to ' +
-    str(simres[-1,0,0]))
+    str(simres[-1,0,0]) + ' days, ')
     if tspace == 'Linear':
-        text_file.write(' with linear spacing of ' + 
-                        str(np.round(24*60*(simres[1,0,0] - simres[0,0,0]),1)))  
+        text_file.write('with a linear spacing of ' + 
+                        str(np.round(24*60*(simres[1,0,0] - simres[0,0,0]),1))
+                        + ' minutes')  
     text_file.write('\nBeta from ' + str(simres[0,0,1]) + ' to ' +
     str(simres[-1,0,0]))  
     text_file.write('\nEjection Time Values:\n ' +  str(simres[:,0,0])[1:-1] +
                     '\nBeta Values:\n ' + str(simres[0,:,1])[1:-1] )
-#%%********************************
-#FOURTH CELL - PLOT DATA ONTO IMAGE
-#**********************************          
-            
-simtl = simres[0,0,0]; simtu = simres[tno-1,0,0]
-betal = simres[0,0,1]; betau = simres[0,bno-1,1]
 
-t1sfu = float('%.1g' % simtu)
-t1sfl = float('%.1g' % simtl)
-b1sfu = float('%.1g' % betau)
-b1sfl = float('%.1g' % betal)
+#%%**************************************
+#FOURTH CELL - SAVE TIME FILTERED TO FITS
+#****************************************      
+filtermsg = "Create ejection time filtered fits?"
+reply = easygui.ynbox(msg=filtermsg)
 
-pixhi = 800
-pixwt = 1600
-border = 100
-hscle = pixhi/(np.log10(betau) - np.log10(betal))
-if (tspace == 'Logarithmic'):
-    wscle = pixwt/(np.log10(simtu) - np.log10(simtl))
-elif (tspace == 'Linear'):
-    wscle = pixwt/(simtu - simtl)
+if reply == True:
     
-dustimg = Image.new('RGBA', (pixwt+int(2.5*border),
-                             pixhi+int(3*border)),(0,0,0,255))
-d = ImageDraw.Draw(dustimg)
-nmmax = np.log(np.max(srcolors[:,:,3])+1)
-
-newmap = greyscale_remap(200,50,mode = 'Linear')
-
-greyscale_disp = True
-if (greyscale_disp == True):  
-    for ta in xrange(0, tno-1):
-        for ba in np.where(simres[ta+1,:,15] == 1)[0][:-1].tolist():
-            fillco = newmap[greyscale_arr[ta,ba]]
-            b1 = beta2ypix(simres[ta,ba,1], border, pixhi, b1sfl, hscle)
-            t1 = linsimt2xpix(simres[ta,ba,0], border, t1sfl, wscle)
-            b2 = beta2ypix(simres[ta,ba+1,1], border, pixhi, b1sfl, hscle)
-            t2 = linsimt2xpix(simres[ta,ba+1,0], border, t1sfl, wscle)
-            b3 = beta2ypix(simres[ta+1,ba+1,1], border, pixhi, b1sfl, hscle)
-            t3 = linsimt2xpix(simres[ta+1,ba+1,0], border, t1sfl, wscle)
-            b4 = beta2ypix(simres[ta+1,ba,1], border, pixhi, b1sfl, hscle)
-            t4 = linsimt2xpix(simres[ta+1,ba,0], border, t1sfl, wscle)
-            a = d.polygon([(t1,b1),(t2,b2),(t3,b3),(t4,b4)]
-            ,fill=(fillco,fillco,fillco,255))
-else:
-    for ta in xrange(0, tno-1):
-        for ba in np.where(simres[ta+1,:,15] == 1)[0][:-1].tolist():
-            b1 = beta2ypix(simres[ta,ba,1], border, pixhi, b1sfl, hscle)
-            t1 = linsimt2xpix(simres[ta,ba,0], border, t1sfl, wscle)
-            b2 = beta2ypix(simres[ta,ba+1,1], border, pixhi, b1sfl, hscle)
-            t2 = linsimt2xpix(simres[ta,ba+1,0], border, t1sfl, wscle)
-            b3 = beta2ypix(simres[ta+1,ba+1,1], border, pixhi, b1sfl, hscle)
-            t3 = linsimt2xpix(simres[ta+1,ba+1,0], border, t1sfl, wscle)
-            b4 = beta2ypix(simres[ta+1,ba,1], border, pixhi, b1sfl, hscle)
-            t4 = linsimt2xpix(simres[ta+1,ba,0], border, t1sfl, wscle)
-            a = d.polygon([(t1,b1),(t2,b2),(t3,b3),(t4,b4)]
-            ,fill=(srcolors[ta,ba,0],srcolors[ta,ba,1],srcolors[ta,ba,2],255))
-            
-#%%*******************
-#FIFTHCELL - DRAW AXIS
-#*********************
-            
-#LINEAR AXIS STUFF NEEDS FIXING TB
-
-a = d.polygon([(border,border),(border*2+pixwt,border), \
-    (border*2+pixwt,border*2+pixhi),(border,border*2+pixhi)], \
-    outline = (255,255,255,128))
-
-decades = np.logspace(-4,4,9)
-
-bdecl = np.searchsorted(decades,betal, side = 'right')-1
-bdecu = np.searchsorted(decades,betau)
-
-bminticks = np.linspace(decades[bdecl],decades[bdecl+1],10)
-for bdec in xrange(bdecl+1, bdecu):
-    bminticks = np.concatenate((bminticks,
-                      np.linspace(decades[bdec],decades[bdec+1],10)[1:10]))
-bminticks = bminticks[np.searchsorted(bminticks,b1sfl):
-                          np.searchsorted(bminticks,b1sfu)+1]
-bmajticks = np.intersect1d(bminticks,decades)
-bminticlocs = beta2ypix(bminticks, border, pixhi, b1sfl, hscle)
-bmajticlocs = beta2ypix(bmajticks, border, pixhi, b1sfl, hscle)
-
-if tspace == 'Logarithmic':
-    tdecl = np.searchsorted(decades,simtl, side = 'right')-1
-    tdecu = np.searchsorted(decades,simtu)
+    hmsg = "Choose time filter shift in hours"
+    hreply = easygui.enterbox(hmsg)
+    while 1:
+        if hreply == None: break #exit if cancel pressed                 
+        errmsg = ""
+        try:
+            tshift = float(hreply)
+        except ValueError:
+                errmsg += ("Time must be a number")
+        if errmsg == "": break
+        hreply = easygui.enterbox(errmsg)
+    tshift = int(float(hreply)/(simres[1,0,0] - simres[0,0,0])/24)
+  
+    fits_t_minus = fits_arr[:,tshift:]
+    fits_t_plus = fits_arr[:,:-tshift]
     
-    tminticks = np.linspace(decades[tdecl],decades[tdecl+1],10)
-    for tdec in xrange(tdecl+1, tdecu):
-        tminticks = np.concatenate((tminticks,
-                          np.linspace(decades[tdec],decades[tdec+1],10)[1:10]))
-    tminticks = tminticks[np.searchsorted(tminticks,t1sfl):
-                              np.searchsorted(tminticks,t1sfu)+1]
-    tmajticks = np.intersect1d(tminticks,decades)
+    fits_t_modified = 2*fits_arr
+    fits_t_modified[:,:-tshift] = fits_t_modified[:,:-tshift] - fits_t_minus
+    fits_t_modified[:,tshift:] = fits_t_modified[:,tshift:] - fits_t_plus
     
-if tspace == 'Linear':
+    fits_t_modified[np.where(fits_t_modified<0)] = 0
+    fits_t_modified[np.where(fits_t_modified>255)] = 255
     
-    lindivmajors = np.array([0.1,0.2,0.5,1,2,5,10,20,50,100,200])
-    lindivrecips = np.array([10,5,2,1,0.5,0.2,0.1,0.05,0.02,0.01,0.005])
+    dustplotmodifits = (dustplotsave + '_tfilter_' +
+                        string.replace(str(float(hreply)),'.','\'') + '.fits')
     
-    tdivnos = lindivrecips * (t1sfu - t1sfl)
-    nodivs = 10
-    tdividx = (np.abs(tdivnos-nodivs)).argmin()
-    tlodi = np.floor(t1sfl*lindivrecips[tdividx])*lindivmajors[tdividx]
-    thidi = np.ceil(t1sfu*lindivrecips[tdividx])*lindivmajors[tdividx]
-    tmajticks = np.arange(tlodi, thidi+1e-10, lindivmajors[tdividx])
+    if not os.path.exists(dustplotmodifits):
+        hdu = fits.PrimaryHDU(fits_t_modified)    
+        fitshdr = fits.Header()
+        fitshdr['COMMENT'] = "Beta / Ejection time in file"
+        fitshdr['COMMENT'] = "Modified with a Larson-Sekanina(esque) filter"
+        hduhdr = fits.PrimaryHDU(header=fitshdr)
+        hdulist = fits.HDUList([hdu])
+        hdulist.writeto(dustplotmodifits)
+        
+#%%*************************************
+#FIFTH CELL - SAVE BETA FILTERED TO FITS
+#***************************************
+filtermsg = "Create beta filtered fits?"
+reply = easygui.ynbox(msg=filtermsg)
+
+if reply == True:
     
-#tminticlocs = linsimt2xpix(tminticks, border, t1sfl, wscle)
-tmajticlocs = linsimt2xpix(tmajticks, border, t1sfl, wscle)
-
-majt = 20  #major tick length
-mint = 10  #minor tick length
-xaxis = pixhi + border*2
-fontloc = r'C:\Windows\winsxs\amd64_microsoft-windows-f..etype-lucidaconsole_31bf3856ad364e35_6.1.7600.16385_none_5b3be3e0926bd543\lucon.ttf'
-fnt = ImageFont.truetype(fontloc, 20)
-
-#for div in xrange(0, (np.size(tminticlocs))): #simt axis minor ticks
-#    b = d.line([(tminticlocs[div],xaxis-mint),(tminticlocs[div],xaxis)],\
-#    fill = (255,255,255,128))
-
-for div in xrange(0, (np.size(bminticlocs))): #beta axis minor ticks
-    b = d.line([(border+mint,bminticlocs[div]),(border,bminticlocs[div])],\
-    fill = (255,255,255,128))
-
-for div in xrange(0, (np.size(tmajticlocs))): #simt axis major ticks
-    b = d.line([(tmajticlocs[div],xaxis-majt),(tmajticlocs[div],xaxis)],\
-    fill = (255,255,255,128))
-    tick = str(tmajticks[div])
-    d.text((tmajticlocs[div] - len(tick)*5,xaxis + 10), \
-    tick, font=fnt, fill=(255,255,255,128))
-
-for div in xrange(0, (np.size(bmajticlocs))): #beta axis major ticks
-    b = d.line([(border+majt,bmajticlocs[div]),(border,bmajticlocs[div])],\
-    fill = (255,255,255,128))
-    tick = str(bmajticks[div])
-    d.text((border - len(tick)*5 - 40,bmajticlocs[div] - 10 ), \
-    tick, font=fnt, fill=(255,255,255,128))
+    hmsg = "Choose beta filter shift (cell no)"
+    hreply = easygui.enterbox(hmsg)
+    while 1:
+        if hreply == None: break #exit if cancel pressed                 
+        errmsg = ""
+        try:
+            bshift = int(hreply)
+        except ValueError:
+                errmsg += ("Beta must be a number")
+        if errmsg == "": break
+        hreply = easygui.enterbox(errmsg)
+    bshift = int(hreply)
     
-#axis labels
-d.text((1.5*border + pixwt*0.5 - 150,pixhi + 2.5*border), \
-"Time since ejection (Days)", font=fnt, fill=(255,255,255,128))
-d.text((0.25*border - 10,0.75*border - 20), \
-"Beta", font=fnt, fill=(255,255,255,128))
+    fits_b_minus = fits_arr[bshift:,:]
+    fits_b_plus = fits_arr[:-bshift,:]
+    
+    fits_b_modified = 2*fits_arr
+    fits_b_modified[:-bshift,:] = fits_b_modified[:-bshift,:] - fits_b_minus
+    fits_b_modified[bshift:,:] = fits_b_modified[bshift:,:] - fits_b_plus
+    
+    fits_b_modified[np.where(fits_b_modified<0)] = 0
+    fits_b_modified[np.where(fits_b_modified>255)] = 255
+    
+    dustplotmodifits = (dustplotsave + '_bfilter_' +
+                        string.replace(str(float(hreply)),'.','\'') + '.fits')
+    
+    if not os.path.exists(dustplotmodifits):
+        hdu = fits.PrimaryHDU(fits_b_modified)    
+        fitshdr = fits.Header()
+        fitshdr['COMMENT'] = "Beta / Ejection time in file"
+        fitshdr['COMMENT'] = "Modified with a Larson-Sekanina(esque) filter"
+        hduhdr = fits.PrimaryHDU(header=fitshdr)
+        hdulist = fits.HDUList([hdu])
+        hdulist.writeto(dustplotmodifits)
+                  
+#%%******************************
+#SIXTH CELL - PLOT DATA ONTO IMAGE
+#*********************************          
+ 
+#choose img type
+colormsg = "Preview dustplot output?"
+reply = easygui.ynbox(msg=colormsg)
 
-#plot title
-plttitle = (comdenom.upper() + ' ' + comname[:-1] + ' dust tail')
-tfnt = ImageFont.truetype(fontloc, 30)
-d.text((1.5*border + pixwt*0.5 - len(plttitle)*5 - 100,.35*border), \
-plttitle, font=tfnt, fill=(255,255,255,128))
-
-dustimg.show()
-
-
+if reply == True:          
+    simtl = simres[0,0,0]; simtu = simres[tno-1,0,0]
+    betal = simres[0,0,1]; betau = simres[0,bno-1,1]
+    
+    t1sfu = float('%.1g' % simtu)
+    t1sfl = float('%.1g' % simtl)
+    b1sfu = float('%.1g' % betau)
+    b1sfl = float('%.1g' % betal)
+    
+    pixhi = 800
+    pixwt = 1600
+    border = 100
+    hscle = pixhi/(np.log10(betau) - np.log10(betal))
+    if (tspace == 'Logarithmic'):
+        wscle = pixwt/(np.log10(simtu) - np.log10(simtl))
+    elif (tspace == 'Linear'):
+        wscle = pixwt/(simtu - simtl)
+        
+    dustimg = Image.new('RGBA', (pixwt+int(2.5*border),
+                                 pixhi+int(3*border)),(0,0,0,255))
+    d = ImageDraw.Draw(dustimg)
+    nmmax = np.log(np.max(srcolors[:,:,3])+1)
+    
+    #newmap = greyscale_remap(200,50,mode = 'Linear')
+    
+    greyscale_disp = True
+    if (greyscale_disp == True):  
+        for ta in xrange(0, tno-1):
+            for ba in np.where(simres[ta+1,:,15] == 1)[0][:-1].tolist():
+                fillco = greyscale_arr[ta,ba]
+                b1 = beta2ypix(simres[ta,ba,1], border, pixhi, b1sfl, hscle)
+                t1 = linsimt2xpix(simres[ta,ba,0], border, t1sfl, wscle)
+                b2 = beta2ypix(simres[ta,ba+1,1], border, pixhi, b1sfl, hscle)
+                t2 = linsimt2xpix(simres[ta,ba+1,0], border, t1sfl, wscle)
+                b3 = beta2ypix(simres[ta+1,ba+1,1], border, pixhi, b1sfl, hscle)
+                t3 = linsimt2xpix(simres[ta+1,ba+1,0], border, t1sfl, wscle)
+                b4 = beta2ypix(simres[ta+1,ba,1], border, pixhi, b1sfl, hscle)
+                t4 = linsimt2xpix(simres[ta+1,ba,0], border, t1sfl, wscle)
+                a = d.polygon([(t1,b1),(t2,b2),(t3,b3),(t4,b4)]
+                ,fill=(fillco,fillco,fillco,255))
+    else:
+        for ta in xrange(0, tno-1):
+            for ba in np.where(simres[ta+1,:,15] == 1)[0][:-1].tolist():
+                b1 = beta2ypix(simres[ta,ba,1], border, pixhi, b1sfl, hscle)
+                t1 = linsimt2xpix(simres[ta,ba,0], border, t1sfl, wscle)
+                b2 = beta2ypix(simres[ta,ba+1,1], border, pixhi, b1sfl, hscle)
+                t2 = linsimt2xpix(simres[ta,ba+1,0], border, t1sfl, wscle)
+                b3 = beta2ypix(simres[ta+1,ba+1,1], border, pixhi, b1sfl, hscle)
+                t3 = linsimt2xpix(simres[ta+1,ba+1,0], border, t1sfl, wscle)
+                b4 = beta2ypix(simres[ta+1,ba,1], border, pixhi, b1sfl, hscle)
+                t4 = linsimt2xpix(simres[ta+1,ba,0], border, t1sfl, wscle)
+                a = d.polygon([(t1,b1),(t2,b2),(t3,b3),(t4,b4)]
+                ,fill=(srcolors[ta,ba,0],srcolors[ta,ba,1],srcolors[ta,ba,2],255))
+                
+#%%**********************
+#SEVENTH CELL - DRAW AXIS
+#************************
+                
+    #LINEAR AXIS STUFF NEEDS FIXING TB
+    
+    a = d.polygon([(border,border),(border*2+pixwt,border), \
+        (border*2+pixwt,border*2+pixhi),(border,border*2+pixhi)], \
+        outline = (255,255,255,128))
+    
+    decades = np.logspace(-4,4,9)
+    
+    bdecl = np.searchsorted(decades,betal, side = 'right')-1
+    bdecu = np.searchsorted(decades,betau)
+    
+    bminticks = np.linspace(decades[bdecl],decades[bdecl+1],10)
+    for bdec in xrange(bdecl+1, bdecu):
+        bminticks = np.concatenate((bminticks,
+                          np.linspace(decades[bdec],decades[bdec+1],10)[1:10]))
+    bminticks = bminticks[np.searchsorted(bminticks,b1sfl):
+                              np.searchsorted(bminticks,b1sfu)+1]
+    bmajticks = np.intersect1d(bminticks,decades)
+    bminticlocs = beta2ypix(bminticks, border, pixhi, b1sfl, hscle)
+    bmajticlocs = beta2ypix(bmajticks, border, pixhi, b1sfl, hscle)
+    
+    if tspace == 'Logarithmic':
+        tdecl = np.searchsorted(decades,simtl, side = 'right')-1
+        tdecu = np.searchsorted(decades,simtu)
+        
+        tminticks = np.linspace(decades[tdecl],decades[tdecl+1],10)
+        for tdec in xrange(tdecl+1, tdecu):
+            tminticks = np.concatenate((tminticks,
+                              np.linspace(decades[tdec],decades[tdec+1],10)[1:10]))
+        tminticks = tminticks[np.searchsorted(tminticks,t1sfl):
+                                  np.searchsorted(tminticks,t1sfu)+1]
+        tmajticks = np.intersect1d(tminticks,decades)
+        
+    if tspace == 'Linear':
+        
+        lindivmajors = np.array([0.1,0.2,0.5,1,2,5,10,20,50,100,200])
+        lindivrecips = np.array([10,5,2,1,0.5,0.2,0.1,0.05,0.02,0.01,0.005])
+        
+        tdivnos = lindivrecips * (t1sfu - t1sfl)
+        nodivs = 10
+        tdividx = (np.abs(tdivnos-nodivs)).argmin()
+        tlodi = np.floor(t1sfl*lindivrecips[tdividx])*lindivmajors[tdividx]
+        thidi = np.ceil(t1sfu*lindivrecips[tdividx])*lindivmajors[tdividx]
+        tmajticks = np.arange(tlodi, thidi+1e-10, lindivmajors[tdividx])
+        
+    #tminticlocs = linsimt2xpix(tminticks, border, t1sfl, wscle)
+    tmajticlocs = linsimt2xpix(tmajticks, border, t1sfl, wscle)
+    
+    majt = 20  #major tick length
+    mint = 10  #minor tick length
+    xaxis = pixhi + border*2
+    fontloc = r'C:\Windows\winsxs\amd64_microsoft-windows-f..etype-lucidaconsole_31bf3856ad364e35_6.1.7600.16385_none_5b3be3e0926bd543\lucon.ttf'
+    fnt = ImageFont.truetype(fontloc, 20)
+    
+    #for div in xrange(0, (np.size(tminticlocs))): #simt axis minor ticks
+    #    b = d.line([(tminticlocs[div],xaxis-mint),(tminticlocs[div],xaxis)],\
+    #    fill = (255,255,255,128))
+    
+    for div in xrange(0, (np.size(bminticlocs))): #beta axis minor ticks
+        b = d.line([(border+mint,bminticlocs[div]),(border,bminticlocs[div])],\
+        fill = (255,255,255,128))
+    
+    for div in xrange(0, (np.size(tmajticlocs))): #simt axis major ticks
+        b = d.line([(tmajticlocs[div],xaxis-majt),(tmajticlocs[div],xaxis)],\
+        fill = (255,255,255,128))
+        tick = str(tmajticks[div])
+        d.text((tmajticlocs[div] - len(tick)*5,xaxis + 10), \
+        tick, font=fnt, fill=(255,255,255,128))
+    
+    for div in xrange(0, (np.size(bmajticlocs))): #beta axis major ticks
+        b = d.line([(border+majt,bmajticlocs[div]),(border,bmajticlocs[div])],\
+        fill = (255,255,255,128))
+        tick = str(bmajticks[div])
+        d.text((border - len(tick)*5 - 40,bmajticlocs[div] - 10 ), \
+        tick, font=fnt, fill=(255,255,255,128))
+        
+    #axis labels
+    d.text((1.5*border + pixwt*0.5 - 150,pixhi + 2.5*border), \
+    "Time since ejection (Days)", font=fnt, fill=(255,255,255,128))
+    d.text((0.25*border - 10,0.75*border - 20), \
+    "Beta", font=fnt, fill=(255,255,255,128))
+    
+    #plot title
+    plttitle = (comdenom.upper() + ' ' + comname[:-1] + ' dust tail')
+    tfnt = ImageFont.truetype(fontloc, 30)
+    d.text((1.5*border + pixwt*0.5 - len(plttitle)*5 - 100,.35*border), \
+    plttitle, font=tfnt, fill=(255,255,255,128))
+    
+    dustimg.show()

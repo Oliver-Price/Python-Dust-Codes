@@ -626,6 +626,7 @@ while test_mode == True:
                             
     fontloc = r'C:\Windows\winsxs\amd64_microsoft-windows-f..etype-lucidaconsole_31bf3856ad364e35_6.1.7600.16385_none_5b3be3e0926bd543\lucon.ttf'
     fnt = ImageFont.truetype(fontloc, 20)  
+    bt_anno_idx = 0
     
     if drawopts == "Data Region Enclosed":
         b = d.line( [ ( simres[0,0,12]  , simres[0,0,13] ) ,
@@ -667,6 +668,7 @@ while test_mode == True:
                 (2*border + pixwidth + 170,border + 405)], fill = dynfill) 
         
     if (drawopts == "Synchrones and Syndynes"):
+        bt_anno_idx = 1          
         
         d.text((2*border + pixwidth + 30,border + 370), \
                 "Syndynes:",font=fnt, fill= featur_fill)
@@ -679,6 +681,7 @@ while test_mode == True:
                 (2*border + pixwidth + 170,border + 455)], fill = chrfill) 
         
     if (drawopts == "Synchrones, Syndynes and Data Points"):
+        bt_anno_idx = 2     
         
         d.text((2*border + pixwidth + 30,border + 370), \
                 "Syndynes:",font=fnt, fill= featur_fill)
@@ -694,6 +697,15 @@ while test_mode == True:
                 "Data Points:",font=fnt, fill= featur_fill)
         d.line([(2*border + pixwidth + 30,border + 505),
                 (2*border + pixwidth + 170,border + 505)], fill = drfill)        
+    
+    d.text((2*border + pixwidth + 30,border + 420 + 50*bt_anno_idx), 
+    ("Beta Range: " + '\n' + '  ' + str(betal) + ' to ' + str(betau)),
+    font=fnt, fill= featur_fill)
+    
+    d.text((2*border + pixwidth + 30,border + 470 + 50*bt_anno_idx), 
+    ("Ejection Time\nrange in days\nbefore image:" + '\n' + '  '
+    + str(simtl) + ' to ' + str(simtu)),
+    font=fnt, fill= featur_fill)
     
     if (drawopts != "No Image"):
         comimg.show()    
