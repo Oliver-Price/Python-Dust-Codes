@@ -14,6 +14,7 @@ from plot_functions import beta2ypix, linsimt2xpix, logsimt2xpix, radec_slim, \
 greyscale_remap
 from astropy.io import fits
 from PIL import Image, ImageDraw, ImageFont
+import time
 
 #%%**********************
 #FIRST CELL - GET DATA IN
@@ -100,6 +101,7 @@ with open(simin[:-4] + '_parameters') as f:
 colmapsav = simin[:-4] + '_srcolors.npy'
 locmapsav = simin[:-4] + '_pixelmapping.txt'
 colmapsavexists = os.path.exists(colmapsav)
+a = time.clock()
 
 if (colmapsavexists == True): #load if it has
     srcolors = np.load(colmapsav)
@@ -132,7 +134,7 @@ elif (colmapsavexists == False): #do if it hasnt
                 numin = np.size(boxlocs1d)
                 if (numin > 0): 
                     boxlocs = np.empty((numin,5),dtype = float)
-                    boxlocs[:,0] = np.floor(boxlocs1d/rashape1)
+                    boxlocs[:,0] = boxlocs1d//rashape1
                     boxlocs[:,1] = boxlocs1d%rashape1
                     boxpath = np.array(
                     [[simres[ta,ba,10], simres[ta,ba,11]],
@@ -178,6 +180,7 @@ elif (colmapsavexists == False): #do if it hasnt
             print float(ta*100)/tno
     np.save(colmapsav,srcolors)
         
+b = time.clock()
 #%%****************************
 #THIRD CELL - SAVE DATA TO FITS
 #******************************       
