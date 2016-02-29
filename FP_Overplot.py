@@ -590,24 +590,26 @@ while test_mode == True:
 #*****************************
 
     dynfill = (255,0,0,255) #syndynes
-    chrfill = (200,92,0,255) #synchrones
+    chrfill = (255,192,0,255) #synchrones
     drfill = (255,0,255,255) #data points and data region
         
     if "Syndynes" in drawopts: #DRAW SYNDYNES
-        for ba in xrange(0, bno):
+        for ba in xrange(0, bno, 19):
             b = d.line([(rapixl,depixl), \
             (simres[0,ba,12],simres[0,ba,13])],\
             fill = dynfill)
+            print 'BETA = ' + str(simres[0,ba,1])
             for ta in xrange(0, tmax[ba]):
                 b = d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
                 (simres[ta+1,ba,12],simres[ta+1,ba,13])],\
                 fill = dynfill)
     
     if "Synchrones" in drawopts: #DRAW SYNCHRONES
-        for ta in xrange(0, tno):
+        for ta in xrange(0, tno, 19):
             b = d.line([(rapixl,depixl), \
             (simres[ta,0,12],simres[ta,0,13])],\
             fill = chrfill)
+            print 'TIME = ' + str(simres[ta,0,0])
             for ba in xrange(0, bmax[ta]):
                 b = d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
                 (simres[ta,ba+1,12],simres[ta,ba+1,13])],\

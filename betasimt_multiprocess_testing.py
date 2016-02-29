@@ -21,6 +21,7 @@ import time
 #%%**********************
 #FIRST CELL - GET DATA IN
 #************************
+
 #protection against multiprocessing
 if __name__ == '__main__': 
     
@@ -114,66 +115,9 @@ class NoDaemonProcess(multiprocessing.Process):
 class MyPool(multiprocessing.pool.Pool):
     Process = NoDaemonProcess
 
-def loop(ta, simres = simres, ra = ra, dec = dec, colr = colr, colg = colg, colb = colb):
-    [ra_ta, dec_ta, ra_ta_d0, ra_ta_d1] = radec_slim(ra, dec,
-                                            simres[ta,:,10], simres[ta,:,11])
-    rashape1 = np.shape(ra_ta)[1]
-    ba_vals = np.where(simres[ta+1,:,15] == 1)[0][:-1]
-    srcolors = np.zeros((np.size(ba_vals),5))
-    for ba in ba_vals.tolist():
-        boxramin = min(simres[ta,ba,10],simres[ta+1,ba,10],
-                       simres[ta,ba+1,10],simres[ta+1,ba+1,10])
-        boxdemin = min(simres[ta,ba,11],simres[ta+1,ba,11],
-                       simres[ta,ba+1,11],simres[ta+1,ba+1,11])
-        boxramax = max(simres[ta,ba,10],simres[ta+1,ba,10],
-                       simres[ta,ba+1,10],simres[ta+1,ba+1,10])
-        boxdemax = max(simres[ta,ba,11],simres[ta+1,ba,11],
-                       simres[ta,ba+1,11],simres[ta+1,ba+1,11])
-        ralocs = np.where((ra_ta > boxramin) & (ra_ta < boxramax))   
-        delocs = np.where((dec_ta > boxdemin) & (dec_ta < boxdemax))
-        ralocs1d = ralocs[0]*rashape1+ralocs[1]
-        delocs1d = delocs[0]*rashape1+delocs[1]   
-        boxlocs1d = np.intersect1d(ralocs1d,delocs1d)
-        numin = np.size(boxlocs1d)
-        if (numin > 0): 
-            boxlocs = np.empty((numin,5),dtype = float)
-            boxlocs[:,0] = np.floor(boxlocs1d/rashape1)
-            boxlocs[:,1] = boxlocs1d%rashape1
-            boxpath = np.array(
-            [[simres[ta,ba,10], simres[ta,ba,11]],
-            [simres[ta+1,ba,10], simres[ta+1,ba,11]],
-            [simres[ta+1,ba+1,10], simres[ta+1,ba+1,11]],
-            [simres[ta,ba+1,10], simres[ta,ba+1,11]]])
-            bbPath = mplPath.Path(boxpath)
-            for n in xrange(0,numin):
-                boxlocs[n,2] = ra_ta[boxlocs[n,0],boxlocs[n,1]]
-                boxlocs[n,3] = dec_ta[boxlocs[n,0],boxlocs[n,1]]
-                boxlocs[n,4] = bbPath.contains_point((boxlocs[n,2],
-                                                      boxlocs[n,3]))                                        
-            boxlocs = boxlocs[np.where(boxlocs[:,4] == 1)]
-            numin = np.shape(boxlocs)[0]
-        if (numin > 0):
-            rtot = 0; gtot = 0; btot = 0
-            for n in xrange(0,numin):
-                rtot += colr[boxlocs[n,0]+ra_ta_d0,boxlocs[n,1]+ra_ta_d1]
-                gtot += colg[boxlocs[n,0]+ra_ta_d0,boxlocs[n,1]+ra_ta_d1]
-                btot += colb[boxlocs[n,0]+ra_ta_d0,boxlocs[n,1]+ra_ta_d1]                 
-            srcolors[ba,0] = int(round(float(rtot)/numin))
-            srcolors[ba,1] = int(round(float(gtot)/numin))
-            srcolors[ba,2] = int(round(float(btot)/numin))
-        else:
-            avera = (simres[ta,ba,10] + simres[ta,ba+1,10] +
-                    simres[ta+1,ba,10] + simres[ta+1,ba+1,10])/4
-            avedec = (simres[ta,ba,11] + simres[ta,ba+1,11] +
-                    simres[ta+1,ba,11] + simres[ta+1,ba+1,11])/4       
-            distarr = abs(ra_ta - avera) + abs(dec_ta - avedec)
-            loc = np.where(distarr == np.min(distarr))
-            srcolors[ba,0] = colr[loc[0][0]+ra_ta_d0,loc[1][0]+ra_ta_d1]
-            srcolors[ba,1] = colg[loc[0][0]+ra_ta_d0,loc[1][0]+ra_ta_d1]
-            srcolors[ba,2] = colb[loc[0][0]+ra_ta_d0,loc[1][0]+ra_ta_d1]
-        srcolors[ba,3] = numin
-        srcolors[ba,4] = 1
-        return srcolors
+def loop(ta):
+        print "DONE"
+        return np.random.rand()
 
 #%%*********************************************************
 #THIRD CELL - DOING THE PIXEL VALUE ASSIGNMENTS
@@ -183,9 +127,8 @@ if __name__ == '__main__':
     a = time.clock() 
     
     pool = MyPool(4)
-    print 'start'
     #results = pool.map(loop, np.arange(len(simres[:,0,0])))
     results = pool.map(loop, np.arange(0,1,1))
-    print 'done'
+    
     b = time.clock()
 

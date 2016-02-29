@@ -235,21 +235,33 @@ if reply == True:
         if errmsg == "": break
         hreply = easygui.enterbox(errmsg)
     tshift = int(float(hreply)/(simres[1,0,0] - simres[0,0,0])/24)
-  
-    fits_t_minus = fits_arr[:,tshift:]
-    fits_t_plus = fits_arr[:,:-tshift]
-    
-    fits_t_modified = 2*fits_arr
-    fits_t_modified[:,:-tshift] = fits_t_modified[:,:-tshift] - fits_t_minus
-    fits_t_modified[:,tshift:] = fits_t_modified[:,tshift:] - fits_t_plus
-    
-    fits_t_modified[np.where(fits_t_modified<0)] = 0
-    fits_t_modified[np.where(fits_t_modified>255)] = 255
     
     dustplotmodifits = (dustplotsave + '_tfilter_' +
-                        string.replace(str(float(hreply)),'.','\'') + '.fits')
+                        string.replace(str(float(hreply)),'.','\'') + '.fits') 
     
     if not os.path.exists(dustplotmodifits):
+        ref_vals = np.copy(simres[:,:,15].T)
+        
+        fits_t_minus = np.copy(fits_arr[:,tshift:])
+        fits_t_plus = np.copy(fits_arr[:,:-tshift])
+        ref_t_minus = np.copy(ref_vals[:,tshift:])
+        ref_t_plus = np.copy(ref_vals[:,:-tshift])        
+        
+        fits_t_modified = np.copy(2*fits_arr)
+        ref_t_modified = np.copy(ref_vals)
+        fits_t_modified[:,:-tshift] = fits_t_modified[:,:-tshift] - fits_t_minus
+        fits_t_modified[:,tshift:] = fits_t_modified[:,tshift:] - fits_t_plus
+        ref_t_modified[:,:-tshift] = ref_t_modified[:,:-tshift] + ref_t_minus
+        ref_t_modified[:,tshift:] = ref_t_modified[:,tshift:] + ref_t_plus
+        
+        fits_t_modified[:,0:tshift+1] = 0
+        fits_t_modified[:,-tshift-1:] = 0 
+        fits_t_modified[np.where(ref_t_modified!=3)] = 0
+        fits_t_modified[np.where(fits_t_modified<0)] = 0
+        fits_t_modified[np.where(fits_t_modified>255)] = 0
+        
+        fits_t_modified[np.where(fits_t_modified>50)] = 0 #EXPERIMENTAL
+        
         hdu = fits.PrimaryHDU(fits_t_modified)    
         fitshdr = fits.Header()
         fitshdr['COMMENT'] = "Beta / Ejection time in file"
@@ -309,12 +321,15 @@ if reply == True:
 colormsg = "Preview dustplot output?"
 reply = easygui.ynbox(msg=colormsg)
 
-if reply == True:          
+if reply == True:    
+    if tspace == 'Logarithmic':
+        sys.exit('Only a linear timescale can be displayed')     
+        
     simtl = simres[0,0,0]; simtu = simres[tno-1,0,0]
     betal = simres[0,0,1]; betau = simres[0,bno-1,1]
     
-    t1sfu = float('%.1g' % simtu)
-    t1sfl = float('%.1g' % simtl)
+    t2sfu = float('%.2g' % simtu)
+    t2sfl = float('%.2g' % simtl)
     b1sfu = float('%.1g' % betau)
     b1sfl = float('%.1g' % betal)
     
@@ -322,10 +337,7 @@ if reply == True:
     pixwt = 1600
     border = 100
     hscle = pixhi/(np.log10(betau) - np.log10(betal))
-    if (tspace == 'Logarithmic'):
-        wscle = pixwt/(np.log10(simtu) - np.log10(simtl))
-    elif (tspace == 'Linear'):
-        wscle = pixwt/(simtu - simtl)
+    wscle = pixwt/(simtu - simtl)
         
     dustimg = Image.new('RGBA', (pixwt+int(2.5*border),
                                  pixhi+int(3*border)),(0,0,0,255))
@@ -333,33 +345,32 @@ if reply == True:
     nmmax = np.log(np.max(srcolors[:,:,3])+1)
     
     #newmap = greyscale_remap(200,50,mode = 'Linear')
-    
     greyscale_disp = True
     if (greyscale_disp == True):  
         for ta in xrange(0, tno-1):
             for ba in np.where(simres[ta+1,:,15] == 1)[0][:-1].tolist():
                 fillco = greyscale_arr[ta,ba]
                 b1 = beta2ypix(simres[ta,ba,1], border, pixhi, b1sfl, hscle)
-                t1 = linsimt2xpix(simres[ta,ba,0], border, t1sfl, wscle)
+                t1 = linsimt2xpix(simres[ta,ba,0], border, t2sfl, wscle)
                 b2 = beta2ypix(simres[ta,ba+1,1], border, pixhi, b1sfl, hscle)
-                t2 = linsimt2xpix(simres[ta,ba+1,0], border, t1sfl, wscle)
+                t2 = linsimt2xpix(simres[ta,ba+1,0], border, t2sfl, wscle)
                 b3 = beta2ypix(simres[ta+1,ba+1,1], border, pixhi, b1sfl, hscle)
-                t3 = linsimt2xpix(simres[ta+1,ba+1,0], border, t1sfl, wscle)
+                t3 = linsimt2xpix(simres[ta+1,ba+1,0], border, t2sfl, wscle)
                 b4 = beta2ypix(simres[ta+1,ba,1], border, pixhi, b1sfl, hscle)
-                t4 = linsimt2xpix(simres[ta+1,ba,0], border, t1sfl, wscle)
+                t4 = linsimt2xpix(simres[ta+1,ba,0], border, t2sfl, wscle)
                 a = d.polygon([(t1,b1),(t2,b2),(t3,b3),(t4,b4)]
                 ,fill=(fillco,fillco,fillco,255))
     else:
         for ta in xrange(0, tno-1):
             for ba in np.where(simres[ta+1,:,15] == 1)[0][:-1].tolist():
                 b1 = beta2ypix(simres[ta,ba,1], border, pixhi, b1sfl, hscle)
-                t1 = linsimt2xpix(simres[ta,ba,0], border, t1sfl, wscle)
+                t1 = linsimt2xpix(simres[ta,ba,0], border, t2sfl, wscle)
                 b2 = beta2ypix(simres[ta,ba+1,1], border, pixhi, b1sfl, hscle)
-                t2 = linsimt2xpix(simres[ta,ba+1,0], border, t1sfl, wscle)
+                t2 = linsimt2xpix(simres[ta,ba+1,0], border, t2sfl, wscle)
                 b3 = beta2ypix(simres[ta+1,ba+1,1], border, pixhi, b1sfl, hscle)
-                t3 = linsimt2xpix(simres[ta+1,ba+1,0], border, t1sfl, wscle)
+                t3 = linsimt2xpix(simres[ta+1,ba+1,0], border, t2sfl, wscle)
                 b4 = beta2ypix(simres[ta+1,ba,1], border, pixhi, b1sfl, hscle)
-                t4 = linsimt2xpix(simres[ta+1,ba,0], border, t1sfl, wscle)
+                t4 = linsimt2xpix(simres[ta+1,ba,0], border, t2sfl, wscle)
                 a = d.polygon([(t1,b1),(t2,b2),(t3,b3),(t4,b4)]
                 ,fill=(srcolors[ta,ba,0],srcolors[ta,ba,1],srcolors[ta,ba,2],255))
                 
@@ -385,46 +396,30 @@ if reply == True:
     bminticks = bminticks[np.searchsorted(bminticks,b1sfl):
                               np.searchsorted(bminticks,b1sfu)+1]
     bmajticks = np.intersect1d(bminticks,decades)
+    bmajticks = np.union1d(bmajticks,np.array([b1sfl]))
+    bmajticks = np.union1d(bmajticks,np.array([b1sfu]))
     bminticlocs = beta2ypix(bminticks, border, pixhi, b1sfl, hscle)
     bmajticlocs = beta2ypix(bmajticks, border, pixhi, b1sfl, hscle)
     
-    if tspace == 'Logarithmic':
-        tdecl = np.searchsorted(decades,simtl, side = 'right')-1
-        tdecu = np.searchsorted(decades,simtu)
-        
-        tminticks = np.linspace(decades[tdecl],decades[tdecl+1],10)
-        for tdec in xrange(tdecl+1, tdecu):
-            tminticks = np.concatenate((tminticks,
-                              np.linspace(decades[tdec],decades[tdec+1],10)[1:10]))
-        tminticks = tminticks[np.searchsorted(tminticks,t1sfl):
-                                  np.searchsorted(tminticks,t1sfu)+1]
-        tmajticks = np.intersect1d(tminticks,decades)
-        
-    if tspace == 'Linear':
-        
-        lindivmajors = np.array([0.1,0.2,0.5,1,2,5,10,20,50,100,200])
-        lindivrecips = np.array([10,5,2,1,0.5,0.2,0.1,0.05,0.02,0.01,0.005])
-        
-        tdivnos = lindivrecips * (t1sfu - t1sfl)
-        nodivs = 10
-        tdividx = (np.abs(tdivnos-nodivs)).argmin()
-        tlodi = np.floor(t1sfl*lindivrecips[tdividx])*lindivmajors[tdividx]
-        thidi = np.ceil(t1sfu*lindivrecips[tdividx])*lindivmajors[tdividx]
-        tmajticks = np.arange(tlodi, thidi+1e-10, lindivmajors[tdividx])
+    lindivmajors = np.array([0.1,0.2,0.5,1,2,5,10,20,50,100,200])
+    lindivrecips = np.array([10,5,2,1,0.5,0.2,0.1,0.05,0.02,0.01,0.005])
+    
+    tdivnos = lindivrecips * (t2sfu - t2sfl)
+    nodivs = 10
+    tdividx = (np.abs(tdivnos-nodivs)).argmin()
+    tlodi = np.floor(t2sfl*lindivrecips[tdividx])*lindivmajors[tdividx]
+    thidi = np.ceil(t2sfu*lindivrecips[tdividx])*lindivmajors[tdividx]
+    tmajticks = np.arange(tlodi, thidi+1e-10, lindivmajors[tdividx])
         
     #tminticlocs = linsimt2xpix(tminticks, border, t1sfl, wscle)
-    tmajticlocs = linsimt2xpix(tmajticks, border, t1sfl, wscle)
+    tmajticlocs = linsimt2xpix(tmajticks, border, t2sfl, wscle)
     
     majt = 20  #major tick length
     mint = 10  #minor tick length
     xaxis = pixhi + border*2
     fontloc = r'C:\Windows\winsxs\amd64_microsoft-windows-f..etype-lucidaconsole_31bf3856ad364e35_6.1.7600.16385_none_5b3be3e0926bd543\lucon.ttf'
     fnt = ImageFont.truetype(fontloc, 20)
-    
-    #for div in xrange(0, (np.size(tminticlocs))): #simt axis minor ticks
-    #    b = d.line([(tminticlocs[div],xaxis-mint),(tminticlocs[div],xaxis)],\
-    #    fill = (255,255,255,128))
-    
+
     for div in xrange(0, (np.size(bminticlocs))): #beta axis minor ticks
         b = d.line([(border+mint,bminticlocs[div]),(border,bminticlocs[div])],\
         fill = (255,255,255,128))

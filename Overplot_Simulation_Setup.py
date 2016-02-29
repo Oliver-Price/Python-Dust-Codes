@@ -12,8 +12,8 @@ def simulation_setup(savefile):
         simtu = 100; simtl = 1; tno = 50; tspace = 'Linear'
         threshold = 10
         drawopts = "Synchrones Only"
-        sav_bool = True
-        test_mode = False
+        sav_bool = False
+        test_mode = True
     elif (saveexists == True):
         with open(savefile) as f:
             sparameters = pickle.load(f)
