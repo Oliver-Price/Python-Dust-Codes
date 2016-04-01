@@ -2,6 +2,7 @@
 import easygui
 import pickle
 import os
+import sys
 
 def simulation_setup(savefile):
     
@@ -68,10 +69,11 @@ def simulation_setup(savefile):
                 if errbmsg == "": break
                 bfieldValues = easygui.multenterbox(errbmsg, btitle,
                                                     bfieldNames, bfieldValues)
-                                                    
-            betau = float(bfieldValues[1])
-            betal = float(bfieldValues[0])
-            bno = int(bfieldValues[2])
+            
+            if bfieldValues != None:                                       
+                betau = float(bfieldValues[1])
+                betal = float(bfieldValues[0])
+                bno = int(bfieldValues[2])
                 
         if reply == 'Change Ejection Time Values':
     
@@ -92,10 +94,10 @@ def simulation_setup(savefile):
                 if errtmsg == "": break
                 tfieldValues = easygui.multenterbox(errtmsg, ttitle,
                                                     tfieldNames, tfieldValues)
-            
-            simtu = float(tfieldValues[1])
-            simtl = float(tfieldValues[0])
-            tno = int(tfieldValues[2])
+            if tfieldValues != None:
+                simtu = float(tfieldValues[1])
+                simtl = float(tfieldValues[0])
+                tno = int(tfieldValues[2])
                                        
         if reply == 'Toggle Time Spacing':
            
@@ -110,8 +112,10 @@ def simulation_setup(savefile):
                         "Synchrones and Syndynes",
                         "Synchrones, Syndynes and Data Points",
                         "Data Region Enclosed","No Image"]
-            drawopts = easygui.choicebox(dmsg, dtitle, dchoices)    
-            
+            drawopts_ans = easygui.choicebox(dmsg, dtitle, dchoices)
+            if drawopts_ans != None:
+                drawopts = drawopts_ans
+                
         if reply == 'Change Threshold':   
           
             hmsg = "Choose Threshold for ignoring near-coma data"

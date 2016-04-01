@@ -55,12 +55,18 @@ av_vals = dust_x_sect_1[:,1][~np.isnan(dust_x_sect_1[:,1])]
 t_vals = simres[:,0,0][~np.isnan(dust_x_sect_1[:,1])]
 fft_vals = np.fft.fft(av_vals).real
 
+a = np.sin(np.arange(45)*1.0/18* np.pi)
+b = np.arange(45)
+c = np.fft.fft(a)
+
 matplotlib.rcParams.update({'font.size': 35})
 fig = plt.figure()
 ax = fig.add_subplot(1,1,1)
-ts = ax.plot(np.arange(np.size(t_vals)),fft_vals)
+tes = ax.plot(t_vals, av_vals)
+#ts = ax.plot(np.arange(np.size(t_vals)),fft_vals)
 plt.xlabel('Time since Ejection (days)')
 plt.ylabel('Average filtered pixel value of synchrone')
+
 
 
 

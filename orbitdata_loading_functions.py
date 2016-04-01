@@ -33,7 +33,6 @@ def orb_vector(denom, observer, savefolder, datafolder, horiz, opts = ''):
     if "eq" in opts:
         savename += '_EQ'
         msg += '_EQ'
-    if "lt" in opts:
         savename += '_LT'
         msg += '_LT'
     if "d10" in opts:
@@ -103,8 +102,18 @@ def orb_vector(denom, observer, savefolder, datafolder, horiz, opts = ''):
             url = 'http://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=1&COMMAND='                         
             
             if "obs" in opts: #choose between earth and comet
-                url += '\'399\'' #EARTH
-                textsavename = os.path.join(datafolder, 'Earth_orbit_')
+                if observer == 'Earth':
+                    url += '\'399\'' #EARTH
+                    textsavename = os.path.join(datafolder, 'Earth_orbit_')
+                if observer == 'Stereo_A':
+                    url += '\'-234\'' #EARTH
+                    textsavename = os.path.join(datafolder, 'Stereo_A_orbit_')
+                if observer == 'Stereo_B':
+                    url += '\'-235\'' #EARTH
+                    textsavename = os.path.join(datafolder, 'Stereo_B_orbit_')
+                if observer == 'Soho':
+                    url += '\'-21\'' #EARTH
+                    textsavename = os.path.join(datafolder, 'Soho_orbit_')
             else:
                 if (horiz[0] != '\''): #this just ensures the formatting is all cleared up
                     url = url + '\''
@@ -146,7 +155,7 @@ def orb_vector(denom, observer, savefolder, datafolder, horiz, opts = ''):
                 textsavename += '_10'
             
             textsavename += '.txt'
-            
+            print url
             response = urllib2.urlopen(url) #loads url
             html = response.read()
             datastart = string.find(html, '$$SOE') + 6 #selects relevant data
@@ -269,7 +278,20 @@ def orb_obs(denom, observer, savefolder, datafolder, horiz, idlmode = False):
                 
             textsavename = os.path.join(datafolder, denom + '_') 
             
-            url += '&MAKE_EPHEM=\'YES\'&TABLE_TYPE=\'OBS\'&CENTER=\'500\''
+            url += '&MAKE_EPHEM=\'YES\'&TABLE_TYPE=\'OBS\'&CENTER='
+            
+            if observer == 'Earth':
+                url += '\'500\'' #EARTH
+                textsavename += 'from_Earth_'
+            if observer == 'Stereo_A':
+                url += '\'500@-234\'' #STEREO-A
+                textsavename += 'from_Stereo_A_'
+            if observer == 'Stereo_B':
+                url += '\'500@-235\'' #STEREO-B
+                textsavename += 'from_Stereo_B_'
+            if observer == 'Soho':
+                url += '\'500@-21\'' #EARTH
+                textsavename += 'from_Soho_'
     
             starttime = endtime - astropy.time.TimeDelta(60, format = 'jd')
             url += '&START_TIME=\'' + starttime.isot[:10] + '\''
@@ -291,6 +313,7 @@ def orb_obs(denom, observer, savefolder, datafolder, horiz, idlmode = False):
                              + '_OBSERVER_IDL.txt' )
                              
             print url
+            print textsavename
             
             response = urllib2.urlopen(url)
             html = response.read()

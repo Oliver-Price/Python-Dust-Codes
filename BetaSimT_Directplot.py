@@ -15,6 +15,7 @@ greyscale_remap
 from astropy.io import fits
 from PIL import Image, ImageDraw, ImageFont
 import time
+import astropy
 
 #%%**********************
 #FIRST CELL - GET DATA IN
@@ -33,9 +34,27 @@ with open(inputfile, "r") as c:
     orbitdir = cdata[25][23:-2]
     idlsav = cdata[26][25:-2]
     pysav = cdata[27][24:-2]
-    obsloc = cdata[34][19:24]
+    obslocstr = cdata[34][19:]
     horiztag = cdata[40][10:]
 
+#choose observer locations
+bool_locs = np.array([(('EARTH' in obslocstr) or ('Earth' in obslocstr)),
+                 (('STEREO-A' in obslocstr) or ('Stereo-A' in obslocstr)
+                 or ('STEREO_A' in obslocstr) or ('Stereo_A' in obslocstr)),
+                 (('STEREO-B' in obslocstr) or ('Stereo-B' in obslocstr)
+                 or ('STEREO_B' in obslocstr) or ('Stereo_B' in obslocstr)),
+                 (('SOHO' in obslocstr) or ('Soho' in obslocstr))])
+name_locs = np.array(['Earth', 'Stereo_A', 'Stereo_B', 'Soho'])
+case_locs = np.size(np.nonzero(bool_locs))
+if case_locs > 1:
+    obsmsg = "Please select observer location"
+    obschoices = name_locs[bool_locs].tolist()
+    obsloc = easygui.buttonbox(obsmsg, choices=obschoices)
+    imagedir = os.path.join(imagedir, obsloc)
+elif case_locs == 1:
+    obsloc = name_locs[bool_locs][0]
+else: sys.exit("No Good Observer Location")
+    
 #import the orbit data
 obsveceq = orb_vector(comdenom, obsloc, pysav, orbitdir,
                       horiztag, opts = 'obs,eq')
@@ -97,6 +116,16 @@ with open(simin[:-4] + '_parameters') as f:
 #SECOND CELL - IDENTIFYING PIXEL VALUES TO USE FOR BETA/SIMT
 #***********************************************************
 
+#putting ra into sensible values
+if ramax < 0:
+    ra_m = np.copy(ra) + 360
+    rafmin = np.amin(ra_m)
+    rafmax = np.amax(ra_m)
+else:
+    ra_m = ra
+    rafmin = ramin
+    rafmax = ramax
+
 #check if this has already been done
 colmapsav = simin[:-4] + '_srcolors.npy'
 locmapsav = simin[:-4] + '_pixelmapping.txt'
@@ -112,7 +141,7 @@ elif (colmapsavexists == False): #do if it hasnt
     with open(locmapsav, "w") as text_file: #write stuff to txt file
                 
         for ta in xrange(0, tno-1):
-            [ra_ta, dec_ta, ra_ta_d0, ra_ta_d1] = radec_slim(ra, dec,
+            [ra_ta, dec_ta, ra_ta_d0, ra_ta_d1] = radec_slim(ra_m, dec,
                                                     simres[ta,:,10], simres[ta,:,11])
             rashape1 = np.shape(ra_ta)[1]
             for ba in np.where(simres[ta+1,:,15] == 1)[0][:-1].tolist():
@@ -258,9 +287,9 @@ if reply == True:
         fits_t_modified[:,-tshift-1:] = 0 
         fits_t_modified[np.where(ref_t_modified!=3)] = 0
         fits_t_modified[np.where(fits_t_modified<0)] = 0
-        fits_t_modified[np.where(fits_t_modified>255)] = 0
+        #fits_t_modified[np.where(fits_t_modified>255)] = 0
         
-        fits_t_modified[np.where(fits_t_modified>50)] = 0 #EXPERIMENTAL
+        #fits_t_modified[np.where(fits_t_modified>50)] = 0 #EXPERIMENTAL
         
         hdu = fits.PrimaryHDU(fits_t_modified)    
         fitshdr = fits.Header()
@@ -299,7 +328,7 @@ if reply == True:
     fits_b_modified[bshift:,:] = fits_b_modified[bshift:,:] - fits_b_plus
     
     fits_b_modified[np.where(fits_b_modified<0)] = 0
-    fits_b_modified[np.where(fits_b_modified>255)] = 255
+    #fits_b_modified[np.where(fits_b_modified>255)] = 255
     
     dustplotmodifits = (dustplotsave + '_bfilter_' +
                         string.replace(str(float(hreply)),'.','\'') + '.fits')
@@ -333,8 +362,8 @@ if reply == True:
     b1sfu = float('%.1g' % betau)
     b1sfl = float('%.1g' % betal)
     
-    pixhi = 800
-    pixwt = 1600
+    pixhi = 1200
+    pixwt = int(round(float(pixhi)/bno*tno))
     border = 100
     hscle = pixhi/(np.log10(betau) - np.log10(betal))
     wscle = pixwt/(simtu - simtl)
@@ -344,12 +373,18 @@ if reply == True:
     d = ImageDraw.Draw(dustimg)
     nmmax = np.log(np.max(srcolors[:,:,3])+1)
     
+    imgmax = greyscale_arr.max()
+    if imgmax < 255: imgmax = 255
+        
+    fudgefactor = 0.8
     #newmap = greyscale_remap(200,50,mode = 'Linear')
+        
     greyscale_disp = True
     if (greyscale_disp == True):  
         for ta in xrange(0, tno-1):
             for ba in np.where(simres[ta+1,:,15] == 1)[0][:-1].tolist():
-                fillco = greyscale_arr[ta,ba]
+                fillco = int(round(greyscale_arr[ta,ba]*255/imgmax/fudgefactor))
+                fillco = sorted([0, fillco, 255])[1]
                 b1 = beta2ypix(simres[ta,ba,1], border, pixhi, b1sfl, hscle)
                 t1 = linsimt2xpix(simres[ta,ba,0], border, t2sfl, wscle)
                 b2 = beta2ypix(simres[ta,ba+1,1], border, pixhi, b1sfl, hscle)
@@ -377,8 +412,6 @@ if reply == True:
 #%%**********************
 #SEVENTH CELL - DRAW AXIS
 #************************
-                
-    #LINEAR AXIS STUFF NEEDS FIXING TB
     
     a = d.polygon([(border,border),(border*2+pixwt,border), \
         (border*2+pixwt,border*2+pixhi),(border,border*2+pixhi)], \
@@ -405,7 +438,7 @@ if reply == True:
     lindivrecips = np.array([10,5,2,1,0.5,0.2,0.1,0.05,0.02,0.01,0.005])
     
     tdivnos = lindivrecips * (t2sfu - t2sfl)
-    nodivs = 10
+    nodivs = 6
     tdividx = (np.abs(tdivnos-nodivs)).argmin()
     tlodi = np.floor(t2sfl*lindivrecips[tdividx])*lindivmajors[tdividx]
     thidi = np.ceil(t2sfu*lindivrecips[tdividx])*lindivmajors[tdividx]
@@ -419,7 +452,8 @@ if reply == True:
     xaxis = pixhi + border*2
     fontloc = r'C:\Windows\winsxs\amd64_microsoft-windows-f..etype-lucidaconsole_31bf3856ad364e35_6.1.7600.16385_none_5b3be3e0926bd543\lucon.ttf'
     fnt = ImageFont.truetype(fontloc, 20)
-
+    dtime = astropy.time.TimeDelta(1, format='jd')
+    
     for div in xrange(0, (np.size(bminticlocs))): #beta axis minor ticks
         b = d.line([(border+mint,bminticlocs[div]),(border,bminticlocs[div])],\
         fill = (255,255,255,128))
@@ -427,7 +461,8 @@ if reply == True:
     for div in xrange(0, (np.size(tmajticlocs))): #simt axis major ticks
         b = d.line([(tmajticlocs[div],xaxis-majt),(tmajticlocs[div],xaxis)],\
         fill = (255,255,255,128))
-        tick = str(tmajticks[div])
+        ticktime = ctime - dtime*tmajticks[div]
+        tick = string.replace(ticktime.isot,'T','\n')[0:16]
         d.text((tmajticlocs[div] - len(tick)*5,xaxis + 10), \
         tick, font=fnt, fill=(255,255,255,128))
     
@@ -439,15 +474,18 @@ if reply == True:
         tick, font=fnt, fill=(255,255,255,128))
         
     #axis labels
-    d.text((1.5*border + pixwt*0.5 - 150,pixhi + 2.5*border), \
-    "Time since ejection (Days)", font=fnt, fill=(255,255,255,128))
+    d.text((1.5*border + pixwt*0.5 - 150,pixhi + 2.7*border), \
+    "Date/Time of Ejection", font=fnt, fill=(255,255,255,128))
     d.text((0.25*border - 10,0.75*border - 20), \
     "Beta", font=fnt, fill=(255,255,255,128))
     
     #plot title
-    plttitle = (comdenom.upper() + ' ' + comname[:-1] + ' dust tail')
+    plttitle = (comdenom.upper() + ' ' + comname[:-1] + ' from ' + 
+    obsloc + ' from date: ' + string.replace(ctime.isot[0:16],'T',' at '))
     tfnt = ImageFont.truetype(fontloc, 30)
-    d.text((1.5*border + pixwt*0.5 - len(plttitle)*5 - 100,.35*border), \
+    d.text((1.5*border + pixwt*0.5 - len(plttitle)*5 - 200,.35*border), \
     plttitle, font=tfnt, fill=(255,255,255,128))
     
     dustimg.show()
+    dustimgsav = simin[:-4] + '.png'  
+    dustimg.save(dustimgsav,'png')
