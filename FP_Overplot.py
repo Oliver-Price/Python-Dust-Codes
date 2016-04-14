@@ -22,6 +22,7 @@ from Overplot_Simulation_Setup import simulation_setup
 from particle_sim import part_sim
 import idlsave
 import pickle
+import matplotlib.path as mplPath
 
 #%%**********************
 #FIRST CELL - GET DATA IN
@@ -416,166 +417,176 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     #%%**********************************************************
     #FIFTH CELL - Plot Comet Traj, Comet-Sun Vector + Uncertainty
     #************************************************************
-    
-    #setting RGBA colours of lines
-    trajfill = (0,255,255,255)
-    trajucfill = (0,100,255,255)
-    comsunfill = (0,255,0,255)
 
-    #account for sometimes negative axisdata
-    if (axisdata[6] < 0):
-        ra_img_lower = axisdata[6] + 360
-    else: ra_img_lower = axisdata[6]
-    if (axisdata[7] < 0):
-        ra_img_higher = axisdata[7] + 360
-    else: ra_img_higher = axisdata[7]
-        
-    #find rough cell range of traj from observer data
-    obsraloc = np.where((comobs[:,5] > ra_img_lower) \
-    & (comobs[:,5] < ra_img_higher))[0]
-    obsdecloc = np.where((comobs[:,6] > axisdata[8]) \
-    & (comobs[:,6] < axisdata[9]))[0]
-    trajrough = np.intersect1d(obsraloc,obsdecloc)
+    #find ra and dec of comet
+    com_ra_dec = pos2radec(comveceq[comcel,6:9] - obsveceq[comcel,6:9])
     
-    #use this to calculate ra and dec of comet for a purposely oversized range
-    vno = 0; vext = int(np.size(trajrough))
-    vtraj = np.empty((np.size(trajrough)+2*vext-1,11),dtype = float)
-    tcellmax = min(trajrough[-1] + vext, np.shape(comveceq)[0])
-    for tcell in xrange(trajrough[0] - vext,tcellmax):
-        vtemp = comveceq[tcell,6:9] - obsveceq[comcel,6:9]    
-        ptemp = pos2radec(vtemp)
-        vtraj[vno,0] = ptemp[0]
-        vtraj[vno,1] = ptemp[1]
-        vtraj[vno,4] = tcell
-        vtraj[vno,5] = tcell + round(np.linalg.norm(vtemp)*8.316746397269274)
-        vtraj[vno,6:11] = comveceq[tcell,1:6]
-        vno +=1
-        
-    #use these ra and dec values to slim data down to within image borders
-    trajrange = np.intersect1d(
-                np.intersect1d( np.where(vtraj[:,0] < ra_img_higher)[0],
-                                np.where(vtraj[:,0] > ra_img_lower)[0]),
-                np.intersect1d( np.where(vtraj[:,1] < axisdata[9])[0],
-                                np.where(vtraj[:,1] > axisdata[8])[0]))                  
-    vtraj = vtraj[trajrange[0]:trajrange[-1],:]
+    #check if comet is within image
+    com_box_path = np.array(
+                    	[[ra_m[0,0],		dec[0,0]		],
+                   		 [ra_m[ya-1,0],	 	dec[ya-1,0]		],
+                  		 [ra_m[ya-1,xa-1],  dec[ya-1,xa-1]	],
+                   		 [ra_m[0,xa-1],	 	dec[0,xa-1]		]])              		 
+    com_Path = mplPath.Path(com_box_path)    
     
-    #find relevant cell in vtraj and comveceq accounting for LT
-    vtrajcel = np.where(abs(vtraj[:,5] - comcel) < 1e-4)[0][0]
-    ltcomcel = vtraj[vtrajcel,4]
+    com_in_image = com_Path.contains_point((com_ra_dec[0],com_ra_dec[1]))
+    if com_in_image == True:
+     
+        #setting RGBA colours of lines
+        trajfill = (0,255,255,255)
+        trajucfill = (0,100,255,255)
+        comsunfill = (0,255,0,255)
     
-    #convert to ra and dec, and plot
-    vtraj[:,2] = ra2xpix(vtraj[:,0],border,pixwidth,rafmin,scale)
-    vtraj[:,3] = dec2ypix(vtraj[:,1],border,pixheight,decmin,scale)
-    for ta in xrange(0, (np.shape(vtraj)[0]-1)):
-        b = d.line([(vtraj[ta,2],vtraj[ta,3]),(vtraj[ta+1,2],vtraj[ta+1,3])],\
-        fill = trajfill)
-        
-    #find locations to plot on orbit
-    orbit_fnt = ImageFont.truetype(fontloc, 10)
-    mnsiz = 5
-    max_orbit_points = 10
-    orbit_cells = np.where(vtraj[:,10] == 0)[0]
-    if np.size(orbit_cells) > max_orbit_points:
-        orbit_cells = np.intersect1d(np.where(vtraj[:,9]%3 == 0)[0],
-                                     orbit_cells)
-    if np.size(orbit_cells) > max_orbit_points:
-        orbit_cells = np.intersect1d(np.where(vtraj[:,9]%6 == 0)[0],
-                                     orbit_cells)
-    if np.size(orbit_cells) > max_orbit_points:
-        orbit_cells = np.intersect1d(np.where(vtraj[:,9]%12 == 0)[0],
-                                     orbit_cells)
-    if np.size(orbit_cells) > max_orbit_points:
-        orbit_cells = np.intersect1d(np.where(vtraj[:,9]%24 == 0)[0],
-                                     orbit_cells)
-    
-    #plot these locations on the orbit                                
-    for midn in orbit_cells.tolist():
-        b = d.line( [ (vtraj[midn,2] + mnsiz ,vtraj[midn,3]+ mnsiz ), 
-        (vtraj[midn,2]- mnsiz ,vtraj[midn,3]- mnsiz ) ],
-        fill = featur_fill )
-        b = d.line([(vtraj[midn,2] - mnsiz ,vtraj[midn,3]+ mnsiz ),
-        (vtraj[midn,2]+ mnsiz ,vtraj[midn,3]- mnsiz )],
-        fill = featur_fill)
-        orbtxtx = 2; orbtxty = 2;
-        if (vtraj[midn,3] > 0.93*pixheight+1.5*border):
-            orbtxty = 0; orbtxtx = 3
-        if (vtraj[midn,2] > 0.93*pixwidth+1.5*border):
-            orbtxtx = -13
-        d.text((vtraj[midn,2] + orbtxtx*mnsiz,vtraj[midn,3] + orbtxty*mnsiz),
-        (str(int(vtraj[midn,6])) + '/' + str(int(vtraj[midn,7])) + '/' + 
-        str(int(vtraj[midn,8])) + "\n%02d:00") % int(vtraj[midn,9]) ,
-        font=orbit_fnt, fill= featur_fill)    
-
-    #creates an array of ra/dec values along sun-comet line
-    cmsam = 10001
-    offsets = np.ones(cmsam) + np.linspace(-0.3,0.7,cmsam)
-    comsun = np.empty((cmsam,4),dtype = float)
-    for cs in xrange(0,cmsam):
-        ctemp = pos2radec(offsets[cs]*comveceq[ltcomcel,6:9] - 
-                            obsveceq[ltcomcel,6:9])
-        comsun[cs,0] = ctemp[0]
-        comsun[cs,1] = ctemp[1]
-    
-    #slims this array down to within image limits
-    csvrange = np.intersect1d(
-               np.intersect1d( np.where(comsun[:,0] < ra_img_higher)[0],
-                                np.where(comsun[:,0] > ra_img_lower)[0]),
-               np.intersect1d( np.where(comsun[:,1] < axisdata[9])[0],
-                                np.where(comsun[:,1] > axisdata[8])[0]))                  
-    comsun = comsun[csvrange[0]:csvrange[-1],:]
-    
-    #convert to ra and dec, and plot
-    comsun[:,2] = ra2xpix(comsun[:,0],border,pixwidth,rafmin,scale)
-    comsun[:,3] = dec2ypix(comsun[:,1],border,pixheight,decmin,scale)
-    for ca in xrange(0, (np.shape(comsun)[0]-1)):
-        b = d.line([(comsun[ca,2],comsun[ca,3]),
-                    (comsun[ca+1,2],comsun[ca+1,3])],
-                    fill = comsunfill)
-        
-    #draw range of uncertainty in comet position (from yud's)
-    if obsloc == 'Earth' and uncertainty_range_exists == True:
-        sig_t = int(float(idls.sig_t))
-        ura = vtraj [ (vtrajcel - sig_t) : (vtrajcel + sig_t) , 2 ]
-        udec = vtraj [ (vtrajcel - sig_t) : (vtrajcel + sig_t) , 3 ]
-        for ua in xrange(0, np.size(ura)-2):
-            b = d.line([(ura[ua],udec[ua]),(ura[ua+1],udec[ua+1])],  
-            fill = trajucfill)
+        #account for sometimes negative axisdata
+        if (axisdata[6] < 0):
+            ra_img_lower = axisdata[6] + 360
+        else: ra_img_lower = axisdata[6]
+        if (axisdata[7] < 0):
+            ra_img_higher = axisdata[7] + 360
+        else: ra_img_higher = axisdata[7]
             
-        d.text((2*border + pixwidth + 30,border + 250), \
-        "Orbital\nUncertainty:",font=fnt, fill= featur_fill)
-        d.line([(2*border + pixwidth + 30,border + 294),
-            (2*border + pixwidth + 170,border + 294)], fill = trajucfill)
+        #find rough cell range of traj from observer data
+        obsraloc = np.where((comobs[:,5] > ra_img_lower) \
+        & (comobs[:,5] < ra_img_higher))[0]
+        obsdecloc = np.where((comobs[:,6] > axisdata[8]) \
+        & (comobs[:,6] < axisdata[9]))[0]
+        trajrough = np.intersect1d(obsraloc,obsdecloc)
         
-    d.text((2*border + pixwidth + 30,border + 200), \
-    "Orbital Path:",font=fnt, fill= featur_fill)
-    d.line([(2*border + pixwidth + 30,border + 230),
+        #use this to calculate ra and dec of comet for a purposely oversized range
+        vno = 0; vext = int(np.size(trajrough))
+        vtraj = np.empty((np.size(trajrough)+2*vext-1,11),dtype = float)
+        tcellmax = min(trajrough[-1] + vext, np.shape(comveceq)[0])
+        for tcell in xrange(trajrough[0] - vext,tcellmax):
+            vtemp = comveceq[tcell,6:9] - obsveceq[comcel,6:9]    
+            ptemp = pos2radec(vtemp)
+            vtraj[vno,0] = ptemp[0]
+            vtraj[vno,1] = ptemp[1]
+            vtraj[vno,4] = tcell
+            vtraj[vno,5] = tcell + round(np.linalg.norm(vtemp)*8.316746397269274)
+            vtraj[vno,6:11] = comveceq[tcell,1:6]
+            vno +=1
+        
+        #use these ra and dec values to slim data down to within image borders
+        trajrange = np.intersect1d(
+                    np.intersect1d( np.where(vtraj[:,0] < ra_img_higher)[0],
+                                    np.where(vtraj[:,0] > ra_img_lower)[0]),
+                    np.intersect1d( np.where(vtraj[:,1] < axisdata[9])[0],
+                                    np.where(vtraj[:,1] > axisdata[8])[0]))                  
+        vtraj = vtraj[trajrange[0]:trajrange[-1],:]
+    
+        #find relevant cell in vtraj and comveceq accounting for LT
+        vtrajcel = np.where(abs(vtraj[:,5] - comcel) < 1e-4)[0][0]
+        ltcomcel = vtraj[vtrajcel,4]
+    
+        #convert to ra and dec, and plot
+        vtraj[:,2] = ra2xpix(vtraj[:,0],border,pixwidth,rafmin,scale)
+        vtraj[:,3] = dec2ypix(vtraj[:,1],border,pixheight,decmin,scale)
+        for ta in xrange(0, (np.shape(vtraj)[0]-1)):
+            b = d.line([(vtraj[ta,2],vtraj[ta,3]),(vtraj[ta+1,2],vtraj[ta+1,3])],\
+            fill = trajfill)
+        
+        #find locations to plot on orbit
+        orbit_fnt = ImageFont.truetype(fontloc, 10)
+        mnsiz = 5
+        max_orbit_points = 10
+        orbit_cells = np.where(vtraj[:,10] == 0)[0]
+        if np.size(orbit_cells) > max_orbit_points:
+            orbit_cells = np.intersect1d(np.where(vtraj[:,9]%3 == 0)[0],
+                                         orbit_cells)
+        if np.size(orbit_cells) > max_orbit_points:
+            orbit_cells = np.intersect1d(np.where(vtraj[:,9]%6 == 0)[0],
+                                         orbit_cells)
+        if np.size(orbit_cells) > max_orbit_points:
+            orbit_cells = np.intersect1d(np.where(vtraj[:,9]%12 == 0)[0],
+                                         orbit_cells)
+        if np.size(orbit_cells) > max_orbit_points:
+            orbit_cells = np.intersect1d(np.where(vtraj[:,9]%24 == 0)[0],
+                                         orbit_cells)
+    
+        #plot these locations on the orbit                                
+        for midn in orbit_cells.tolist():
+            b = d.line( [ (vtraj[midn,2] + mnsiz ,vtraj[midn,3]+ mnsiz ), 
+            (vtraj[midn,2]- mnsiz ,vtraj[midn,3]- mnsiz ) ],
+            fill = featur_fill )
+            b = d.line([(vtraj[midn,2] - mnsiz ,vtraj[midn,3]+ mnsiz ),
+            (vtraj[midn,2]+ mnsiz ,vtraj[midn,3]- mnsiz )],
+            fill = featur_fill)
+            orbtxtx = 2; orbtxty = 2;
+            if (vtraj[midn,3] > 0.93*pixheight+1.5*border):
+                orbtxty = 0; orbtxtx = 3
+            if (vtraj[midn,2] > 0.93*pixwidth+1.5*border):
+                orbtxtx = -13
+            d.text((vtraj[midn,2] + orbtxtx*mnsiz,vtraj[midn,3] + orbtxty*mnsiz),
+            (str(int(vtraj[midn,6])) + '/' + str(int(vtraj[midn,7])) + '/' + 
+            str(int(vtraj[midn,8])) + "\n%02d:00") % int(vtraj[midn,9]) ,
+            font=orbit_fnt, fill= featur_fill)
+            
+            d.text((2*border + pixwidth + 30,border + 200), \
+            "Orbital Path:",font=fnt, fill= featur_fill)
+            d.line([(2*border + pixwidth + 30,border + 230),
             (2*border + pixwidth + 170,border + 230)], fill = trajfill)
-            
-    d.text((2*border + pixwidth + 30,border + 310), \
-    "Comet-Sun\nVector:",font=fnt, fill= featur_fill)
-    d.line([(2*border + pixwidth + 30,border + 355),
-            (2*border + pixwidth + 170,border + 355)], fill = comsunfill) 
-            
+
+        #creates an array of ra/dec values along sun-comet line
+        cmsam = 10001
+        offsets = np.ones(cmsam) + np.linspace(-0.3,0.7,cmsam)
+        comsun = np.empty((cmsam,4),dtype = float)
+        for cs in xrange(0,cmsam):
+            ctemp = pos2radec(offsets[cs]*comveceq[ltcomcel,6:9] - 
+                                obsveceq[ltcomcel,6:9])
+            comsun[cs,0] = ctemp[0]
+            comsun[cs,1] = ctemp[1]
+        
+        #slims this array down to within image limits
+        csvrange = np.intersect1d(
+                   np.intersect1d( np.where(comsun[:,0] < ra_img_higher)[0],
+                                    np.where(comsun[:,0] > ra_img_lower)[0]),
+                   np.intersect1d( np.where(comsun[:,1] < axisdata[9])[0],
+                                    np.where(comsun[:,1] > axisdata[8])[0]))                  
+        comsun = comsun[csvrange[0]:csvrange[-1],:]
+    
+        #convert to ra and dec, and plot
+        comsun[:,2] = ra2xpix(comsun[:,0],border,pixwidth,rafmin,scale)
+        comsun[:,3] = dec2ypix(comsun[:,1],border,pixheight,decmin,scale)
+        for ca in xrange(0, (np.shape(comsun)[0]-1)):
+            b = d.line([(comsun[ca,2],comsun[ca,3]),
+                        (comsun[ca+1,2],comsun[ca+1,3])],
+                        fill = comsunfill)
+                        
+        d.text((2*border + pixwidth + 30,border + 310), \
+        "Comet-Sun\nVector:",font=fnt, fill= featur_fill)
+        d.line([(2*border + pixwidth + 30,border + 355),
+                (2*border + pixwidth + 170,border + 355)], fill = comsunfill) 
+        
+        #draw range of uncertainty in comet position (from yud's)
+        if obsloc == 'Earth' and uncertainty_range_exists == True:
+            sig_t = int(float(idls.sig_t))
+            ura = vtraj [ (vtrajcel - sig_t) : (vtrajcel + sig_t) , 2 ]
+            udec = vtraj [ (vtrajcel - sig_t) : (vtrajcel + sig_t) , 3 ]
+            for ua in xrange(0, np.size(ura)-2):
+                b = d.line([(ura[ua],udec[ua]),(ura[ua+1],udec[ua+1])],  
+                fill = trajucfill)
+                
+            d.text((2*border + pixwidth + 30,border + 250), \
+            "Orbital\nUncertainty:",font=fnt, fill= featur_fill)
+            d.line([(2*border + pixwidth + 30,border + 294),
+                (2*border + pixwidth + 170,border + 294)], fill = trajucfill)
             
 #%%***********************************************************
 #SIXTH CELL - Save image and parameters or load existing image
 #*************************************************************
-    
-    #store parameters from vtraj used later on as floats to save space
-    rao = vtraj[vtrajcel,0]
-    deo = vtraj[vtrajcel,1]
-    rapixl = vtraj[vtrajcel,2]
-    depixl = vtraj[vtrajcel,3]
+
+    rapixl = ra2xpix(com_ra_dec[0],border,pixwidth,rafmin,scale)
+    decpixl = dec2ypix(com_ra_dec[1],border,pixheight,decmin,scale)
 
     comimg.show() #shows for refrence
     comimg.save(imgsav,'png')
     
     with open(picklesavefile, 'w') as f:
-        pickle.dump([comcel, comcel10, rao, deo, rapixl, depixl, ramax, decmax
-                    ,ramin, decmin, border, pixheight, pixwidth, scale, ctime
-                    ,dtmin, ra, dec, colr, colb, colg, trajfill, trajucfill,
-                    comsunfill, backgr_fill, imgwidth, imgheight, rafmin,
-                    rafmax], f)
+        pickle.dump([comcel, comcel10, ramax, decmax, ramin, decmin, border,
+                     pixheight, pixwidth, scale, ctime, dtmin, ra, dec, colr,
+                     colb, colg, trajfill, trajucfill, comsunfill, backgr_fill,
+                     imgwidth, imgheight, rafmin, rafmax, rapixl, decpixl,
+                     com_ra_dec, com_Path], f)
                     
 else:
     print "Loading parameter data"
@@ -584,28 +595,27 @@ else:
         parameters = pickle.load(f)
         comcel = parameters[0]
         comcel10 = parameters[1]
-        rao = parameters[2]
-        deo = parameters[3]
-        rapixl = parameters[4]
-        depixl = parameters[5]
-        ramax = parameters[6]
-        decmax = parameters[7]
-        ramin = parameters[8]
-        decmin = parameters[9]
-        border = parameters[10]
-        pixheight = parameters[11]
-        pixwidth = parameters[12]
-        scale = parameters[13]
-        ctime = parameters[14]
-        dtmin = parameters[15]
-        trajfill = parameters[21]
-        trajucfill = parameters[22]
-        comsunfill = parameters[23]
-        backgr_fill = parameters[24]
-        imgwidth = parameters[25]
-        imgheight = parameters[26]
-        rafmin = parameters[27]
-        rafmax = parameters[28]
+        ramax = parameters[2]
+        decmax = parameters[3]
+        ramin = parameters[4]
+        decmin = parameters[5]
+        border = parameters[6]
+        pixheight = parameters[7]
+        pixwidth = parameters[8]
+        scale = parameters[9]
+        ctime = parameters[10]
+        dtmin = parameters[11]
+        trajfill = parameters[17]
+        trajucfill = parameters[18]
+        comsunfill = parameters[19]
+        backgr_fill = parameters[20]
+        imgwidth = parameters[21]
+        imgheight = parameters[22]
+        rafmin = parameters[23]
+        rafmax = parameters[24]
+        rapixl = parameters[25]
+        decpixel = parameters[26]
+        com_Path = parameters[27]
 
     comimg = Image.open(imgsav)
     comimg.show()

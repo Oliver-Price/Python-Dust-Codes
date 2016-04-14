@@ -34,7 +34,7 @@ with open(inputfile, "r") as c:
     orbitdir = cdata[25][23:-2]
     idlsav = cdata[26][25:-2]
     pysav = cdata[27][24:-2]
-    obslocstr = cdata[34][19:]
+    obslocstr = cdata[34][19:
     horiztag = cdata[40][10:]
 
 #choose observer locations
