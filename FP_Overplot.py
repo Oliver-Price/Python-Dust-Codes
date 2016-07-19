@@ -216,19 +216,42 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     comimg = Image.new('RGBA', ( imgwidth , imgheight ) ,backgr_fill)
     d = ImageDraw.Draw(comimg)
     
+    plotmethodlog = True    
+    
     #plots image on canvas
-    for x in xrange(0, ya-2):
-        for y in xrange(0, xa-2):
-            ra1 = ra2xpix(ra_m[x,y],border,pixwidth,rafmin,scale)
-            ra2 = ra2xpix(ra_m[x+1,y],border,pixwidth,rafmin,scale)
-            ra3 = ra2xpix(ra_m[x+1,y+1],border,pixwidth,rafmin,scale)
-            ra4 = ra2xpix(ra_m[x,y+1],border,pixwidth,rafmin,scale)
-            dec1 = dec2ypix(dec[x,y],border,pixheight,decmin,scale)
-            dec2 = dec2ypix(dec[x+1,y],border,pixheight,decmin,scale)
-            dec3 = dec2ypix(dec[x+1,y+1],border,pixheight,decmin,scale)
-            dec4 = dec2ypix(dec[x,y+1],border,pixheight,decmin,scale)
-            a = d.polygon([(ra1,dec1),(ra2,dec2),(ra3,dec3),(ra4,dec4)] ,\
-            fill=(colcr[x,y],colcg[x,y],colcb[x,y],255))
+    if plotmethodlog == True:
+        low = 20000
+        hih = 100000
+        for x in xrange(0, ya-2):
+            for y in xrange(0, xa-2):
+                fillval = sorted([1, colr[x,y], 9999999999])[1]
+                fillco = int(round(255*(np.log10(fillval) - np.log10(low))*
+    								1 / (np.log10(hih) - np.log10(low))))
+                fillco = sorted([0, fillco, 255])[1]
+                ra1 = ra2xpix(ra_m[x,y],border,pixwidth,rafmin,scale)
+                ra2 = ra2xpix(ra_m[x+1,y],border,pixwidth,rafmin,scale)
+                ra3 = ra2xpix(ra_m[x+1,y+1],border,pixwidth,rafmin,scale)
+                ra4 = ra2xpix(ra_m[x,y+1],border,pixwidth,rafmin,scale)
+                dec1 = dec2ypix(dec[x,y],border,pixheight,decmin,scale)
+                dec2 = dec2ypix(dec[x+1,y],border,pixheight,decmin,scale)
+                dec3 = dec2ypix(dec[x+1,y+1],border,pixheight,decmin,scale)
+                dec4 = dec2ypix(dec[x,y+1],border,pixheight,decmin,scale)
+                a = d.polygon([(ra1,dec1),(ra2,dec2),(ra3,dec3),(ra4,dec4)] ,\
+                fill=(fillco,fillco,fillco,255))
+                
+    elif plotmethodlog == False:            
+        for x in xrange(0, ya-2):
+            for y in xrange(0, xa-2):
+                ra1 = ra2xpix(ra_m[x,y],border,pixwidth,rafmin,scale)
+                ra2 = ra2xpix(ra_m[x+1,y],border,pixwidth,rafmin,scale)
+                ra3 = ra2xpix(ra_m[x+1,y+1],border,pixwidth,rafmin,scale)
+                ra4 = ra2xpix(ra_m[x,y+1],border,pixwidth,rafmin,scale)
+                dec1 = dec2ypix(dec[x,y],border,pixheight,decmin,scale)
+                dec2 = dec2ypix(dec[x+1,y],border,pixheight,decmin,scale)
+                dec3 = dec2ypix(dec[x+1,y+1],border,pixheight,decmin,scale)
+                dec4 = dec2ypix(dec[x,y+1],border,pixheight,decmin,scale)
+                a = d.polygon([(ra1,dec1),(ra2,dec2),(ra3,dec3),(ra4,dec4)] ,\
+                fill=(colcr[x,y],colcg[x,y],colcb[x,y],255))
             
 
     #%%********************
@@ -419,7 +442,9 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     #************************************************************
 
     #find ra and dec of comet
-    com_ra_dec = pos2radec(comveceq[comcel,6:9] - obsveceq[comcel,6:9])
+    LT_cor = int(np.round(np.linalg.norm(comveceq[comcel,6:9] - 
+    obsveceq[comcel,6:9])*8.316746397269274))
+    com_ra_dec = pos2radec(comveceq[comcel - LT_cor,6:9] - obsveceq[comcel,6:9])
     
     #check if comet is within image
     com_box_path = np.array(
@@ -570,7 +595,11 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
             "Orbital\nUncertainty:",font=fnt, fill= featur_fill)
             d.line([(2*border + pixwidth + 30,border + 294),
                 (2*border + pixwidth + 170,border + 294)], fill = trajucfill)
-            
+                
+        ra_pic = ra2xpix(203.40181,border,pixwidth,rafmin,scale)
+        dec_pic = dec2ypix(-0.12993,border,pixwidth,decmin,scale)
+        b = d.point((ra_pic,dec_pic), fill = (255,0,255,255))
+                
 #%%***********************************************************
 #SIXTH CELL - Save image and parameters or load existing image
 #*************************************************************
@@ -614,8 +643,9 @@ else:
         rafmin = parameters[23]
         rafmax = parameters[24]
         rapixl = parameters[25]
-        decpixel = parameters[26]
-        com_Path = parameters[27]
+        decpixl = parameters[26]
+        com_ra_dec = parameters[27]
+        com_Path = parameters[28]
 
     comimg = Image.open(imgsav)
     comimg.show()
@@ -676,8 +706,8 @@ while test_mode == True:
     #this is the loop that does the business
     while (tidx < tno):
         bidx = 0
-        rasim = rao
-        desim = deo
+        rasim = com_ra_dec[0]
+        desim = com_ra_dec[1]
         while ( bidx < bno and rasim <= rafmax and rasim >= rafmin  and
                 desim <= decmax and desim >= decmin):
             simt10min = int(round(144*tvals[tidx]))
@@ -738,7 +768,7 @@ while test_mode == True:
         
     if "Syndynes" in drawopts: #DRAW SYNDYNES
         for ba in xrange(0, bno):
-            b = d.line([(rapixl,depixl), \
+            b = d.line([(rapixl,decpixl), \
             (simres[0,ba,12],simres[0,ba,13])],\
             fill = dynfill)
             print 'BETA = ' + str(simres[0,ba,1])
@@ -749,7 +779,7 @@ while test_mode == True:
     
     if "Synchrones" in drawopts: #DRAW SYNCHRONES
         for ta in xrange(0, tno):
-            b = d.line([(rapixl,depixl), \
+            b = d.line([(rapixl,decpixl), \
             (simres[ta,0,12],simres[ta,0,13])],\
             fill = chrfill)
             print 'TIME = ' + str(simres[ta,0,0])

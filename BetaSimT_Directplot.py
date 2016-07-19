@@ -34,7 +34,7 @@ with open(inputfile, "r") as c:
     orbitdir = cdata[25][23:-2]
     idlsav = cdata[26][25:-2]
     pysav = cdata[27][24:-2]
-    obslocstr = cdata[34][19:
+    obslocstr = cdata[34][19:]
     horiztag = cdata[40][10:]
 
 #choose observer locations
@@ -84,21 +84,20 @@ with open(picklesavefile) as f:
         dparameters = pickle.load(f)
         comcel = dparameters[0]
         comcel10 = dparameters[1]
-        rao = dparameters[2]
-        deo = dparameters[3]
-        rapixl = dparameters[4]
-        depixl = dparameters[5]
-        ramax = dparameters[6]
-        decmax = dparameters[7]
-        ramin = dparameters[8]
-        decmin = dparameters[9]
-        ctime = dparameters[14]
-        dtmin = dparameters[15]
-        ra = dparameters[16]
-        dec = dparameters[17]
-        colr = dparameters[18]
-        colg = dparameters[19]
-        colb = dparameters[20]
+        ramax = dparameters[2]
+        decmax = dparameters[3]
+        ramin = dparameters[4]
+        decmin = dparameters[5]        
+        ctime = dparameters[10]
+        dtmin = dparameters[11]
+        ra = dparameters[12]
+        dec = dparameters[13]
+        colr = dparameters[14]
+        colb = dparameters[15]
+        colg = dparameters[16]
+        rapixl = dparameters[25]
+        decpixl = dparameters[26]
+        com_ra_dec = dparameters[27]
         
 #find and import simulation results
 simresdir = os.path.join(pysav, 'simres')
@@ -377,13 +376,18 @@ if reply == True:
     if imgmax < 255: imgmax = 255
         
     fudgefactor = 0.8
+    low = 10000
+    hih = 80000
     #newmap = greyscale_remap(200,50,mode = 'Linear')
         
     greyscale_disp = True
     if (greyscale_disp == True):  
         for ta in xrange(0, tno-1):
             for ba in np.where(simres[ta+1,:,15] == 1)[0][:-1].tolist():
-                fillco = int(round(greyscale_arr[ta,ba]*255/imgmax/fudgefactor))
+                fillval = sorted([1, greyscale_arr[ta,ba], 9999999999])[1]
+                fillco = int(round(255*(np.log10(fillval) - np.log10(low))*
+    								1 / (np.log10(hih) - np.log10(low))))
+                #fillco = int(round(greyscale_arr[ta,ba]*255/imgmax/fudgefactor))
                 fillco = sorted([0, fillco, 255])[1]
                 b1 = beta2ypix(simres[ta,ba,1], border, pixhi, b1sfl, hscle)
                 t1 = linsimt2xpix(simres[ta,ba,0], border, t2sfl, wscle)
