@@ -4,19 +4,20 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 
-fitsdir = 'C:\PhD\Comet_data\Comet_PanSTARRS_C2011L4\Gallery\Stereo_B'
-pngdir = 'C:\PhD\Comet_data\Comet_PanSTARRS_C2011L4\Gallery\Stereo_B\pngs'
+fitsdir = 'C:\PhD\Comet_data\Comet_PanSTARRS_C2011L4\Gallery\Stereo_A'
+pngdir = 'C:\PhD\Comet_data\Comet_PanSTARRS_C2011L4\Gallery\Stereo_A\pngs'
 
 dir_list = sorted(os.listdir(fitsdir))
 fits_list = [s for s in dir_list if ".fts" in s]
 fits_total = len(fits_list)
 
-low = 10000
-hih = 1500000
+low = 2000
+hih = 22000
 
 for fits_id in range(0, fits_total):
         fitstemp = os.path.join(fitsdir, fits_list[fits_id])
-        pngtemp = os.path.join(pngdir, (fits_list[fits_id].split(".")[0] + ".png"))
+        pngtemp = os.path.join(pngdir, (fits_list[fits_id].split(".")[0] +
+        "_" + str(low) + "_" + str(hih) + ".png"))
         if not os.path.exists(pngtemp):
         
             hdulist = fits.open(fitstemp)

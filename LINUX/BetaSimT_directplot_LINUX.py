@@ -2,7 +2,6 @@
 #Program to visualise dustplot of comet in simt and beta space
 #*************************************************************
 
-
 import os
 import sys
 import time
@@ -11,11 +10,12 @@ import string
 import datetime
 import astropy.time
 from astropy import wcs
+from scipy import stats
 import numpy as np
 from astropy.io import fits
 import matplotlib.path as mplPath
 from PIL import Image, ImageDraw, ImageFont
-from dust_functions_LINUX import orb_vector, beta2ypix, linsimt2xpix, \
+from dust_functions_LINUX import orb_obs, beta2ypix, linsimt2xpix, \
 radec_slim
 
 #hard coded parameters - can script these in for softer coding
@@ -35,7 +35,7 @@ tno = 600
 comdenom = 'C2006P1'
 comname = 'McNaught'
 obsloc = 'Stereo A'
-
+                     
 #purely for diagnostics
 tstart = time.time()
 
@@ -43,15 +43,7 @@ tstart = time.time()
 image_list = sorted(os.listdir(fpsav))
 image_total = len(image_list)
 
-#import the orbit data
-obsveceq = orb_vector('Stereo_A_orbit_2006_11_21_2007_01_20_xyzvxvyvz_EQ.txt',
-                      orbitdir)
-comveceq = orb_vector('c2006p1_2006_11_21_2007_01_20_xyzvxvyvz_EQ.txt',
-                      orbitdir)
-comveceq10 = orb_vector('c2006p1_2005_05_30_2007_01_20_xyzvxvyvz_EQ_10.txt',
-                        orbitdir)
-
-for image_id in range(50, 51): #image_total):
+for image_id in range(63,75): #image_total):
     
 	image_procname = image_list[image_id].split('.')[0]
 	image_basename = image_procname[:21]
@@ -59,13 +51,14 @@ for image_id in range(50, 51): #image_total):
 	image_fits = os.path.join(datafolder,image_basename + ".fts")
 	print (image_basename)
 
+
 	image_mapped = os.path.join(mapsav,image_procname + "_mapped.npy")
 	image_txt_mapping = os.path.join(txtmaps,image_procname + "_map.txt")
 	image_dust_img = os.path.join(pngsav,image_procname + "_dustimg.png")
 	image_dust_fits = os.path.join(fitssav,image_procname + "_dustfits.fits")
 
 	simres = np.load(image_simressave)
-
+	
 	hdulist = fits.open(image_fits)
 	bw_color = (hdulist[0].data)
 
@@ -119,7 +112,17 @@ for image_id in range(50, 51): #image_total):
 	ctime = astropy.time.Time(datetime.datetime(cyear, cmonth, cday,
 				                               chour , cmin, csec))
 				                               
+	col_max_locs = np.where(bw_color[:,:370] == np.max(bw_color[:,:370]))[1]
+	brightest_col = stats.mode(col_max_locs)[0][0]
+		
+	brightest_row = np.where(bw_color[:,brightest_col+3] == 
+										np.max(bw_color[:,brightest_col+3]))[0][0]
+	
+	bw_color[:,brightest_col-2:brightest_col+2] = 0
+	bw_color[brightest_row-5:brightest_row+5,brightest_col-5:brightest_col+5] = 0
+
 	mapping_exists = os.path.exists(image_mapped)
+	
 	if (mapping_exists == True): #load if it has
 		srcolors = np.load(image_mapped)
 	   
@@ -135,7 +138,7 @@ for image_id in range(50, 51): #image_total):
 				sync_int_list[tval] = ((int(np.sum(simres[tval,:,12]) >= 1) + 
 												int(np.sum(simres[tval+1,:,12]) >= 1))
 												== 2)
-												
+				
 			for ta in np.nonzero(sync_int_list)[0].tolist():
 			
 				balist1 = np.where(simres[ta+1,:,12] == 1)[0][:-1]
@@ -252,9 +255,7 @@ for image_id in range(50, 51): #image_total):
   
 	if not os.path.exists(image_dust_img):         
 	    
-		t2sfu = float('%.2g' % simtu)
 		t2sfl = float('%.2g' % simtl)
-		b1sfu = float('%.1g' % betau)
 		b1sfl = float('%.1g' % betal)
     
 		pixhi = 1200
@@ -270,7 +271,8 @@ for image_id in range(50, 51): #image_total):
 		imgmax = srcolors[:,:,0].max()
 		if imgmax < 255: imgmax = 255
         
-		fudgefactor = 0.8
+		low = 10000
+		hih = 1500000
 		
 		sync_int_list = np.zeros((tno-1), dtype = int)
 			
@@ -287,7 +289,9 @@ for image_id in range(50, 51): #image_total):
 		
 			for ba in balist:
 			
-				fillco = int(round(srcolors[ta,ba,0]*255/imgmax/fudgefactor))
+				fillval = sorted([1, srcolors[ta,ba,0], 9999999999])[1]
+				fillco = int(round(255*(np.log10(fillval) - np.log10(low))*
+								1 / (np.log10(hih) - np.log10(low))))
 				fillco = sorted([0, fillco, 255])[1]
 				b1 = beta2ypix(simres[ta,ba,1], border, pixhi, b1sfl, hscle)
 				t1 = linsimt2xpix(simres[ta,ba,0], border, t2sfl, wscle)
@@ -353,3 +357,22 @@ for image_id in range(50, 51): #image_total):
 		plttitle, font=tfnt, fill=(255,255,255,128))
 
 		dustimg.save(image_dust_img,'png')
+		
+		
+		
+		
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+'''
+	venus_orb = orb_obs('Venus_from_Stereo_A_2006_11_21_2007_01_20_OBSERVER_PY.txt',
+                      orbitdir)
+                      
+	#ven_cel = np.intersect1d(np.intersect1d(np.where(venus_orb[:,2] == cday)[0],
+						#np.where(venus_orb[:,3] == chour)[0]),
+						#np.where(venus_orb[:,4] == cmin)[0])[0]
+						
+	#ven_ra = venus_orb[ven_cel,5]
+	#ven_dec = venus_orb[ven_cel,6]
+	
+	#dist_ven = abs(ra_m - ven_ra) + abs(dec - ven_dec)
+	#ven_loc = np.where(dist_ven == np.min(dist_ven))
+'''

@@ -18,10 +18,10 @@ def dec2ypix(dec, border, pixheight, decmin, scale):
 def setaxisup(ramax,ramin,decmax,decmin,border,pixheight,pixwidth,scale):
     
     #Tables with various sets of possible major/minor division sizes
-    divmajors = np.array([0.01,0.02,0.05,0.1,0.2,0.5,1,2,5])
-    divminors = np.array([0.002,0.005,0.01,0.02,0.05,0.1,0.2,0.5,1])
-    divrecips = np.array([100,50,20,10,5,2,1,0.5,0.2])
-    divminrecips = np.array([500,200,100,50,20,10,5,2,1])
+    divmajors = np.array([0.01,0.02,0.05,0.1,0.2,0.5,1,2,5,10,20])
+    divminors = np.array([0.002,0.005,0.01,0.02,0.05,0.1,0.2,0.5,1,2,5])
+    divrecips = np.array([100,50,20,10,5,2,1,0.5,0.2,0.1,0.05])
+    divminrecips = np.array([500,200,100,50,20,10,5,2,1,0.5,0.2])
     
     #finds the extent of bordered region in ra/dec space
     ramaxb = (ramax + border*0.5/scale)

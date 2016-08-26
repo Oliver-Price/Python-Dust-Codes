@@ -380,15 +380,16 @@ if reply == True:
     hih = 80000
     #newmap = greyscale_remap(200,50,mode = 'Linear')
         
-    greyscale_disp = True
+    greyscale_disp = False
     if (greyscale_disp == True):  
         for ta in xrange(0, tno-1):
             for ba in np.where(simres[ta+1,:,15] == 1)[0][:-1].tolist():
-                fillval = sorted([1, greyscale_arr[ta,ba], 9999999999])[1]
-                fillco = int(round(255*(np.log10(fillval) - np.log10(low))*
-    								1 / (np.log10(hih) - np.log10(low))))
+                #fillval = sorted([1, greyscale_arr[ta,ba], 9999999999])[1]
+                #fillco = int(round(255*(np.log10(fillval) - np.log10(low))*
+                #					1 / (np.log10(hih) - np.log10(low))))
                 #fillco = int(round(greyscale_arr[ta,ba]*255/imgmax/fudgefactor))
-                fillco = sorted([0, fillco, 255])[1]
+                #fillco = sorted([0, fillco, 255])[1]
+                fillco = greyscale_arr[ta,ba]
                 b1 = beta2ypix(simres[ta,ba,1], border, pixhi, b1sfl, hscle)
                 t1 = linsimt2xpix(simres[ta,ba,0], border, t2sfl, wscle)
                 b2 = beta2ypix(simres[ta,ba+1,1], border, pixhi, b1sfl, hscle)

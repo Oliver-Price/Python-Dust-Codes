@@ -216,12 +216,12 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     comimg = Image.new('RGBA', ( imgwidth , imgheight ) ,backgr_fill)
     d = ImageDraw.Draw(comimg)
     
-    plotmethodlog = True    
+    plotmethodlog = True   
     
     #plots image on canvas
     if plotmethodlog == True:
-        low = 20000
-        hih = 100000
+        low = 3000
+        hih = 20000
         for x in xrange(0, ya-2):
             for y in xrange(0, xa-2):
                 fillval = sorted([1, colr[x,y], 9999999999])[1]

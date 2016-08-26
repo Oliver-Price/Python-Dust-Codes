@@ -6,42 +6,74 @@ import math as m
 
 #%% - orbit data loading function
 
-def orb_vector( dataname , datapath, opts = ''):
+def orb_vector(dataname , datapath):
 
-    savename = dataname.split('.')[0] + '.npy'
-    savefile = os.path.join(datapath, savename)
-    saveexists = os.path.isfile(savefile)
-    
-    if saveexists == False: #if it doesn't exist read data from file
-        dataread = os.path.join(datapath, dataname)
-        with open(dataread, "r") as dat:
+	savename = dataname.split('.')[0] + '.npy'
+	savefile = os.path.join(datapath, savename)
+	saveexists = os.path.isfile(savefile)
+
+	if saveexists == False: #if it doesn't exist read data from file
+		dataread = os.path.join(datapath, dataname)
+		with open(dataread, "r") as dat:
                 
-            #reads raw data as string 
-            rawdata = dat.readlines()
-            datasize = int(len(rawdata)/3)
-            data = np.empty((datasize,13),dtype = float)
+			#reads raw data as string 
+			rawdata = dat.readlines()
+			datasize = int(len(rawdata)/3)
+			data = np.empty((datasize,13),dtype = float)
+         
+			#converts string to numpy array
+			for hrow in range(0,datasize,1):
+				data[hrow,0] = rawdata[3*hrow][0:17]            #jd
+				data[hrow,1] = rawdata[3*hrow][25:29]           #year
+				data[hrow,2] = mon2num(rawdata[3*hrow][30:33])  #month
+				data[hrow,3] = rawdata[3*hrow][34:36]           #day
+				data[hrow,4] = rawdata[3*hrow][37:39]           #hour
+				data[hrow,5] = rawdata[3*hrow][40:42]           #minute
+				p = np.fromstring(rawdata[(hrow*3)+1],
+								 dtype=float, count=3, sep='  ')
+				v = np.fromstring(rawdata[(hrow*3)+2],
+								 dtype=float, count=3, sep='  ')
+				data[hrow,6:9] = p          #positions xyz
+				data[hrow,9:12] = v         #velocities vxvyvz
+				data[hrow,12] = np.linalg.norm(data[hrow,6:9])
+			data.dump(savefile)   #saves data for future loading
             
-            #converts string to numpy array
-            for hrow in range(0,datasize,1):
-                data[hrow,0] = rawdata[3*hrow][0:17]            #jd
-                data[hrow,1] = rawdata[3*hrow][25:29]           #year
-                data[hrow,2] = mon2num(rawdata[3*hrow][30:33])  #month
-                data[hrow,3] = rawdata[3*hrow][34:36]           #day
-                data[hrow,4] = rawdata[3*hrow][37:39]           #hour
-                data[hrow,5] = rawdata[3*hrow][40:42]           #minute
-                p = np.fromstring(rawdata[(hrow*3)+1],
-                                  dtype=float, count=3, sep='  ')
-                v = np.fromstring(rawdata[(hrow*3)+2],
-                                  dtype=float, count=3, sep='  ')
-                data[hrow,6:9] = p          #positions xyz
-                data[hrow,9:12] = v         #velocities vxvyvz
-                data[hrow,12] = np.linalg.norm(data[hrow,6:9])
-            data.dump(savefile)   #saves data for future loading
-            
-    elif saveexists == True: #if save exists, load that
-        data = np.load(savefile)
-        print ('Loading saved data')
-    return data
+	elif saveexists == True: #if save exists, load that
+		data = np.load(savefile)
+		print ('Loading saved data')
+	return data
+    
+#%% - orbit data loading function
+
+def orb_obs(dataname , datapath):
+
+	savename = dataname.split('.')[0] + '.npy'
+	savefile = os.path.join(datapath, savename)
+	saveexists = os.path.isfile(savefile)
+    
+	if saveexists == False: #if it doesn't exist read data from file
+		dataread = os.path.join(datapath, dataname)
+		with open(dataread, "r") as dat:
+        
+			#reads raw data as string 
+			rawdata = dat.readlines()
+			data = np.empty((len(rawdata),7),dtype = float)
+			
+			for row in range(0,len(rawdata),1):
+				data[row,0] = rawdata[row][1:5]             #year
+				data[row,1] = mon2num(rawdata[row][6:9])    #month
+				data[row,2] = rawdata[row][10:12]           #day
+				data[row,3] = rawdata[row][13:15]           #hour
+				data[row,4] = rawdata[row][16:18]           #minute
+				data[row,5] = rawdata[row][23:32]           #ra
+				data[row,6] = rawdata[row][33:42]           #dec
+			
+			data.dump(savefile)
+			
+	elif saveexists == True: #if save exists, load that
+		data = np.load(savefile)
+		print ('Loading saved data')
+	return data      
 
 #%% - converts month text to a number
 
@@ -153,11 +185,11 @@ def rk4(pstate, beta, dt):
     
 #%% - Plot methods for making axis for dust plot images
     
-def linsimt2xpix(simt, border, simtl, scale):
-    return border*1.5 + (simt - simtl)*scale
+def simt2xpix(simt, border, pixwidth, simtl, scale):
+    return pixwidth + border*1.5 + (simtl - simt)*scale
     
 def beta2ypix(beta, border, pixheight, betal, scale):
-    return pixheight + border*1.5 - (np.log10(beta) - np.log10(betal))*scale
+    return pixheight + border*1.5 - (beta - betal)*scale
 
 #%% FUNCTION TO SLIM DOWN AN ARRAY OF RA AND DEC VALUES USING ANOTHER SET OF RA
 #AND DEC VALUES AS REFRENCE

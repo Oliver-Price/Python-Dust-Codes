@@ -22,10 +22,10 @@ pysav = '/unsafe/users/op2/mcnaught/fpsimsav/'
 orbitdir = '/unsafe/users/op2/mcnaught/orbitdata/'
 betau = 2.5
 betal = 0.6
-bno = 100
+bno = 600
 simtu = 8.0
 simtl = 2.0
-tno = 100
+tno = 600
 
 tstart = time.time()
 
@@ -39,9 +39,9 @@ obsveceq = orb_vector('Stereo_A_orbit_2006_11_21_2007_01_20_xyzvxvyvz_EQ.txt',
 comveceq = orb_vector('c2006p1_2006_11_21_2007_01_20_xyzvxvyvz_EQ.txt',
                       orbitdir)
 comveceq10 = orb_vector('c2006p1_2005_05_30_2007_01_20_xyzvxvyvz_EQ_10.txt',
-                        orbitdir)
+                      orbitdir)
 
-for image_id in range(75, 76): #image_total):
+for image_id in range(46,47): #image_total):
 
 	image_basename = image_list[image_id].split('.')[0]
 	image_fits = os.path.join(datafolder,image_list[image_id])
@@ -160,7 +160,7 @@ for image_id in range(75, 76): #image_total):
 	if image_case == 1: #IF COMET IS INSIDE IMAGE
 					  
 		#prep for simulation loop proper
-		simres = np.empty((tno,bno,13),dtype = float)
+		simres = np.zeros((tno,bno,13),dtype = float)
 		tidx = 0
 		
 		#this is the loop that does the business
@@ -191,7 +191,7 @@ for image_id in range(75, 76): #image_total):
 		simressavefile = simressavefile.replace('.','\'')
 		np.save(simressavefile, simres)
 		
-	if image_case == 2: #IF COMET OUTSIDE IMAGE
+	elif image_case == 2: #IF COMET OUTSIDE IMAGE
 		
 		#prep for simulation loop proper
 		simres = np.zeros((tno,bno,13),dtype = float)
