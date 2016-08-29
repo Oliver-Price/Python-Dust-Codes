@@ -139,6 +139,125 @@ def greyscale_remap(upper_saturation,lower_saturation, mode = 'lin'):
         
     return newmap
 
+#%%
+#**********************
+#FP Grid Plot Functions
+#**********************
     
+def draw_synchrones(dynfill,d,simres,bno,rapixl,decpixl,tmax):
     
+    for ba in xrange(0, bno):
+        d.line([(rapixl,decpixl), \
+        (simres[0,ba,12],simres[0,ba,13])],\
+        fill = dynfill)
+        print 'BETA = ' + str(simres[0,ba,1])
+        for ta in xrange(0, tmax[ba]):
+            d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
+            (simres[ta+1,ba,12],simres[ta+1,ba,13])],\
+            fill = dynfill)
+
+def draw_sydynes(chrfill,d,simres,tno,rapixl,decpixl,bmax):
+
+    for ta in xrange(0, tno):
+        d.line([(rapixl,decpixl), \
+        (simres[ta,0,12],simres[ta,0,13])],\
+        fill = chrfill)
+        print 'TIME = ' + str(simres[ta,0,0])
+        for ba in xrange(0, bmax[ta]):
+            d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
+            (simres[ta,ba+1,12],simres[ta,ba+1,13])],\
+            fill = chrfill)
+            
+def draw_datap(drfill,d,simres,tno,bmax,xsiz = 2):
+
+    for ta in xrange(0,tno):
+        for ba in xrange(0, bmax[ta]):
+            d.line( [ ( simres[ta,ba,12] - xsiz , simres[ta,ba,13] - xsiz ) ,
+                      ( simres[ta,ba,12] + xsiz , simres[ta,ba,13] + xsiz ) ] ,
+                      fill = drfill )  
+            d.line( [ ( simres[ta,ba,12] - xsiz , simres[ta,ba,13] + xsiz ) ,
+                      ( simres[ta,ba,12] + xsiz , simres[ta,ba,13] - xsiz ) ] ,
+                      fill = drfill )
+                      
+def draw_data_reg(drfill,featur_fill,d,fnt,simres,border,pixwidth,width = 5):                
     
+    b = d.line( [ ( simres[0,0,12]  , simres[0,0,13] ) ,
+                  ( simres[0,bmax[0],12] , simres[0,bmax[0],13] ) ] ,
+                    fill = drfill , width)
+    b = d.line( [ ( simres[tno-1,0,12]  , simres[tno-1,0,13] ) ,
+                  ( simres[tno-1,bmax[tno-1],12] ,
+                   simres[tno-1,bmax[tno-1],13] ) ] ,    
+                    fill = drfill , width)    
+                    
+    for ta in xrange(0,tno - 1):
+        
+        b = d.line( [ ( simres[ta,bmax[ta],12]  , simres[ta,bmax[ta],13] ) ,
+                      ( simres[ta+1,bmax[ta+1],12] , simres[ta+1,bmax[ta+1],13] ) ]
+                      , fill = drfill , width)
+        b = d.line( [ ( simres[ta,0,12]  , simres[ta,0,13] ) ,
+                      ( simres[ta+1,0,12] , simres[ta+1,0,13] ) ]
+                      , fill = drfill , width)
+                      
+    d.text((2*border + pixwidth + 30,border + 370), \
+            "Data Region:",font=fnt, fill= featur_fill)
+    d.line([(2*border + pixwidth + 30,border + 405),
+            (2*border + pixwidth + 170,border + 405)], fill = drfill)                  
+
+
+#%%
+#****************************
+#FP Grid Annotation Functions
+#****************************
+
+def annotate_plotting(d,drawopts,border,pixwidth):
+
+    if (drawopts == "Synchrones Only"):
+        bt_anno_idx = 0
+            
+        d.text((2*border + pixwidth + 30,border + 370), \
+                "Synchrones:",font=fnt, fill= featur_fill)
+        d.line([(2*border + pixwidth + 30,border + 405),
+                (2*border + pixwidth + 170,border + 405)], fill = chrfill) 
+            
+    elif (drawopts == "Syndynes only"):
+        bt_anno_idx = 0
+        
+        d.text((2*border + pixwidth + 30,border + 370), \
+                "Syndynes:",font=fnt, fill= featur_fill)
+        d.line([(2*border + pixwidth + 30,border + 405),
+                (2*border + pixwidth + 170,border + 405)], fill = dynfill) 
+        
+    elif (drawopts == "Synchrones and Syndynes"):
+        bt_anno_idx = 1          
+        
+        d.text((2*border + pixwidth + 30,border + 370), \
+                "Syndynes:",font=fnt, fill= featur_fill)
+        d.line([(2*border + pixwidth + 30,border + 405),
+                (2*border + pixwidth + 170,border + 405)], fill = dynfill) 
+                
+        d.text((2*border + pixwidth + 30,border + 420), \
+                "Synchrones:",font=fnt, fill= featur_fill)
+        d.line([(2*border + pixwidth + 30,border + 455),
+                (2*border + pixwidth + 170,border + 455)], fill = chrfill) 
+        
+    elif (drawopts == "Synchrones, Syndynes and Data Points"):
+        bt_anno_idx = 2     
+        
+        d.text((2*border + pixwidth + 30,border + 370), \
+                "Syndynes:",font=fnt, fill= featur_fill)
+        d.line([(2*border + pixwidth + 30,border + 405),
+                (2*border + pixwidth + 170,border + 405)], fill = dynfill) 
+                
+        d.text((2*border + pixwidth + 30,border + 420), \
+                "Synchrones:",font=fnt, fill= featur_fill)
+        d.line([(2*border + pixwidth + 30,border + 455),
+                (2*border + pixwidth + 170,border + 455)], fill = chrfill) 
+                
+        d.text((2*border + pixwidth + 30,border + 470), \
+                "Data Points:",font=fnt, fill= featur_fill)
+        d.line([(2*border + pixwidth + 30,border + 505),
+                (2*border + pixwidth + 170,border + 505)], fill = drfill)
+                
+    else: pass 
+
+    return bt_anno_idx

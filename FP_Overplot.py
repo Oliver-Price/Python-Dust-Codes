@@ -16,7 +16,7 @@ import astropy.time
 import datetime
 from PIL import Image, ImageDraw, ImageFont
 from orbitdata_loading_functions import orb_vector, orb_obs
-from plot_functions import ra2xpix, dec2ypix, setaxisup
+from plot_functions import ra2xpix, dec2ypix, setaxisup, draw_synchrones, draw_sydynes, draw_datap, draw_data_reg, annotate_plotting
 from conversion_routines import pos2radec
 from Overplot_Simulation_Setup import simulation_setup
 from particle_sim import part_sim
@@ -220,8 +220,14 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     
     #plots image on canvas
     if plotmethodlog == True:
-        low = 3000
-        hih = 20000
+        
+        if comdenom == 'c2011l4':
+            low = 3000
+            hih = 20000
+        elif comdenom == 'c2006p1':
+            low = 10000
+            hih = 1500000        
+        
         for x in xrange(0, ya-2):
             for y in xrange(0, xa-2):
                 fillval = sorted([1, colr[x,y], 9999999999])[1]
@@ -599,7 +605,9 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         ra_pic = ra2xpix(203.40181,border,pixwidth,rafmin,scale)
         dec_pic = dec2ypix(-0.12993,border,pixwidth,decmin,scale)
         b = d.point((ra_pic,dec_pic), fill = (255,0,255,255))
-                
+    
+    else:
+        trajfill = None;trajucfill = None;comsunfill = None
 #%%***********************************************************
 #SIXTH CELL - Save image and parameters or load existing image
 #*************************************************************
@@ -615,7 +623,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
                      pixheight, pixwidth, scale, ctime, dtmin, ra, dec, colr,
                      colb, colg, trajfill, trajucfill, comsunfill, backgr_fill,
                      imgwidth, imgheight, rafmin, rafmax, rapixl, decpixl,
-                     com_ra_dec, com_Path], f)
+                     com_ra_dec, com_Path, com_in_image], f)
                     
 else:
     print "Loading parameter data"
@@ -646,6 +654,7 @@ else:
         decpixl = parameters[26]
         com_ra_dec = parameters[27]
         com_Path = parameters[28]
+        com_in_image = parameters[29]
 
     comimg = Image.open(imgsav)
     comimg.show()
@@ -687,10 +696,11 @@ while test_mode == True:
     
     #this is for identifying pixels where lines are present on grid
     linevalfalses = np.ones((256,256,256), dtype = int)
-    linevalfalses[trajfill[0],trajfill[1],trajfill[2]] = 0
-    linevalfalses[trajucfill[0],trajucfill[1],trajucfill[2]] = 0
-    linevalfalses[comsunfill[0],comsunfill[1],comsunfill[2]] = 0
-    linevalfalses[backgr_fill[0],backgr_fill[1],backgr_fill[2]] = 0
+    if com_in_image == True:
+        linevalfalses[trajfill[0],trajfill[1],trajfill[2]] = 0
+        linevalfalses[trajucfill[0],trajucfill[1],trajucfill[2]] = 0
+        linevalfalses[comsunfill[0],comsunfill[1],comsunfill[2]] = 0
+        linevalfalses[backgr_fill[0],backgr_fill[1],backgr_fill[2]] = 0
     
     #prep for simulation loop
     simres = np.empty((tno,bno,16),dtype = float)
@@ -765,113 +775,16 @@ while test_mode == True:
     dynfill = (255,0,0,255) #syndynes
     chrfill = (255,192,0,255) #synchrones
     drfill = (255,0,255,255) #data points and data region
-        
-    if "Syndynes" in drawopts: #DRAW SYNDYNES
-        for ba in xrange(0, bno):
-            b = d.line([(rapixl,decpixl), \
-            (simres[0,ba,12],simres[0,ba,13])],\
-            fill = dynfill)
-            print 'BETA = ' + str(simres[0,ba,1])
-            for ta in xrange(0, tmax[ba]):
-                b = d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
-                (simres[ta+1,ba,12],simres[ta+1,ba,13])],\
-                fill = dynfill)
     
-    if "Synchrones" in drawopts: #DRAW SYNCHRONES
-        for ta in xrange(0, tno):
-            b = d.line([(rapixl,decpixl), \
-            (simres[ta,0,12],simres[ta,0,13])],\
-            fill = chrfill)
-            print 'TIME = ' + str(simres[ta,0,0])
-            for ba in xrange(0, bmax[ta]):
-                b = d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
-                (simres[ta,ba+1,12],simres[ta,ba+1,13])],\
-                fill = chrfill)
-    
-    if "Data Points" in drawopts: #DRAW DATAPOINTS
-        for ta in xrange(0,tno):
-            for ba in xrange(0, bmax[ta]):
-                xsiz = 2
-                b = d.line( [ ( simres[ta,ba,12] - xsiz , simres[ta,ba,13] - xsiz ) ,
-                          ( simres[ta,ba,12] + xsiz , simres[ta,ba,13] + xsiz ) ] ,
-                          fill = drfill )  
-                b = d.line( [ ( simres[ta,ba,12] - xsiz , simres[ta,ba,13] + xsiz ) ,
-                          ( simres[ta,ba,12] + xsiz , simres[ta,ba,13] - xsiz ) ] ,
-                          fill = drfill )
-                            
     fontloc = r'C:\Windows\winsxs\amd64_microsoft-windows-f..etype-lucidaconsole_31bf3856ad364e35_6.1.7600.16385_none_5b3be3e0926bd543\lucon.ttf'
     fnt = ImageFont.truetype(fontloc, 20)  
     bt_anno_idx = 0
-    
-    if drawopts == "Data Region Enclosed":
-        b = d.line( [ ( simres[0,0,12]  , simres[0,0,13] ) ,
-                      ( simres[0,bmax[0],12] , simres[0,bmax[0],13] ) ] ,
-                        fill = drfill , width = 5)
-        b = d.line( [ ( simres[tno-1,0,12]  , simres[tno-1,0,13] ) ,
-                      ( simres[tno-1,bmax[tno-1],12] ,
-                       simres[tno-1,bmax[tno-1],13] ) ] ,    
-                        fill = drfill , width = 5)           
-        for ta in xrange(0,tno - 1):
-            b = d.line( [ ( simres[ta,bmax[ta],12]  , simres[ta,bmax[ta],13] ) ,
-                          ( simres[ta+1,bmax[ta+1],12] , simres[ta+1,bmax[ta+1],13] ) ]
-                          , fill = drfill , width = 3)
-            b = d.line( [ ( simres[ta,0,12]  , simres[ta,0,13] ) ,
-                          ( simres[ta+1,0,12] , simres[ta+1,0,13] ) ]
-                          , fill = drfill , width = 5)
-                          
-        d.text((2*border + pixwidth + 30,border + 370), \
-                "Data Region:",font=fnt, fill= featur_fill)
-        d.line([(2*border + pixwidth + 30,border + 405),
-                (2*border + pixwidth + 170,border + 405)], fill = drfill)
-  
-#%%************************
-#TENTH CELL - ANNOTATE PLOT
-#**************************
-  
-    if (drawopts == "Synchrones Only"):
-            
-        d.text((2*border + pixwidth + 30,border + 370), \
-                "Synchrones:",font=fnt, fill= featur_fill)
-        d.line([(2*border + pixwidth + 30,border + 405),
-                (2*border + pixwidth + 170,border + 405)], fill = chrfill) 
-            
-    if (drawopts == "Syndynes only"):
         
-        d.text((2*border + pixwidth + 30,border + 370), \
-                "Syndynes:",font=fnt, fill= featur_fill)
-        d.line([(2*border + pixwidth + 30,border + 405),
-                (2*border + pixwidth + 170,border + 405)], fill = dynfill) 
-        
-    if (drawopts == "Synchrones and Syndynes"):
-        bt_anno_idx = 1          
-        
-        d.text((2*border + pixwidth + 30,border + 370), \
-                "Syndynes:",font=fnt, fill= featur_fill)
-        d.line([(2*border + pixwidth + 30,border + 405),
-                (2*border + pixwidth + 170,border + 405)], fill = dynfill) 
-                
-        d.text((2*border + pixwidth + 30,border + 420), \
-                "Synchrones:",font=fnt, fill= featur_fill)
-        d.line([(2*border + pixwidth + 30,border + 455),
-                (2*border + pixwidth + 170,border + 455)], fill = chrfill) 
-        
-    if (drawopts == "Synchrones, Syndynes and Data Points"):
-        bt_anno_idx = 2     
-        
-        d.text((2*border + pixwidth + 30,border + 370), \
-                "Syndynes:",font=fnt, fill= featur_fill)
-        d.line([(2*border + pixwidth + 30,border + 405),
-                (2*border + pixwidth + 170,border + 405)], fill = dynfill) 
-                
-        d.text((2*border + pixwidth + 30,border + 420), \
-                "Synchrones:",font=fnt, fill= featur_fill)
-        d.line([(2*border + pixwidth + 30,border + 455),
-                (2*border + pixwidth + 170,border + 455)], fill = chrfill) 
-                
-        d.text((2*border + pixwidth + 30,border + 470), \
-                "Data Points:",font=fnt, fill= featur_fill)
-        d.line([(2*border + pixwidth + 30,border + 505),
-                (2*border + pixwidth + 170,border + 505)], fill = drfill)        
+    if "Syndynes" in drawopts: draw_synchrones(dynfill,d,simres,bno,rapixl,decpixl,tmax)
+    elif "Synchrones" in drawopts: draw_sydynes(chrfill,d,simres,tno,rapixl,decpixl,bmax)
+    elif "Data Points" in drawopts: draw_datap(drfill,d,simres,tno,bmax)
+    elif "Data Region Enclosed" in drawopts:  draw_data_reg(drfill,featur_fill,d,fnt,simres,border,pixwidth)                
+    bt_anno_idx = annotate_plotting(d,drawopts,border,pixwidth)
     
     d.text((2*border + pixwidth + 30,border + 420 + 50*bt_anno_idx), 
     ("Beta Range: " + '\n' + '  ' + str(betal) + ' to ' + str(betau)),
