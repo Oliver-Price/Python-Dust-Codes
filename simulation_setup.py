@@ -11,7 +11,7 @@ def simulation_setup(savefile):
     if (saveexists == False):
         betau = 1; betal = 0.001; bno = 50
         simtu = 100; simtl = 1; tno = 50; tspace = 'Linear'
-        threshold = 10
+        threshold = None #formerly used for phase space reduction, now defunct
         drawopts = "Synchrones Only"
         sav_bool = False
         test_mode = True
@@ -38,15 +38,13 @@ def simulation_setup(savefile):
         +' : ' + str(tno) + ' values\n')
         message += ('Ejection Time Spacing: ' + tspace + ' \n')
         message += ('Draw Options: ' + drawopts + ' \n')
-        message += ('Blocking Threshold = ' + str(threshold)+ ' \n')
         message += ('Save Data: ' + str(sav_bool) + ' \n')
         message += ('Test Mode: ' + str(test_mode) + ' \n')
         reply = easygui.buttonbox(msg= message,
                                   title='Choosing Simulation Parameters',
               choices=('Change Beta Values', 'Change Ejection Time Values',
                        'Toggle Time Spacing', 'Change Draw Options',
-                       'Change Threshold', 'Toggle Data Save',
-                       'Toggle Test Mode', 'OK All'),
+                       'Toggle Data Save', 'Toggle Test Mode', 'OK All'),
                        image=None)
                        
         if reply == None: sys.exit()
@@ -115,22 +113,6 @@ def simulation_setup(savefile):
             drawopts_ans = easygui.choicebox(dmsg, dtitle, dchoices)
             if drawopts_ans != None:
                 drawopts = drawopts_ans
-                
-        if reply == 'Change Threshold':   
-          
-            hmsg = "Choose Threshold for ignoring near-coma data"
-            htitle = "Choosing cut-off Threshold"
-            hreply = easygui.enterbox(hmsg,htitle)
-            while 1:
-                if hreply == None: break #exit if cancel pressed                 
-                errmsg = ""
-                try:
-                    threshold = int(hreply)
-                except ValueError:
-                        errmsg += ("Threshold must be an Integer")
-                if errmsg == "": break
-                hreply = easygui.enterbox(errmsg, htitle)
-            threshold = int(hreply)
         
         if reply == 'Toggle Data Save': sav_bool = not sav_bool       
         if reply == 'Toggle Test Mode': test_mode = not test_mode
@@ -140,7 +122,7 @@ def simulation_setup(savefile):
         pickle.dump([betau, betal, bno, simtu, simtl, tno, tspace, threshold,
                      drawopts, sav_bool, test_mode], f)
     
-    return (betau, betal, bno, simtu, simtl, tno, tspace, threshold, drawopts,
+    return (betau, betal, bno, simtu, simtl, tno, tspace, drawopts,
             sav_bool, test_mode)
             
     

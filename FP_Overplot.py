@@ -16,9 +16,11 @@ import astropy.time
 import datetime
 from PIL import Image, ImageDraw, ImageFont
 from orbitdata_loading_functions import orb_vector, orb_obs
-from plot_functions import ra2xpix, dec2ypix, setaxisup, draw_synchrones, draw_sydynes, draw_datap, draw_data_reg, annotate_plotting
+from FP_plot_functions import ra2xpix, dec2ypix, setaxisup, plotpixel
+from FP_plot_functions import draw_synchrones, draw_sydynes, draw_datap, draw_data_reg, annotate_plotting
+from FP_diagnostics import plot_orbit
 from conversion_routines import pos2radec
-from Overplot_Simulation_Setup import simulation_setup
+from simulation_Setup import simulation_setup
 from particle_sim import part_sim
 import idlsave
 import pickle
@@ -216,7 +218,9 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     comimg = Image.new('RGBA', ( imgwidth , imgheight ) ,backgr_fill)
     d = ImageDraw.Draw(comimg)
     
-    plotmethodlog = True   
+    if obsloc != "Earth":
+        plotmethodlog = True
+    else: pass
     
     #plots image on canvas
     if plotmethodlog == True:
@@ -234,32 +238,15 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
                 fillco = int(round(255*(np.log10(fillval) - np.log10(low))*
     								1 / (np.log10(hih) - np.log10(low))))
                 fillco = sorted([0, fillco, 255])[1]
-                ra1 = ra2xpix(ra_m[x,y],border,pixwidth,rafmin,scale)
-                ra2 = ra2xpix(ra_m[x+1,y],border,pixwidth,rafmin,scale)
-                ra3 = ra2xpix(ra_m[x+1,y+1],border,pixwidth,rafmin,scale)
-                ra4 = ra2xpix(ra_m[x,y+1],border,pixwidth,rafmin,scale)
-                dec1 = dec2ypix(dec[x,y],border,pixheight,decmin,scale)
-                dec2 = dec2ypix(dec[x+1,y],border,pixheight,decmin,scale)
-                dec3 = dec2ypix(dec[x+1,y+1],border,pixheight,decmin,scale)
-                dec4 = dec2ypix(dec[x,y+1],border,pixheight,decmin,scale)
-                a = d.polygon([(ra1,dec1),(ra2,dec2),(ra3,dec3),(ra4,dec4)] ,\
-                fill=(fillco,fillco,fillco,255))
+                plotpixel(d,x,y,ra_m,dec,border,pixwidth,pixheight,decmin,rafmin,
+                          scale,fillco,fillco,fillco)
                 
     elif plotmethodlog == False:            
         for x in xrange(0, ya-2):
             for y in xrange(0, xa-2):
-                ra1 = ra2xpix(ra_m[x,y],border,pixwidth,rafmin,scale)
-                ra2 = ra2xpix(ra_m[x+1,y],border,pixwidth,rafmin,scale)
-                ra3 = ra2xpix(ra_m[x+1,y+1],border,pixwidth,rafmin,scale)
-                ra4 = ra2xpix(ra_m[x,y+1],border,pixwidth,rafmin,scale)
-                dec1 = dec2ypix(dec[x,y],border,pixheight,decmin,scale)
-                dec2 = dec2ypix(dec[x+1,y],border,pixheight,decmin,scale)
-                dec3 = dec2ypix(dec[x+1,y+1],border,pixheight,decmin,scale)
-                dec4 = dec2ypix(dec[x,y+1],border,pixheight,decmin,scale)
-                a = d.polygon([(ra1,dec1),(ra2,dec2),(ra3,dec3),(ra4,dec4)] ,\
-                fill=(colcr[x,y],colcg[x,y],colcb[x,y],255))
+                plotpixel(d,x,y,ra_m,dec,border,pixwidth,pixheight,decmin,rafmin,
+                scale,colcr[x,y],colcg[x,y],colcb[x,y])
             
-
     #%%********************
     #THIRD CELL - Draw Axis
     #**********************
@@ -447,6 +434,10 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     #FIFTH CELL - Plot Comet Traj, Comet-Sun Vector + Uncertainty
     #************************************************************
 
+#SOME OF THIS STUFF SHOULD BE SQUIRRELED AWAY SOMEWHERE
+#ALSO NEED TO ADD SYNCHRONE TESTING AS IN LINUX
+
+
     #find ra and dec of comet
     LT_cor = int(np.round(np.linalg.norm(comveceq[comcel,6:9] - 
     obsveceq[comcel,6:9])*8.316746397269274))
@@ -475,46 +466,9 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         if (axisdata[7] < 0):
             ra_img_higher = axisdata[7] + 360
         else: ra_img_higher = axisdata[7]
-            
-        #find rough cell range of traj from observer data
-        obsraloc = np.where((comobs[:,5] > ra_img_lower) \
-        & (comobs[:,5] < ra_img_higher))[0]
-        obsdecloc = np.where((comobs[:,6] > axisdata[8]) \
-        & (comobs[:,6] < axisdata[9]))[0]
-        trajrough = np.intersect1d(obsraloc,obsdecloc)
         
-        #use this to calculate ra and dec of comet for a purposely oversized range
-        vno = 0; vext = int(np.size(trajrough))
-        vtraj = np.empty((np.size(trajrough)+2*vext-1,11),dtype = float)
-        tcellmax = min(trajrough[-1] + vext, np.shape(comveceq)[0])
-        for tcell in xrange(trajrough[0] - vext,tcellmax):
-            vtemp = comveceq[tcell,6:9] - obsveceq[comcel,6:9]    
-            ptemp = pos2radec(vtemp)
-            vtraj[vno,0] = ptemp[0]
-            vtraj[vno,1] = ptemp[1]
-            vtraj[vno,4] = tcell
-            vtraj[vno,5] = tcell + round(np.linalg.norm(vtemp)*8.316746397269274)
-            vtraj[vno,6:11] = comveceq[tcell,1:6]
-            vno +=1
-        
-        #use these ra and dec values to slim data down to within image borders
-        trajrange = np.intersect1d(
-                    np.intersect1d( np.where(vtraj[:,0] < ra_img_higher)[0],
-                                    np.where(vtraj[:,0] > ra_img_lower)[0]),
-                    np.intersect1d( np.where(vtraj[:,1] < axisdata[9])[0],
-                                    np.where(vtraj[:,1] > axisdata[8])[0]))                  
-        vtraj = vtraj[trajrange[0]:trajrange[-1],:]
-    
-        #find relevant cell in vtraj and comveceq accounting for LT
-        vtrajcel = np.where(abs(vtraj[:,5] - comcel) < 1e-4)[0][0]
-        ltcomcel = vtraj[vtrajcel,4]
-    
-        #convert to ra and dec, and plot
-        vtraj[:,2] = ra2xpix(vtraj[:,0],border,pixwidth,rafmin,scale)
-        vtraj[:,3] = dec2ypix(vtraj[:,1],border,pixheight,decmin,scale)
-        for ta in xrange(0, (np.shape(vtraj)[0]-1)):
-            b = d.line([(vtraj[ta,2],vtraj[ta,3]),(vtraj[ta+1,2],vtraj[ta+1,3])],\
-            fill = trajfill)
+        [ltcomcel, vtraj, vtrajcel] = plot_orbit(comobs,comveceq,obsveceq,axisdata,d,comcel,trajfill,ra_img_lower,
+            ra_img_higher,border,pixwidth,rafmin,scale,pixheight,decmin)        
         
         #find locations to plot on orbit
         orbit_fnt = ImageFont.truetype(fontloc, 10)
@@ -559,7 +513,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
 
         #creates an array of ra/dec values along sun-comet line
         cmsam = 10001
-        offsets = np.ones(cmsam) + np.linspace(-0.3,0.7,cmsam)
+        offsets = np.ones(cmsam) + np.linspace(-1,1,cmsam)
         comsun = np.empty((cmsam,4),dtype = float)
         for cs in xrange(0,cmsam):
             ctemp = pos2radec(offsets[cs]*comveceq[ltcomcel,6:9] - 
@@ -623,7 +577,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
                      pixheight, pixwidth, scale, ctime, dtmin, ra, dec, colr,
                      colb, colg, trajfill, trajucfill, comsunfill, backgr_fill,
                      imgwidth, imgheight, rafmin, rafmax, rapixl, decpixl,
-                     com_ra_dec, com_Path, com_in_image], f)
+                     com_ra_dec, com_Path, com_in_image, featur_fill], f)
                     
 else:
     print "Loading parameter data"
@@ -655,7 +609,8 @@ else:
         com_ra_dec = parameters[27]
         com_Path = parameters[28]
         com_in_image = parameters[29]
-
+        featur_fill = parameters[30]
+        
     comimg = Image.open(imgsav)
     comimg.show()
    
@@ -670,14 +625,14 @@ while test_mode == True:
     d = ImageDraw.Draw(comimg)
     
     simsavefile = os.path.join(pysav, filebase + '_simsetup')
-    [betau, betal, bno, simtu, simtl, tno, tspace, threshold, drawopts,
-     sav_bool, test_mode] \
+    [betau, betal, bno, simtu, simtl, tno, tspace, drawopts, sav_bool, test_mode] \
     = simulation_setup(simsavefile)
     
     #finds maximum possible simulateable time and ensure simtu is bounded by this
     simtmax = np.round(ctime.jd - comveceq10[0,0])
     if (simtu > simtmax):
-        simtu = simtmax 
+        simtu = simtmax
+        print "Simulation time exceeds orbit data range, setting to max"
     else:
         simtu = simtu
         
@@ -691,23 +646,15 @@ while test_mode == True:
     if (betal == 0):
         bvals = np.logspace(np.log10(0.001), np.log10(betau), num=(bno-1))
         bvals = np.concatenate((np.array([0]), bvals))
+        print "Beta = 0, logarithmic spacing from Beta = 0.001"
     else:
         bvals = np.logspace(np.log10(betal), np.log10(betau), num=(bno))
-    
-    #this is for identifying pixels where lines are present on grid
-    linevalfalses = np.ones((256,256,256), dtype = int)
-    if com_in_image == True:
-        linevalfalses[trajfill[0],trajfill[1],trajfill[2]] = 0
-        linevalfalses[trajucfill[0],trajucfill[1],trajucfill[2]] = 0
-        linevalfalses[comsunfill[0],comsunfill[1],comsunfill[2]] = 0
-        linevalfalses[backgr_fill[0],backgr_fill[1],backgr_fill[2]] = 0
-    
+
     #prep for simulation loop
     simres = np.empty((tno,bno,16),dtype = float)
     efinp = obsveceq[comcel,6:9]
     bmax = np.empty((tno),dtype = int)
     tidx = 0
-    pix = comimg.load()
     
 #%%*********************************
 #EIGHT CELL - Simulating Dust Motion
@@ -733,34 +680,19 @@ while test_mode == True:
             rasim = simres[tidx,bidx,10]
             desim = simres[tidx,bidx,11]
             simres[tidx,bidx,12] = ra2xpix(rasim,border,pixwidth,rafmin,scale)
-            simres[tidx,bidx,13] = dec2ypix(desim,border,pixheight,decmin,scale)
-            pv = pix[ int( round( sorted([0, simres[tidx,bidx,12], pixwidth])[1] ) ),
-            int( round(  sorted([0, simres[tidx,bidx,13], pixheight])[1] ) ) ][0:3]        
-            simres[tidx,bidx,14] = linevalfalses[pv[0],pv[1],pv[2]]*np.average(pv)                     
-            simres[tidx,bidx,15] = 1
+            simres[tidx,bidx,13] = dec2ypix(desim,border,pixheight,decmin,scale)                 
+            simres[tidx,bidx,14] = 1
             bidx += 1
-        simres[tidx,bidx-1,15] = 0
+        simres[tidx,bidx-1,14] = 0
         bmax[tidx] = bidx - 1
         tidx += 1
         print float(tidx)*100/tno
         
     tmax = tno - 1 - np.searchsorted(bmax[::-1], np.arange(bno))
-    
-    if inv == True:
-            zero_locs = np.where(simres[:,:,14] <= threshold)
-            featur_fill = (0,0,0,255)
-    elif inv == False:
-            zero_locs = np.where(simres[:,:,14] >= (255 - threshold))
-            featur_fill = (255,255,255,255)
 
-    zero_size = np.size(zero_locs[0])
-    for z in xrange(0, zero_size):
-        simres[zero_locs[0][z],zero_locs[1][z],15] = 0
-    
     if (sav_bool == True):
         simressavefile = os.path.join(pysav, 'simres')
-        simressavefile = os.path.join(simressavefile, filebase + '_thr_'
-                         + str(threshold) + '_' + str(betal) + '_'
+        simressavefile = os.path.join(simressavefile, filebase + '_' + str(betal) + '_'
                          + str(betau) + '_' + str(bno)+ '_' + str(simtu) + '_'
                          + str(simtl) + '_' + str(tno))
         simressavefile = string.replace(simressavefile,'.','\'')
@@ -783,8 +715,8 @@ while test_mode == True:
     if "Syndynes" in drawopts: draw_synchrones(dynfill,d,simres,bno,rapixl,decpixl,tmax)
     elif "Synchrones" in drawopts: draw_sydynes(chrfill,d,simres,tno,rapixl,decpixl,bmax)
     elif "Data Points" in drawopts: draw_datap(drfill,d,simres,tno,bmax)
-    elif "Data Region Enclosed" in drawopts:  draw_data_reg(drfill,featur_fill,d,fnt,simres,border,pixwidth)                
-    bt_anno_idx = annotate_plotting(d,drawopts,border,pixwidth)
+    elif "Data Region Enclosed" in drawopts:  draw_data_reg(drfill,featur_fill,d,fnt,simres,tno,bmax,border,pixwidth)                
+    bt_anno_idx = annotate_plotting(d,drawopts,border,pixwidth,fnt,featur_fill,dynfill,chrfill,drfill)
     
     d.text((2*border + pixwidth + 30,border + 420 + 50*bt_anno_idx), 
     ("Beta Range: " + '\n' + '  ' + str(betal) + ' to ' + str(betau)),

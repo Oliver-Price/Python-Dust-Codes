@@ -1,19 +1,38 @@
-#**********************************************
-#Various methods for images with the PIL module
-#**********************************************
+#***************************************************
+#Various PIL methods for the FINSON PROBSTEIN module 
+#***************************************************
 import numpy as np
 import math as m
 
 #%%
-#***************************************
-#FINSON PROBSTEIN OVERLAY PLOT FUNCTIONS
-#***************************************
+#***********************
+#FP Image plot functions
+#***********************
 
 def ra2xpix(ra, border, pixwidth, ramin, scale):
     return pixwidth + border*1.5 - (ra - ramin)*scale
     
 def dec2ypix(dec, border, pixheight, decmin, scale):
     return pixheight + border*1.5 - (dec-decmin)*scale
+    
+def plotpixel(d,x,y,ra_m,dec,border,pixwidth,pixheight,decmin,rafmin,scale,
+                fillco1,fillco2,fillco3):
+    ra1 = ra2xpix(ra_m[x,y],border,pixwidth,rafmin,scale)
+    ra2 = ra2xpix(ra_m[x+1,y],border,pixwidth,rafmin,scale)
+    ra3 = ra2xpix(ra_m[x+1,y+1],border,pixwidth,rafmin,scale)
+    ra4 = ra2xpix(ra_m[x,y+1],border,pixwidth,rafmin,scale)
+    dec1 = dec2ypix(dec[x,y],border,pixheight,decmin,scale)
+    dec2 = dec2ypix(dec[x+1,y],border,pixheight,decmin,scale)
+    dec3 = dec2ypix(dec[x+1,y+1],border,pixheight,decmin,scale)
+    dec4 = dec2ypix(dec[x,y+1],border,pixheight,decmin,scale)
+    d.polygon([(ra1,dec1),(ra2,dec2),(ra3,dec3),(ra4,dec4)] ,\
+    fill=(fillco1,fillco2,fillco3,255))
+    
+
+#%%
+#*****************
+#FP Axis functions
+#*****************
 
 def setaxisup(ramax,ramin,decmax,decmin,border,pixheight,pixwidth,scale):
     
@@ -65,79 +84,6 @@ def setaxisup(ramax,ramin,decmax,decmin,border,pixheight,pixwidth,scale):
     return(a,b,d,e,f,h,raminb,ramaxb,decminb,decmaxb)
     #don't need the actual values of minor ticks so ignore c and g
 
-#%%
-#*************************
-#DIRECT DUSTPLOT FUNCTIONS
-#*************************
-
-def logsimt2xpix(simt, border, simtl, scale):
-    return border*1.5 + (np.log10(simt) - np.log10(simtl))*scale
-    
-def linsimt2xpix(simt, border, simtl, scale):
-    return border*1.5 + (simt - simtl)*scale
-    
-def beta2ypix(beta, border, pixheight, betal, scale):
-    return pixheight + border*1.5 - (np.log10(beta) - np.log10(betal))*scale
-
-#FUNCTION TO SLIM DOWN AN ARRAY OF RA AND DEC VALUES USING ANOTHER SET OF RA
-#AND DEC VALUES AS REFRENCE
-
-def radec_slim(ra_data, dec_data, ra_ref, dec_ref):
-
-    #this assumes that the data arrays of ra and dec have the same shape
-    rashape0 = np.shape(ra_data)[0]
-    rashape1 = np.shape(ra_data)[1]
-    
-    raimin = np.min(ra_ref[np.nonzero(ra_ref)])
-    raimax = np.max(ra_ref[np.nonzero(ra_ref)])
-    decimin = np.min(dec_ref[np.nonzero(dec_ref)])
-    decimax = np.max(dec_ref[np.nonzero(dec_ref)])
-    
-    distmin = abs(ra_data - raimin) + abs(dec_data - decimin)
-    minloc = np.where(distmin == np.min(distmin))
-    distmax = abs(ra_data - raimax) + abs(dec_data - decimax)
-    maxloc = np.where(distmax == np.min(distmax))
-    
-    up_index_0 = max(minloc[0][0], maxloc[0][0])
-    down_index_0 = min(minloc[0][0], maxloc[0][0])
-    up_index_1 = max(minloc[1][0], maxloc[1][0])
-    down_index_1 = min(minloc[1][0], maxloc[1][0])
-    
-    if up_index_0 != (rashape0 - 1):
-        up_index_0 += 1
-    if down_index_0 != 0:
-        down_index_0 -= 1
-    if up_index_1 != (rashape1 - 1):
-        up_index_1 += 1
-    if down_index_1 != 0:
-        down_index_1 -= 1
-        
-    ra_slim = ra_data[down_index_0:up_index_0,down_index_1:up_index_1]
-    dec_slim = dec_data[down_index_0:up_index_0,down_index_1:up_index_1]
-
-    return(ra_slim, dec_slim, down_index_0, down_index_1)
-    
-#scaling function to increase contrast
-def greyscale_remap(upper_saturation,lower_saturation, mode = 'lin'):
-    
-    newmap = np.zeros((256),dtype=int)
-    for col in xrange(upper_saturation, 256):
-        newmap[col] = 255
-    for col in xrange(0, lower_saturation):
-        newmap[col] = 0
-      
-    if mode == 'lin':
-        grad = 255/(upper_saturation - lower_saturation)   
-        for col in xrange(lower_saturation, upper_saturation):
-            newmap[col] = int(round((col - lower_saturation)*grad))
-            
-    if mode == 'log':
-        print 'Using Log Scale'
-        newmap[lower_saturation:upper_saturation+1] = np.rint(np.logspace( 
-        np.log10(1), np.log10(255),
-        num = (upper_saturation - lower_saturation + 1) ))
-        
-    return newmap
 
 #%%
 #**********************
@@ -179,24 +125,24 @@ def draw_datap(drfill,d,simres,tno,bmax,xsiz = 2):
                       ( simres[ta,ba,12] + xsiz , simres[ta,ba,13] - xsiz ) ] ,
                       fill = drfill )
                       
-def draw_data_reg(drfill,featur_fill,d,fnt,simres,border,pixwidth,width = 5):                
+def draw_data_reg(drfill,featur_fill,d,fnt,simres,tno,bmax,border,pixwidth,lwidth = 5):                
     
-    b = d.line( [ ( simres[0,0,12]  , simres[0,0,13] ) ,
+    d.line( [ ( simres[0,0,12]  , simres[0,0,13] ) ,
                   ( simres[0,bmax[0],12] , simres[0,bmax[0],13] ) ] ,
-                    fill = drfill , width)
-    b = d.line( [ ( simres[tno-1,0,12]  , simres[tno-1,0,13] ) ,
+                    fill = drfill , width = lwidth)
+    d.line( [ ( simres[tno-1,0,12]  , simres[tno-1,0,13] ) ,
                   ( simres[tno-1,bmax[tno-1],12] ,
                    simres[tno-1,bmax[tno-1],13] ) ] ,    
-                    fill = drfill , width)    
+                    fill = drfill , width = lwidth)    
                     
     for ta in xrange(0,tno - 1):
         
-        b = d.line( [ ( simres[ta,bmax[ta],12]  , simres[ta,bmax[ta],13] ) ,
+        d.line( [ ( simres[ta,bmax[ta],12]  , simres[ta,bmax[ta],13] ) ,
                       ( simres[ta+1,bmax[ta+1],12] , simres[ta+1,bmax[ta+1],13] ) ]
-                      , fill = drfill , width)
-        b = d.line( [ ( simres[ta,0,12]  , simres[ta,0,13] ) ,
+                      , fill = drfill , width = lwidth)
+        d.line( [ ( simres[ta,0,12]  , simres[ta,0,13] ) ,
                       ( simres[ta+1,0,12] , simres[ta+1,0,13] ) ]
-                      , fill = drfill , width)
+                      , fill = drfill , width = lwidth)
                       
     d.text((2*border + pixwidth + 30,border + 370), \
             "Data Region:",font=fnt, fill= featur_fill)
@@ -209,7 +155,7 @@ def draw_data_reg(drfill,featur_fill,d,fnt,simres,border,pixwidth,width = 5):
 #FP Grid Annotation Functions
 #****************************
 
-def annotate_plotting(d,drawopts,border,pixwidth):
+def annotate_plotting(d,drawopts,border,pixwidth,fnt,featur_fill,dynfill,chrfill,drfill):
 
     if (drawopts == "Synchrones Only"):
         bt_anno_idx = 0
