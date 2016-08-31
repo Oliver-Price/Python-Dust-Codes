@@ -34,6 +34,13 @@ def plotpixel(d,x,y,ra_m,dec,border,pixwidth,pixheight,decmin,rafmin,scale,
 #FP Axis functions
 #*****************
 
+#axisdata 0/1 - ra major divisions --- values and pixel locations
+#axisdata 2 - ra minor divisions --- pixel locations
+#axisdata 3/4 - dec major divisions --- values and pixel locations
+#axisdata 5 - dec minor divisions --- pixel locations
+#axisdata 6/7 min/max RA in border
+#axisdata 8/9 min/max DEC in border
+
 def setaxisup(ramax,ramin,decmax,decmin,border,pixheight,pixwidth,scale):
     
     #Tables with various sets of possible major/minor division sizes

@@ -9,22 +9,26 @@ import easygui
 import os
 import numpy as np
 import math as m
+from scipy.io.idl import readsav
 import sys
 from astropy.io import fits
 from astropy import wcs
 import astropy.time
 import datetime
+import pickle
+import matplotlib.path as mplPath
 from PIL import Image, ImageDraw, ImageFont
 from orbitdata_loading_functions import orb_vector, orb_obs
 from FP_plot_functions import ra2xpix, dec2ypix, setaxisup, plotpixel
-from FP_plot_functions import draw_synchrones, draw_sydynes, draw_datap, draw_data_reg, annotate_plotting
-from FP_diagnostics import plot_orbit
-from conversion_routines import pos2radec
-from simulation_Setup import simulation_setup
+from FP_plot_functions import draw_synchrones, draw_sydynes, draw_datap,
+from FP_plot_functions import draw_data_reg, annotate_plotting
+from FP_diagnostics import plot_orbit, plot_orbit_points, plot_sunearth_vec
+from FP_diagnostics import write_bt_ranges, write_properties, plot_compos_unc
+from imagetime_methods import image_time_yudish, image_time_user, image_time_stereo
+from conversion_routines import pos2radec, fixwraps, correct_for_imagetype, 
+from conversion_routines import col_corrections, get_obs_loc
+from simulation_setup import simulation_setup
 from particle_sim import part_sim
-import idlsave
-import pickle
-import matplotlib.path as mplPath
 
 #%%**********************
 #FIRST CELL - GET DATA IN
@@ -47,22 +51,7 @@ with open(inputfile, "r") as c:
     horiztag = cdata[40][10:]
 
 #choose observer locations
-bool_locs = np.array([(('EARTH' in obslocstr) or ('Earth' in obslocstr)),
-                 (('STEREO-A' in obslocstr) or ('Stereo-A' in obslocstr)
-                 or ('STEREO_A' in obslocstr) or ('Stereo_A' in obslocstr)),
-                 (('STEREO-B' in obslocstr) or ('Stereo-B' in obslocstr)
-                 or ('STEREO_B' in obslocstr) or ('Stereo_B' in obslocstr)),
-                 (('SOHO' in obslocstr) or ('Soho' in obslocstr))])
-name_locs = np.array(['Earth', 'Stereo_A', 'Stereo_B', 'Soho'])
-case_locs = np.size(np.nonzero(bool_locs))
-if case_locs > 1:
-    obsmsg = "Please select observer location"
-    obschoices = name_locs[bool_locs].tolist()
-    obsloc = easygui.buttonbox(obsmsg, choices=obschoices)
-    imagedir = os.path.join(imagedir, obsloc)
-elif case_locs == 1:
-    obsloc = name_locs[bool_locs][0]
-else: sys.exit("No Good Observer Location")
+[obsloc, imagedir] = get_obs_loc(obslocstr, imagedir)
     
 #import the orbit data
 obsveceq = orb_vector(comdenom, obsloc, pysav, orbitdir,
@@ -95,69 +84,11 @@ picklexists = os.path.exists(picklesavefile)
 forceredraw = True
 if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     
-    #choose img type
-    colormsg = "Please select image type:"
-    colorchoices = ["Colour","Black & White","Quit"]
-    reply = easygui.buttonbox(colormsg, choices=colorchoices)
-        
-    if reply == "Colour":
-
-        #we have to use a temporary 1d fits file to get WCS data
-        #this is due to astropy being unable to handle RGB fits images well
-        fitstemp = os.path.join(imagedir, 'temporary_' + fitsinfile)
-        hdulist = fits.open(fitsin)
-        
-        #opening color data
-        colours = (hdulist[0].data)
-        colr = colours[0,:,:]
-        colg = colours[1,:,:]
-        colb = colours[2,:,:]
-        
-        #making a 1d image for doing ra/dec coordinates
-        oldtemp = os.path.isfile(fitstemp) #if one doesn't already exist
-        if oldtemp == False: 
-            hdulist[0].data = hdulist[0].data[0] #makes image from red plane
-            hdulist[0].header['naxis'] = 1       #edits header so ds9 will work
-            hdulist.writeto(fitstemp)
-            
-        hdulist.close()
-        fitscoords = fitstemp #directs program to look at temp image for coords
-     
-    elif reply == "Black & White":
-        
-        #simple case, we can use base image for coords
-        hdulist = fits.open(fitsin)
-        colours = (hdulist[0].data)
-        fitscoords = fitsin
-        colr = colours #black and white colour scheme
-        colg = colours
-        colb = colours
+    #ensures image inputted correctly depending on size of data cube
+    [colr, colg, colb, fitscoords] = correct_for_imagetype(imagedir, fitsin, fitsinfile)
     
-    #otherwise, stop the program
-    elif reply == "Quit":
-        sys.exit()
-        
-    im_max = max(np.max(colr),np.max(colg),np.max(colb))
-    if im_max > 255:   
-        coltr = np.rint(colr*255/im_max)
-        coltg = np.rint(colg*255/im_max)
-        coltb = np.rint(colb*255/im_max)
-    else:
-        coltr = colr; coltg = colg; coltb = colb
-        
-    if inv == False:   
-        colcr = coltr; colcg = coltg; colcb = coltb
-        backgr_fill = (0,0,0,255)
-        featur_fill = (255,255,255,255)
-    elif inv == True:
-        colcr = 255 - coltr; colcg = 255  - coltg; colcb = 255 - coltb
-        backgr_fill = (255,255,255,255)
-        featur_fill = (0,0,0,255)
-        
-    if 'float' in str(colr.dtype):
-         colcr = colcr.astype(int)
-         colcg = colcg.astype(int)
-         colcb = colcb.astype(int)
+    #correcting for wrong data type, correct range to 255, account for inversion
+    [backgr_fill, featur_fill, colcr, colcg, colcb] = col_corrections(inv,colr,colg,colb)
         
 #%%**********************
 #SECOND CELL - Plot Image
@@ -193,20 +124,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     decmin = np.amin(dec)
     decmax = np.amax(dec)
     
-    if ramax < 0:
-        ra_m = np.copy(ra) + 360
-        rafmin = np.amin(ra_m)
-        rafmax = np.amax(ra_m)
-    elif (ramax-ramin) > 270:
-        ra_m = np.copy(ra)
-        circlocs = np.where(ra_m < 180)
-        ra_m[circlocs] = ra_m[circlocs] + 360
-        rafmin = np.amin(ra_m)
-        rafmax = np.amax(ra_m)
-    else:
-        ra_m = ra
-        rafmin = ramin
-        rafmax = ramax
+    [ra_m, rafmin, rafmax] = fixwraps(ra, ramax, ramin)
     
     #make a canvas with a fixed pixel height and border
     pixheight = 800
@@ -220,11 +138,9 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     
     if obsloc != "Earth":
         plotmethodlog = True
-    else: pass
+    else: plotmethodlog = False
     
-    #plots image on canvas
     if plotmethodlog == True:
-        
         if comdenom == 'c2011l4':
             low = 3000
             hih = 20000
@@ -247,9 +163,9 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
                 plotpixel(d,x,y,ra_m,dec,border,pixwidth,pixheight,decmin,rafmin,
                 scale,colcr[x,y],colcg[x,y],colcb[x,y])
             
-    #%%********************
-    #THIRD CELL - Draw Axis
-    #**********************
+#%%********************
+#THIRD CELL - Draw Axis
+#**********************
     
     #draws a border       
     a = d.polygon([(border,border),(border*2+pixwidth,border), \
@@ -258,20 +174,15 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     
     #most of the dirty stuff is bunged into this function
     axisdata = setaxisup(rafmax,rafmin,decmax,decmin,border,pixheight,pixwidth,scale)
-    
-    #axisdata 0/1 - ra major divisions --- values and pixel locations
-    #axisdata 2 - ra minor divisions --- pixel locations
-    #axisdata 3/4 - dec major divisions --- values and pixel locations
-    #axisdata 5 - dec minor divisions --- pixel locations
-    #axisdata 6/7 min/max RA in border
-    #axisdata 8/9 min/max DEC in border
-    
+
     majt = 20  #major tick length
     mint = 10  #minor tick length
     rdaxis = pixheight + border*2
     
     fontloc = r'C:\Windows\winsxs\amd64_microsoft-windows-f..etype-lucidaconsole_31bf3856ad364e35_6.1.7600.16385_none_5b3be3e0926bd543\lucon.ttf'
     fnt = ImageFont.truetype(fontloc, 20)
+    smallfnt = ImageFont.truetype(fontloc, 10)
+    largefnt = ImageFont.truetype(fontloc, 30)
     
     for div in xrange(0, (np.size(axisdata[1]))): #RA axis major ticks
         b = d.line([(axisdata[1][div],rdaxis-majt),(axisdata[1][div],rdaxis)],\
@@ -303,98 +214,31 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     
     #plot title
     plttitle = (comdenom.upper() + ' ' + comname)
-    titlefnt = ImageFont.truetype(fontloc, 30)
     d.text((1.5*border + pixwidth*0.5 - len(plttitle)*5 - 60,.35*border), \
-    plttitle, font=titlefnt, fill= featur_fill)
+    plttitle, font=largefnt, fill= featur_fill)
     
     pix = comimg.load()
     
-    #%%**************************
-    #FOURTH CELL - Get Imgtimehdr
-    #****************************
+#%%**************************
+#FOURTH CELL - Get Imgtimehdr
+#****************************
     
     #some amateur images lack times, need to sometimes use yudish imgtimehdr
     if obsloc == 'Earth':
         
-        #choice between yudish guess and user entry
         timemsg = "Choose image time method"
         timechoices = ["User Entry","Yudish Imagetimeheader"]
         reply = easygui.buttonbox(timemsg, choices=timechoices)
         
-        if reply == "Yudish Imagetimeheader":
-            
-            #locate imgtimehdr save data from IDL
-            idlsavpath = os.path.join(idlsav,'Imagetimeheaders_savefile')
-            idlsavpath = os.path.join(idlsavpath, comdenom)
-            idlsavpath = os.path.join(idlsavpath, fitsinfile[len(comdenom)+1:-5])
-            idlsavpath = idlsavpath + '_timeinfo.sav'
-            idls = idlsave.read(idlsavpath)
-            
-            #get time of comet in image and make an astropy time reference
-            chour = int(idls.optocentre_time_str[0][0:2])
-            cmin = int(idls.optocentre_time_str[0][3:5])
-            cday = int(idls.optocentre_date[0][0:2])
-            cmonth = int(idls.optocentre_date[0][3:5])
-            cyear = int(idls.optocentre_date[0][6:11])
-            ctime = astropy.time.Time(datetime.datetime(cyear, cmonth, cday,
-                                                        chour , cmin, 0))
-                                                        
-            uncertainty_range_exists = True
-                                        
-        if reply == "User Entry":
-            
-            img_t_msg = "Enter Date and Time of Image"
-            img_t_title = "User input of image time"
-            img_t_fieldNames = ["Year", "Month", "Day", "Hour", "Minute"]
-            img_t_fieldLengths = [4,2,2,2,2] #constrains digits in numbers
-            img_t_fieldValues = []  #values to be assigned
-            img_t_fieldValues = easygui.multenterbox(img_t_msg, img_t_title,
-                                                     img_t_fieldNames)
-            # conduct sanity check on dates
-            while 1:
-                if img_t_fieldValues == None: break #exit if cancel pressed
-                errmsg = ""
-                for i in range(len(img_t_fieldNames)):
-                    if img_t_fieldValues[i].strip() == "": #check if entered
-                        errmsg += ('"%s" is a required field.\n\n'
-                        % img_t_fieldNames[i])
-                    if len(img_t_fieldValues[i].strip()) != img_t_fieldLengths[i]: #check length
-                        errmsg +=  ('"%s" must be a %d digit number.\n\n'
-                            % (img_t_fieldNames[i], img_t_fieldLengths[i]))
-
-                try:    #check date is a real date
-                    newDate = datetime.datetime(int(img_t_fieldValues[0]),
-                                                int(img_t_fieldValues[1]),
-                                                int(img_t_fieldValues[2]),
-                                                int(img_t_fieldValues[3]),
-                                                int(img_t_fieldValues[4]))
-                except ValueError:
-                    errmsg += ('Date and Time must be real.\n\n')
-                if errmsg == "": break #if no problems found
-                fieldValues = easygui.multenterbox(errmsg,img_t_title,
-                                                   img_t_fieldNames,
-                                                   img_t_fieldValues)
-                                                   
-            cmin = int(img_t_fieldValues[4])
-            chour = int(img_t_fieldValues[3])
-            cday = int(img_t_fieldValues[2])
-            cmonth = int(img_t_fieldValues[1])
-            cyear = int(img_t_fieldValues[0])
-            ctime = astropy.time.Time(datetime.datetime(cyear, cmonth, cday,
-                                                        chour , cmin, 0))                                                  
-           
-            uncertainty_range_exists = False
+        if reply == "Yudish Imagetimeheader": [idls,ctime,uncertainty_range_exists] = image_time_yudish(comdenom,fitsinfile,idlsav)
+        if reply == "User Entry": [ctime,uncertainty_range_exists] = image_time_user()
                                           
-    else:
-        csec = int(filebase[13:15])
-        cmin = int(filebase[11:13])
-        chour = int(filebase[9:11])
-        cday = int(filebase[6:8])
-        cmonth = int(filebase[4:6])
-        cyear = int(filebase[0:4])
-        ctime = astropy.time.Time(datetime.datetime(cyear, cmonth, cday,
-                                                    chour , cmin, csec))
-    
+    elif obsloc == 'Stereo_A' or 'Stereo_B':
+        
+        [ctime,uncertainty_range_exists] = image_time_stereo(filebase)
+
+    elif obsloc == 'Soho': sys.exit("SOHO Image times need adding")
+        
     #find relevant observer parameters of comet at observer time
     comcel = np.where(abs(obsveceq[:,0] - ctime.jd) < 1e-4)[0][0]
     
@@ -406,37 +250,14 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     dt = ctime - c10t
     dtmin = int(round(dt.sec/60))
     
-    #display orbit plane angle
-    cimgopa = comobs[comcel,7]
-    d.text((2*border + pixwidth + 30,border), \
-    "Plane Angle:" + '\n' + '  ' + "%.2f" % cimgopa ,
-    font=fnt, fill= featur_fill)
-    
-    #display image author
-    if obsloc == 'Earth':
-        image_from = filebase.split('_')[-1]
-    else:
-        image_from = obsloc
-    d.text((2*border + pixwidth + 30,border + 50), \
-    "Image From: " + '\n' + '  ' + image_from, font=fnt, fill= featur_fill)
-    
-    #display date
-    d.text((2*border + pixwidth + 30,border + 100), \
-    "Image Date: " + '\n' + '  ' + ctime.isot[0:10] ,
-    font=fnt, fill= featur_fill)
+    write_properties(d,border, pixwidth, fnt, featur_fill, obsloc, filebase,
+                     comcel, ctime, comobs)
+                     
+#%%**********************************************************
+#FIFTH CELL - Plot Comet Traj, Comet-Sun Vector + Uncertainty
+#************************************************************
 
-    #display time
-    d.text((2*border + pixwidth + 30,border + 150), \
-    "Image Time: " + '\n' + '  ' + ctime.isot[11:16] ,
-    font=fnt, fill= featur_fill)    
-
-    #%%**********************************************************
-    #FIFTH CELL - Plot Comet Traj, Comet-Sun Vector + Uncertainty
-    #************************************************************
-
-#SOME OF THIS STUFF SHOULD BE SQUIRRELED AWAY SOMEWHERE
-#ALSO NEED TO ADD SYNCHRONE TESTING AS IN LINUX
-
+    #ALSO NEED TO ADD SYNCHRONE TESTING AS IN LINUX
 
     #find ra and dec of comet
     LT_cor = int(np.round(np.linalg.norm(comveceq[comcel,6:9] - 
@@ -468,100 +289,18 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         else: ra_img_higher = axisdata[7]
         
         [ltcomcel, vtraj, vtrajcel] = plot_orbit(comobs,comveceq,obsveceq,axisdata,d,comcel,trajfill,ra_img_lower,
-            ra_img_higher,border,pixwidth,rafmin,scale,pixheight,decmin)        
-        
-        #find locations to plot on orbit
-        orbit_fnt = ImageFont.truetype(fontloc, 10)
-        mnsiz = 5
-        max_orbit_points = 10
-        orbit_cells = np.where(vtraj[:,10] == 0)[0]
-        if np.size(orbit_cells) > max_orbit_points:
-            orbit_cells = np.intersect1d(np.where(vtraj[:,9]%3 == 0)[0],
-                                         orbit_cells)
-        if np.size(orbit_cells) > max_orbit_points:
-            orbit_cells = np.intersect1d(np.where(vtraj[:,9]%6 == 0)[0],
-                                         orbit_cells)
-        if np.size(orbit_cells) > max_orbit_points:
-            orbit_cells = np.intersect1d(np.where(vtraj[:,9]%12 == 0)[0],
-                                         orbit_cells)
-        if np.size(orbit_cells) > max_orbit_points:
-            orbit_cells = np.intersect1d(np.where(vtraj[:,9]%24 == 0)[0],
-                                         orbit_cells)
-    
-        #plot these locations on the orbit                                
-        for midn in orbit_cells.tolist():
-            b = d.line( [ (vtraj[midn,2] + mnsiz ,vtraj[midn,3]+ mnsiz ), 
-            (vtraj[midn,2]- mnsiz ,vtraj[midn,3]- mnsiz ) ],
-            fill = featur_fill )
-            b = d.line([(vtraj[midn,2] - mnsiz ,vtraj[midn,3]+ mnsiz ),
-            (vtraj[midn,2]+ mnsiz ,vtraj[midn,3]- mnsiz )],
-            fill = featur_fill)
-            orbtxtx = 2; orbtxty = 2;
-            if (vtraj[midn,3] > 0.93*pixheight+1.5*border):
-                orbtxty = 0; orbtxtx = 3
-            if (vtraj[midn,2] > 0.93*pixwidth+1.5*border):
-                orbtxtx = -13
-            d.text((vtraj[midn,2] + orbtxtx*mnsiz,vtraj[midn,3] + orbtxty*mnsiz),
-            (str(int(vtraj[midn,6])) + '/' + str(int(vtraj[midn,7])) + '/' + 
-            str(int(vtraj[midn,8])) + "\n%02d:00") % int(vtraj[midn,9]) ,
-            font=orbit_fnt, fill= featur_fill)
-            
-            d.text((2*border + pixwidth + 30,border + 200), \
-            "Orbital Path:",font=fnt, fill= featur_fill)
-            d.line([(2*border + pixwidth + 30,border + 230),
-            (2*border + pixwidth + 170,border + 230)], fill = trajfill)
+            ra_img_higher,border,pixwidth,rafmin,scale,pixheight,decmin,fnt,featur_fill)        
 
-        #creates an array of ra/dec values along sun-comet line
-        cmsam = 10001
-        offsets = np.ones(cmsam) + np.linspace(-1,1,cmsam)
-        comsun = np.empty((cmsam,4),dtype = float)
-        for cs in xrange(0,cmsam):
-            ctemp = pos2radec(offsets[cs]*comveceq[ltcomcel,6:9] - 
-                                obsveceq[ltcomcel,6:9])
-            comsun[cs,0] = ctemp[0]
-            comsun[cs,1] = ctemp[1]
+        plot_orbit_points(d,vtraj,largefnt,featur_fill,pixheight,pixwidth,border)
         
-        #slims this array down to within image limits
-        csvrange = np.intersect1d(
-                   np.intersect1d( np.where(comsun[:,0] < ra_img_higher)[0],
-                                    np.where(comsun[:,0] > ra_img_lower)[0]),
-                   np.intersect1d( np.where(comsun[:,1] < axisdata[9])[0],
-                                    np.where(comsun[:,1] > axisdata[8])[0]))                  
-        comsun = comsun[csvrange[0]:csvrange[-1],:]
-    
-        #convert to ra and dec, and plot
-        comsun[:,2] = ra2xpix(comsun[:,0],border,pixwidth,rafmin,scale)
-        comsun[:,3] = dec2ypix(comsun[:,1],border,pixheight,decmin,scale)
-        for ca in xrange(0, (np.shape(comsun)[0]-1)):
-            b = d.line([(comsun[ca,2],comsun[ca,3]),
-                        (comsun[ca+1,2],comsun[ca+1,3])],
-                        fill = comsunfill)
-                        
-        d.text((2*border + pixwidth + 30,border + 310), \
-        "Comet-Sun\nVector:",font=fnt, fill= featur_fill)
-        d.line([(2*border + pixwidth + 30,border + 355),
-                (2*border + pixwidth + 170,border + 355)], fill = comsunfill) 
+        plot_sunearth_vec(d,comveceq,obsveceq,ltcomcel,axisdata,ra_img_higher,ra_img_lower,
+                        border,pixwidth,pixheight,rafmin,decmin,scale,comsunfill,featur_fill,fnt)
         
-        #draw range of uncertainty in comet position (from yud's)
         if obsloc == 'Earth' and uncertainty_range_exists == True:
-            sig_t = int(float(idls.sig_t))
-            ura = vtraj [ (vtrajcel - sig_t) : (vtrajcel + sig_t) , 2 ]
-            udec = vtraj [ (vtrajcel - sig_t) : (vtrajcel + sig_t) , 3 ]
-            for ua in xrange(0, np.size(ura)-2):
-                b = d.line([(ura[ua],udec[ua]),(ura[ua+1],udec[ua+1])],  
-                fill = trajucfill)
-                
-            d.text((2*border + pixwidth + 30,border + 250), \
-            "Orbital\nUncertainty:",font=fnt, fill= featur_fill)
-            d.line([(2*border + pixwidth + 30,border + 294),
-                (2*border + pixwidth + 170,border + 294)], fill = trajucfill)
-                
-        ra_pic = ra2xpix(203.40181,border,pixwidth,rafmin,scale)
-        dec_pic = dec2ypix(-0.12993,border,pixwidth,decmin,scale)
-        b = d.point((ra_pic,dec_pic), fill = (255,0,255,255))
-    
+            plot_compos_unc(d,idls,vtraj,vtrajcel,border,pixwidth,fnt,trajucfill,featur_fill)
     else:
         trajfill = None;trajucfill = None;comsunfill = None
+        
 #%%***********************************************************
 #SIXTH CELL - Save image and parameters or load existing image
 #*************************************************************
@@ -584,32 +323,15 @@ else:
     
     with open(picklesavefile) as f:
         parameters = pickle.load(f)
-        comcel = parameters[0]
-        comcel10 = parameters[1]
-        ramax = parameters[2]
-        decmax = parameters[3]
-        ramin = parameters[4]
-        decmin = parameters[5]
-        border = parameters[6]
-        pixheight = parameters[7]
-        pixwidth = parameters[8]
-        scale = parameters[9]
-        ctime = parameters[10]
-        dtmin = parameters[11]
-        trajfill = parameters[17]
-        trajucfill = parameters[18]
-        comsunfill = parameters[19]
-        backgr_fill = parameters[20]
-        imgwidth = parameters[21]
-        imgheight = parameters[22]
-        rafmin = parameters[23]
-        rafmax = parameters[24]
-        rapixl = parameters[25]
-        decpixl = parameters[26]
-        com_ra_dec = parameters[27]
-        com_Path = parameters[28]
-        com_in_image = parameters[29]
-        featur_fill = parameters[30]
+        comcel = parameters[0]; comcel10 = parameters[1]; ramax = parameters[2]
+        decmax = parameters[3]; ramin = parameters[4]; decmin = parameters[5]
+        border = parameters[6]; pixheight = parameters[7]; pixwidth = parameters[8]
+        scale = parameters[9]; ctime = parameters[10]; dtmin = parameters[11]
+        trajfill = parameters[17]; trajucfill = parameters[18]; comsunfill = parameters[19]
+        backgr_fill = parameters[20]; imgwidth = parameters[21]; imgheight = parameters[22]
+        rafmin = parameters[23]; rafmax = parameters[24]; rapixl = parameters[25]
+        decpixl = parameters[26]; com_ra_dec = parameters[27]; com_Path = parameters[28]
+        com_in_image = parameters[29]; featur_fill = parameters[30]
         
     comimg = Image.open(imgsav)
     comimg.show()
@@ -663,10 +385,8 @@ while test_mode == True:
     #this is the loop that does the business
     while (tidx < tno):
         bidx = 0
-        rasim = com_ra_dec[0]
-        desim = com_ra_dec[1]
-        while ( bidx < bno and rasim <= rafmax and rasim >= rafmin  and
-                desim <= decmax and desim >= decmin):
+        point_in_image = 1
+        while ( bidx < bno and point_in_image == 1):
             simt10min = int(round(144*tvals[tidx]))
             pstart = comveceq10[comcel10-simt10min,6:12]
             sim = part_sim(bvals[bidx],simt10min,30,3,pstart,efinp,dtmin)
@@ -677,14 +397,12 @@ while test_mode == True:
             simres[tidx,bidx,4:10] = sim[1] #finishing pos/vel
             simres[tidx,bidx,10:12] = pos2radec(sim[1][0:3] - 
             obsveceq[int(simres[tidx,bidx,3]),6:9])
-            rasim = simres[tidx,bidx,10]
-            desim = simres[tidx,bidx,11]
+            point_in_image = int(com_Path.contains_point(
+            (simres[tidx,bidx,10],simres[tidx,bidx,11])))
             simres[tidx,bidx,12] = ra2xpix(rasim,border,pixwidth,rafmin,scale)
             simres[tidx,bidx,13] = dec2ypix(desim,border,pixheight,decmin,scale)                 
             simres[tidx,bidx,14] = 1
             bidx += 1
-        simres[tidx,bidx-1,14] = 0
-        bmax[tidx] = bidx - 1
         tidx += 1
         print float(tidx)*100/tno
         
@@ -718,14 +436,8 @@ while test_mode == True:
     elif "Data Region Enclosed" in drawopts:  draw_data_reg(drfill,featur_fill,d,fnt,simres,tno,bmax,border,pixwidth)                
     bt_anno_idx = annotate_plotting(d,drawopts,border,pixwidth,fnt,featur_fill,dynfill,chrfill,drfill)
     
-    d.text((2*border + pixwidth + 30,border + 420 + 50*bt_anno_idx), 
-    ("Beta Range: " + '\n' + '  ' + str(betal) + ' to ' + str(betau)),
-    font=fnt, fill= featur_fill)
-    
-    d.text((2*border + pixwidth + 30,border + 470 + 50*bt_anno_idx), 
-    ("Ejection Time\nrange in days\nbefore image:" + '\n' + '  '
-    + str(simtl) + ' to ' + str(simtu)),
-    font=fnt, fill= featur_fill)
+    write_bt_ranges(d,border, pixwidth, fnt, featur_fill,
+                    betau, betal, simtu, simtl, bt_anno_idx)
     
     if (drawopts != "No Image"):
         comimg.show()    
