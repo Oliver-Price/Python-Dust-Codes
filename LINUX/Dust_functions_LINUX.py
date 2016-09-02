@@ -189,7 +189,7 @@ def simt2xpix(simt, border, pixwidth, simtl, scale):
     return pixwidth + border*1.5 + (simtl - simt)*scale
     
 def beta2ypix(beta, border, pixheight, betal, scale):
-    return pixheight + border*1.5 - (beta - betal)*scale
+    return pixheight + border*1.5 + (betal - beta)*scale
 
 #%% FUNCTION TO SLIM DOWN AN ARRAY OF RA AND DEC VALUES USING ANOTHER SET OF RA
 #AND DEC VALUES AS REFRENCE

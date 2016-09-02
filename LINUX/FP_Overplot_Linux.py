@@ -17,14 +17,14 @@ import matplotlib.path as mplPath
 from dust_functions_LINUX import orb_vector, pos2radec, part_sim
 
 #hard coded parameters - can script these in for softer coding
-datafolder = '/unsafe/users/op2/mcnaught/stereo_a/'
-pysav = '/unsafe/users/op2/mcnaught/fpsimsav/'
-orbitdir = '/unsafe/users/op2/mcnaught/orbitdata/'
-betau = 2.5
-betal = 0.6
+datafolder = '/unsafe/users/op2/panstarrs/stereo_b/'
+pysav = '/unsafe/users/op2/panstarrs/fpsimsav/'
+orbitdir = '/unsafe/users/op2/panstarrs/orbitdata/'
+betau = 3.0
+betal = 0.02
 bno = 600
-simtu = 8.0
-simtl = 2.0
+simtu = 12.0
+simtl = 0.5
 tno = 600
 
 tstart = time.time()
@@ -34,14 +34,14 @@ image_list = sorted(os.listdir(datafolder))
 image_total = len(image_list)
 
 #import the orbit data
-obsveceq = orb_vector('Stereo_A_orbit_2006_11_21_2007_01_20_xyzvxvyvz_EQ.txt',
+obsveceq = orb_vector('Stereo_B_orbit_2013_03_01_2013_04_30_xyzvxvyvz_EQ.txt',
                       orbitdir)
-comveceq = orb_vector('c2006p1_2006_11_21_2007_01_20_xyzvxvyvz_EQ.txt',
+comveceq = orb_vector('c2011l4_2013_03_01_2013_04_30_xyzvxvyvz_EQ.txt',
                       orbitdir)
-comveceq10 = orb_vector('c2006p1_2005_05_30_2007_01_20_xyzvxvyvz_EQ_10.txt',
+comveceq10 = orb_vector('c2011l4_2011_09_08_2013_04_30_xyzvxvyvz_EQ_10.txt',
                       orbitdir)
-
-for image_id in range(46,47): #image_total):
+                      
+for image_id in range(260,image_total):
 
 	image_basename = image_list[image_id].split('.')[0]
 	image_fits = os.path.join(datafolder,image_list[image_id])
@@ -52,7 +52,7 @@ for image_id in range(46,47): #image_total):
 
 	fitscoords = image_fits
 	onedimg = fits.open(fitscoords)
-	w = wcs.WCS(onedimg[0].header, key = 'A')
+	w = wcs.WCS(onedimg[0].header)
 
 	#make a 2xN array of all pixel locations
 	ya = onedimg[0].data.shape[0]

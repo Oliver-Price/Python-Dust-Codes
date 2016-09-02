@@ -161,3 +161,23 @@ def get_obs_loc(obslocstr, imagedir):
     else: sys.exit("No Good Observer Location")
     
     return obsloc, imagedir
+    
+#%% exactly what it says
+   
+def find_largest_nonzero_block(array_in):
+    
+    fake_edge = np.array([0])
+    array_in = np.concatenate((fake_edge, array_in))
+    array_in = np.concatenate((array_in, fake_edge))
+    
+    diff_arr = np.diff(array_in)
+    start_locs = np.where(diff_arr == 1)
+    stop_locs = np.where(diff_arr == -1)
+    
+    no_blocs = np.size(stop_locs[0])
+    sizes = np.empty((no_blocs),dtype = int)
+    for x in xrange(0,no_blocs):
+        sizes[x] = stop_locs[0][x] - start_locs[0][x]
+    
+    l_index = np.argmax(sizes)
+    return start_locs[0][l_index], stop_locs[0][l_index]
