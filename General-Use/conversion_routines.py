@@ -51,12 +51,8 @@ def pos2radec(position):
 #%% - fix occurences where range is incorrect or where data wraps from 360 ra to 0
 
 def fixwraps(ra, ramax, ramin): 
-    if ramax < 0:
-        ra_m = np.copy(ra) + 360
-        rafmin = np.amin(ra_m)
-        rafmax = np.amax(ra_m)
-    elif (ramax-ramin) > 270:
-        ra_m = np.copy(ra)
+    ra_m = np.copy(ra%360)
+    if (ramax-ramin) > 270:
         circlocs = np.where(ra_m < 180)
         ra_m[circlocs] = ra_m[circlocs] + 360
         rafmin = np.amin(ra_m)
@@ -162,6 +158,18 @@ def get_obs_loc(obslocstr, imagedir):
     
     return obsloc, imagedir
     
+#%% load in correct observer location
+    
+def get_stereo_instrument(imagedir):
+
+    name_locs = np.array(['HI-1', 'HI-2'])
+    stermsg = "Please select STEREO instrument"
+    sterchoices = name_locs.tolist()
+    sterinst = easygui.buttonbox(stermsg, choices=sterchoices)
+    imagedir = os.path.join(imagedir, sterinst)
+
+    return sterinst, imagedir
+    
 #%% exactly what it says
    
 def find_largest_nonzero_block(array_in):
@@ -179,5 +187,8 @@ def find_largest_nonzero_block(array_in):
     for x in xrange(0,no_blocs):
         sizes[x] = stop_locs[0][x] - start_locs[0][x]
     
-    l_index = np.argmax(sizes)
-    return start_locs[0][l_index], stop_locs[0][l_index]
+    if sizes.size > 0:
+        l_index = np.argmax(sizes)
+        return start_locs[0][l_index], stop_locs[0][l_index]
+    else: return None, None
+        

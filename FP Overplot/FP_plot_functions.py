@@ -98,42 +98,43 @@ def setaxisup(ramax,ramin,decmax,decmin,border,pixheight,pixwidth,scale):
 #FP Grid Plot Functions
 #**********************
     
-def draw_synchrones(dynfill,d,simres,bno,rapixl,decpixl,tmax):
+def draw_syndynes(dynfill,d,simres,bno,rapixl,decpixl,tmin,tmax,bidx_list):
     
-    for ba in xrange(0, bno):
-        d.line([(rapixl,decpixl), \
-        (simres[0,ba,12],simres[0,ba,13])],\
-        fill = dynfill)
-        print 'BETA = ' + str(simres[0,ba,1])
-        for ta in xrange(0, tmax[ba]):
+    for ba in bidx_list.tolist():
+        for ta in xrange(tmin[ba], tmax[ba]-1):
             d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
             (simres[ta+1,ba,12],simres[ta+1,ba,13])],\
             fill = dynfill)
+            
+#        d.line([(rapixl,decpixl), \
+#        (simres[0,ba,12],simres[0,ba,13])],\
+#        fill = dynfill)
 
-def draw_sydynes(chrfill,d,simres,tno,rapixl,decpixl,bmax):
+def draw_synchrones(chrfill,d,simres,tno,rapixl,decpixl,bmin,bmax,tidx_list):
 
-    for ta in xrange(0, tno):
-        d.line([(rapixl,decpixl), \
-        (simres[ta,0,12],simres[ta,0,13])],\
-        fill = chrfill)
-        print 'TIME = ' + str(simres[ta,0,0])
-        for ba in xrange(0, bmax[ta]):
+    for ta in tidx_list.tolist():
+        for ba in xrange(bmin[ta], bmax[ta]):
             d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
             (simres[ta,ba+1,12],simres[ta,ba+1,13])],\
             fill = chrfill)
             
-def draw_datap(drfill,d,simres,tno,bmax,xsiz = 2):
+#        d.line([(rapixl,decpixl), \
+#        (simres[ta,0,12],simres[ta,0,13])],\
+#        fill = chrfill)            
+            
+def draw_datap(drfill,d,simres,xsiz = 2):
 
-    for ta in xrange(0,tno):
-        for ba in xrange(0, bmax[ta]):
-            d.line( [ ( simres[ta,ba,12] - xsiz , simres[ta,ba,13] - xsiz ) ,
-                      ( simres[ta,ba,12] + xsiz , simres[ta,ba,13] + xsiz ) ] ,
-                      fill = drfill )  
-            d.line( [ ( simres[ta,ba,12] - xsiz , simres[ta,ba,13] + xsiz ) ,
-                      ( simres[ta,ba,12] + xsiz , simres[ta,ba,13] - xsiz ) ] ,
-                      fill = drfill )
+    all_points = np.where(simres[:,:,14]==1)
+    for pidx in xrange(0,np.size(all_points[0])):
+        ta = all_points[0][pidx]; ba = all_points[1][pidx]
+        d.line( [ ( simres[ta,ba,12] - xsiz , simres[ta,ba,13] - xsiz ) ,
+                  ( simres[ta,ba,12] + xsiz , simres[ta,ba,13] + xsiz ) ] ,
+                  fill = drfill )  
+        d.line( [ ( simres[ta,ba,12] - xsiz , simres[ta,ba,13] + xsiz ) ,
+                  ( simres[ta,ba,12] + xsiz , simres[ta,ba,13] - xsiz ) ] ,
+                  fill = drfill )
                       
-def draw_data_reg(drfill,featur_fill,d,fnt,simres,tno,bmax,border,pixwidth,lwidth = 5):                
+def draw_data_reg(drfill,d,simres,tno,bmax,border,pixwidth,lwidth = 5):                
     
     d.line( [ ( simres[0,0,12]  , simres[0,0,13] ) ,
                   ( simres[0,bmax[0],12] , simres[0,bmax[0],13] ) ] ,
@@ -151,12 +152,6 @@ def draw_data_reg(drfill,featur_fill,d,fnt,simres,tno,bmax,border,pixwidth,lwidt
         d.line( [ ( simres[ta,0,12]  , simres[ta,0,13] ) ,
                       ( simres[ta+1,0,12] , simres[ta+1,0,13] ) ]
                       , fill = drfill , width = lwidth)
-                      
-    d.text((2*border + pixwidth + 30,border + 370), \
-            "Data Region:",font=fnt, fill= featur_fill)
-    d.line([(2*border + pixwidth + 30,border + 405),
-            (2*border + pixwidth + 170,border + 405)], fill = drfill)                  
-
 
 #%%
 #****************************
@@ -212,6 +207,12 @@ def annotate_plotting(d,drawopts,border,pixwidth,fnt,featur_fill,dynfill,chrfill
         d.line([(2*border + pixwidth + 30,border + 505),
                 (2*border + pixwidth + 170,border + 505)], fill = drfill)
                 
-    else: pass 
+    elif (drawopts == "Data Region Enclosed"):
+        bt_anno_idx = 0 
+        d.text((2*border + pixwidth + 30,border + 370), \
+                "Data Region:",font=fnt, fill= featur_fill)
+        d.line([(2*border + pixwidth + 30,border + 405),
+                (2*border + pixwidth + 170,border + 405)], fill = drfill) 
 
+    else: bt_anno_idx = 0
     return bt_anno_idx

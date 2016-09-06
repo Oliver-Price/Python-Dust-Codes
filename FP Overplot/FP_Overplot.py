@@ -23,12 +23,12 @@ sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")
 
 from orbitdata_loading_functions import orb_vector, orb_obs
 from FP_plot_functions import ra2xpix, dec2ypix, setaxisup, plotpixel
-from FP_plot_functions import draw_synchrones, draw_sydynes, draw_datap
+from FP_plot_functions import draw_synchrones, draw_syndynes, draw_datap
 from FP_plot_functions import draw_data_reg, annotate_plotting
 from FP_diagnostics import plot_orbit, plot_orbit_points, plot_sunearth_vec
 from FP_diagnostics import write_bt_ranges, write_properties, plot_compos_unc
 from imagetime_methods import image_time_yudish, image_time_user, image_time_stereo
-from conversion_routines import pos2radec, fixwraps, correct_for_imagetype
+from conversion_routines import pos2radec, fixwraps, correct_for_imagetype, get_stereo_instrument
 from conversion_routines import col_corrections, get_obs_loc, find_largest_nonzero_block
 from simulation_setup import simulation_setup
 from particle_sim import part_sim
@@ -55,6 +55,7 @@ with open(inputfile, "r") as c:
 
 #choose observer locations
 [obsloc, imagedir] = get_obs_loc(obslocstr, imagedir)
+if "Stereo" in obsloc: [sterinst, imagedir] = get_stereo_instrument(imagedir)
     
 #import the orbit data
 obsveceq = orb_vector(comdenom, obsloc, pysav, orbitdir,
@@ -276,25 +277,28 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     com_Path = mplPath.Path(com_box_path)    
     
     com_in_image = com_Path.contains_point((com_ra_dec[0],com_ra_dec[1]))
+    
+    trajfill = (0,255,255,255)
+    
+    #account for sometimes negative axisdata
+    if (axisdata[6] < 0):
+        ra_img_lower = axisdata[6] + 360
+    else: ra_img_lower = axisdata[6]
+    if (axisdata[7] < 0):
+        ra_img_higher = axisdata[7] + 360
+    else: ra_img_higher = axisdata[7]
+    
+    [ltcomcel, vtraj, vtrajcel] = plot_orbit(comobs,comveceq,obsveceq,axisdata,d,comcel,trajfill,ra_img_lower,
+    ra_img_higher,border,pixwidth,rafmin,scale,pixheight,decmin,fnt,featur_fill, com_in_image)      
+    
+    if vtraj != None:
+        plot_orbit_points(d,vtraj,smallfnt,featur_fill,pixheight,pixwidth,border)    
+    
     if com_in_image == True:
      
         #setting RGBA colours of lines
-        trajfill = (0,255,255,255)
         trajucfill = (0,100,255,255)
         comsunfill = (0,255,0,255)
-    
-        #account for sometimes negative axisdata
-        if (axisdata[6] < 0):
-            ra_img_lower = axisdata[6] + 360
-        else: ra_img_lower = axisdata[6]
-        if (axisdata[7] < 0):
-            ra_img_higher = axisdata[7] + 360
-        else: ra_img_higher = axisdata[7]
-        
-        [ltcomcel, vtraj, vtrajcel] = plot_orbit(comobs,comveceq,obsveceq,axisdata,d,comcel,trajfill,ra_img_lower,
-            ra_img_higher,border,pixwidth,rafmin,scale,pixheight,decmin,fnt,featur_fill)        
-
-        plot_orbit_points(d,vtraj,largefnt,featur_fill,pixheight,pixwidth,border)
         
         plot_sunearth_vec(d,comveceq,obsveceq,ltcomcel,axisdata,ra_img_higher,ra_img_lower,
                         border,pixwidth,pixheight,rafmin,decmin,scale,comsunfill,featur_fill,fnt)
@@ -302,7 +306,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         if obsloc == 'Earth' and uncertainty_range_exists == True:
             plot_compos_unc(d,idls,vtraj,vtrajcel,border,pixwidth,fnt,trajucfill,featur_fill)
     else:
-        trajfill = None;trajucfill = None;comsunfill = None
+        trajucfill = None;comsunfill = None
         
 #%%***********************************************************
 #SIXTH CELL - Save image and parameters or load existing image
@@ -401,11 +405,11 @@ while test_mode == True:
         elif (np.sum(sync_intersects) == 0): image_case = 3        
     
     #prep for simulation loop
-    simres = np.empty((tno,bno,15),dtype = float)
-    bmax = np.empty((tno),dtype = int)
-    bmin = np.empty((tno),dtype = int)
-    tmax = np.empty((bno),dtype = int)
-    tmin = np.empty((bno),dtype = int)
+    simres = np.zeros((tno,bno,15),dtype = float)
+    bmax = np.zeros((tno),dtype = int)
+    bmin = np.zeros((tno),dtype = int)
+    tmax = np.zeros((bno),dtype = int)
+    tmin = np.zeros((bno),dtype = int)
     tidx = 0    
 
 #%%*********************************
@@ -440,8 +444,13 @@ while test_mode == True:
             bmax[tidx] = simres[tidx,:,14].nonzero()[0][-1]
             print float(tidx)*100/tno
             
-        bmin = np.zeros((50),dtype = int)
-        tidx_list = np.copy(tvals)
+        bmin = np.zeros((tno),dtype = int)
+        tidx_list = np.arange(tno)
+        bidx_list = np.arange(bno)
+        
+        tmin = np.zeros((bno),dtype = int)
+        for bidx in xrange(0,bno):
+            tmax[bidx] = simres[:,bidx,14].nonzero()[0][-1]
         
     if image_case == 2:
         
@@ -477,21 +486,23 @@ while test_mode == True:
             try:simres[tidx,bidx+1-point_in_image,15] = 0
             except:pass
             try:
-                bmin[tidx_list_val] = simres[tidx_list_val,:,14].nonzero()[0][0]
-                bmax[tidx_list_val] = simres[tidx_list_val,:,14].nonzero()[0][-1]
-            except:pass
+                bmin[tidx] = simres[tidx,:,14].nonzero()[0][0]
+                bmax[tidx] = simres[tidx,:,14].nonzero()[0][-1]
+            except: sync_intersects[tidx] = 0
         
+        bidx_list = np.arange(bno)
+        deletions = 0
         for bidx in xrange(0,bno):
             [minblock,maxblock] = find_largest_nonzero_block(simres[:,bidx,14])
-            tmin[bidx] = minblock
-            tmax[bidx] = maxblock
+            if minblock == None:
+                np.delete(bidx_list,bidx - deletions)
+                deletions += 1
+            else:
+                tmin[bidx] = minblock
+                tmax[bidx] = maxblock
             
     if image_case == 3:
         sys.exit("Image " + fitsinfile + " was no good.")
-    
-    for bidx in xrange(0,bno):
-        tmin = simres[:,bidx,14].nonzero()[0][0]
-        tmax = simres[:,bidx,14].nonzero()[0][-1]
 
     if (sav_bool == True):
         simressavefile = os.path.join(pysav, 'simres')
@@ -515,10 +526,10 @@ while test_mode == True:
     fnt = ImageFont.truetype(fontloc, 20)  
     bt_anno_idx = 0
         
-    if "Syndynes" in drawopts: draw_synchrones(dynfill,d,simres,bno,rapixl,decpixl,tmax)
-    elif "Synchrones" in drawopts: draw_sydynes(chrfill,d,simres,tno,rapixl,decpixl,bmax)
-    elif "Data Points" in drawopts: draw_datap(drfill,d,simres,tno,bmax)
-    elif "Data Region Enclosed" in drawopts:  draw_data_reg(drfill,featur_fill,d,fnt,simres,tno,bmax,border,pixwidth)                
+    if "Syndynes" in drawopts: draw_syndynes(dynfill,d,simres,bno,rapixl,decpixl,tmin,tmax,bidx_list)
+    if "Synchrones" in drawopts: draw_synchrones(chrfill,d,simres,tno,rapixl,decpixl,bmin,bmax,tidx_list)
+    if "Data Points" in drawopts: draw_datap(drfill,d,simres)
+#    elif "Data Region Enclosed" in drawopts:  draw_data_reg(drfill,d,simres,tno,bmax,border,pixwidth) 
     bt_anno_idx = annotate_plotting(d,drawopts,border,pixwidth,fnt,featur_fill,dynfill,chrfill,drfill)
     
     write_bt_ranges(d,border, pixwidth, fnt, featur_fill,
