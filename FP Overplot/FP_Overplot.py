@@ -28,8 +28,9 @@ from FP_plot_functions import draw_data_reg, annotate_plotting
 from FP_diagnostics import plot_orbit, plot_orbit_points, plot_sunearth_vec
 from FP_diagnostics import write_bt_ranges, write_properties, plot_compos_unc
 from imagetime_methods import image_time_yudish, image_time_user, image_time_stereo
-from conversion_routines import pos2radec, fixwraps, correct_for_imagetype, get_stereo_instrument
-from conversion_routines import col_corrections, get_obs_loc, find_largest_nonzero_block
+from conversion_routines import pos2radec, fixwraps, find_largest_nonzero_block 
+from FP_io_methods import col_corrections, get_obs_loc, correct_for_imagetype
+from FP_io_methods import get_stereo_instrument
 from simulation_setup import simulation_setup
 from particle_sim import part_sim
 
@@ -85,7 +86,7 @@ elif inv == True:
 picklesavefile = os.path.join(pysav, filebase + '_dustplot')
 picklexists = os.path.exists(picklesavefile)
 
-forceredraw = False
+forceredraw = True
 if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     
     #ensures image inputted correctly depending on size of data cube
@@ -118,7 +119,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     coords[:,1] = yv[:,0]
     
     #convert each pixel locaion to an RA and DEC array
-    radecs = w.wcs_pix2world(coords, 1)
+    radecs = w.wcs_pix2world(coords, 0)
     ra = np.reshape(radecs[:,0], (ya,xa))
     dec = np.reshape(radecs[:,1], (ya,xa))
     
@@ -273,7 +274,8 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
                     	[[ra_m[0,0],		dec[0,0]		],
                    		 [ra_m[ya-1,0],	 	dec[ya-1,0]		],
                   		 [ra_m[ya-1,xa-1],  dec[ya-1,xa-1]	],
-                   		 [ra_m[0,xa-1],	 	dec[0,xa-1]		]])              		 
+                   		 [ra_m[0,xa-1],	 	dec[0,xa-1]		],
+                            [ra_m[0,0],		dec[0,0]		]])              		 
     com_Path = mplPath.Path(com_box_path)    
     
     com_in_image = com_Path.contains_point((com_ra_dec[0],com_ra_dec[1]))
@@ -323,7 +325,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
                      pixheight, pixwidth, scale, ctime, dtmin, ra, dec, colr,
                      colb, colg, trajfill, trajucfill, comsunfill, backgr_fill,
                      imgwidth, imgheight, rafmin, rafmax, rapixl, decpixl,
-                     com_ra_dec, com_Path, com_in_image, featur_fill], f)
+                     com_ra_dec, com_Path, com_in_image, featur_fill, fitscoords], f)
                     
 else:
     print "Loading parameter data"
@@ -338,7 +340,7 @@ else:
         backgr_fill = parameters[20]; imgwidth = parameters[21]; imgheight = parameters[22]
         rafmin = parameters[23]; rafmax = parameters[24]; rapixl = parameters[25]
         decpixl = parameters[26]; com_ra_dec = parameters[27]; com_Path = parameters[28]
-        com_in_image = parameters[29]; featur_fill = parameters[30]
+        com_in_image = parameters[29]; featur_fill = parameters[30]; fitscoords = parameters[31]
         
     comimg = Image.open(imgsav)
     comimg.show()
@@ -405,7 +407,7 @@ while test_mode == True:
         elif (np.sum(sync_intersects) == 0): image_case = 3        
     
     #prep for simulation loop
-    simres = np.zeros((tno,bno,15),dtype = float)
+    simres = np.zeros((tno,bno,17),dtype = float)
     bmax = np.zeros((tno),dtype = int)
     bmin = np.zeros((tno),dtype = int)
     tmax = np.zeros((bno),dtype = int)
@@ -421,7 +423,7 @@ while test_mode == True:
         while (tidx < tno):
             bidx = 0
             point_in_image = 1
-            while ( bidx < bno and point_in_image == 1):
+            while (bidx < bno and point_in_image == 1):
                 simt10min = int(round(144*tvals[tidx]))
                 pstart = comveceq10[comcel10-simt10min,6:12]
                 sim = part_sim(bvals[bidx],simt10min,30,3,pstart,efinp,dtmin)
@@ -438,10 +440,10 @@ while test_mode == True:
                 simres[tidx,bidx,13] = dec2ypix(simres[tidx,bidx,11],border,pixheight,decmin,scale)                 
                 simres[tidx,bidx,14] = point_in_image
                 bidx += 1
-            tidx += 1
             try:simres[tidx,bidx - 1 + point_in_image,15] = 0
             except: pass
-            bmax[tidx] = simres[tidx,:,14].nonzero()[0][-1]
+            bmax[tidx] = simres[tidx,:,14].nonzero()[0][-1]            
+            tidx += 1
             print float(tidx)*100/tno
             
         bmin = np.zeros((tno),dtype = int)
@@ -503,7 +505,22 @@ while test_mode == True:
             
     if image_case == 3:
         sys.exit("Image " + fitsinfile + " was no good.")
-
+    
+    non_zeros_0 = simres[:,:,14].nonzero()[0]
+    non_zeros_1 = simres[:,:,14].nonzero()[1]
+    no_points = non_zeros_0.size
+    nu_radecs = np.zeros((no_points,2))
+    
+    for x in xrange(0,no_points):
+        nu_radecs[x,0] = simres[non_zeros_0[x],non_zeros_1[x],10]
+        nu_radecs[x,1] = simres[non_zeros_0[x],non_zeros_1[x],11]
+    
+    pixlocs = w.wcs_world2pix(nu_radecs,0)
+    
+    for x in xrange(0,no_points):
+        simres[non_zeros_0[x],non_zeros_1[x],15] = pixlocs[x][0]
+        simres[non_zeros_0[x],non_zeros_1[x],16] = pixlocs[x][1]
+        
     if (sav_bool == True):
         simressavefile = os.path.join(pysav, 'simres')
         simressavefile = os.path.join(simressavefile, filebase + '_' + str(betal) + '_'

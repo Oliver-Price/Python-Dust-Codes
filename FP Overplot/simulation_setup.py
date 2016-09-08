@@ -3,6 +3,7 @@ import easygui
 import pickle
 import os
 import sys
+import numpy as np
 
 def simulation_setup(savefile):
     
@@ -124,5 +125,4 @@ def simulation_setup(savefile):
     
     return (betau, betal, bno, simtu, simtl, tno, tspace, drawopts,
             sav_bool, test_mode)
-            
     

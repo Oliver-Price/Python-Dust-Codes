@@ -8,14 +8,18 @@ import os
 import sys
 import pickle
 import numpy as np
-import matplotlib.path as mplPath
-from orbitdata_loading_functions import orb_vector, orb_obs
-from plot_functions import beta2ypix, linsimt2xpix, logsimt2xpix, radec_slim, \
-greyscale_remap
-from astropy.io import fits
-from PIL import Image, ImageDraw, ImageFont
 import time
 import astropy
+from astropy.io import fits
+from astropy import wcs
+from PIL import Image, ImageDraw, ImageFont
+
+sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")  
+
+from orbitdata_loading_functions import orb_vector, orb_obs
+from BT_plot_functions import beta2ypix, linsimt2xpix, logsimt2xpix, radec_slim, \
+greyscale_remap
+
 
 #%%**********************
 #FIRST CELL - GET DATA IN
@@ -98,6 +102,7 @@ with open(picklesavefile) as f:
         rapixl = dparameters[25]
         decpixl = dparameters[26]
         com_ra_dec = dparameters[27]
+        fitscoords = dparameters[31]
         
 #find and import simulation results
 simresdir = os.path.join(pysav, 'simres')
@@ -114,6 +119,14 @@ with open(simin[:-4] + '_parameters') as f:
 #%%*********************************************************
 #SECOND CELL - IDENTIFYING PIXEL VALUES TO USE FOR BETA/SIMT
 #***********************************************************
+
+onedimg = fits.open(fitscoords)
+if 'Earth' in obsloc:
+    w = wcs.WCS(onedimg[0].header)
+elif 'Stereo' in obsloc:
+    w = wcs.WCS(onedimg[0].header, key = 'A')
+elif 'Soho' in obsloc:
+    sys.exit("soho data not yet implemented")
 
 #putting ra into sensible values
 if ramax < 0:
@@ -135,85 +148,30 @@ if (colmapsavexists == True): #load if it has
     srcolors = np.load(colmapsav)
     
 elif (colmapsavexists == False): #do if it hasnt
-    srcolors = np.zeros((tno,bno,5),dtype=int)
+    srcolors = np.zeros((tno,bno,4),dtype=int)
+    simres_rounded = np.round(simres[:,:,14:17]).astype(int)
+    simres_rounded = np.clip(simres_rounded, 0, 1023)    
     
-    with open(locmapsav, "w") as text_file: #write stuff to txt file
-                
-        for ta in xrange(0, tno-1):
-            [ra_ta, dec_ta, ra_ta_d0, ra_ta_d1] = radec_slim(ra_m, dec,
-                                                    simres[ta,:,10], simres[ta,:,11])
-            rashape1 = np.shape(ra_ta)[1]
-            for ba in np.where(simres[ta+1,:,15] == 1)[0][:-1].tolist():
-                text_file.write(('%.3g ,%.3g ,') %
-                                (simres[ta,ba,0] , simres[ta,ba,1]))
-                boxramin = min(simres[ta,ba,10],simres[ta+1,ba,10],
-                               simres[ta,ba+1,10],simres[ta+1,ba+1,10])
-                boxdemin = min(simres[ta,ba,11],simres[ta+1,ba,11],
-                               simres[ta,ba+1,11],simres[ta+1,ba+1,11])
-                boxramax = max(simres[ta,ba,10],simres[ta+1,ba,10],
-                               simres[ta,ba+1,10],simres[ta+1,ba+1,10])
-                boxdemax = max(simres[ta,ba,11],simres[ta+1,ba,11],
-                               simres[ta,ba+1,11],simres[ta+1,ba+1,11])
-                ralocs = np.where((ra_ta > boxramin) & (ra_ta < boxramax))   
-                delocs = np.where((dec_ta > boxdemin) & (dec_ta < boxdemax))
-                ralocs1d = ralocs[0]*rashape1+ralocs[1]
-                delocs1d = delocs[0]*rashape1+delocs[1]   
-                boxlocs1d = np.intersect1d(ralocs1d,delocs1d)
-                numin = np.size(boxlocs1d)
-                if (numin > 0): 
-                    boxlocs = np.empty((numin,5),dtype = float)
-                    boxlocs[:,0] = boxlocs1d//rashape1
-                    boxlocs[:,1] = boxlocs1d%rashape1
-                    boxpath = np.array(
-                    [[simres[ta,ba,10], simres[ta,ba,11]],
-                    [simres[ta+1,ba,10], simres[ta+1,ba,11]],
-                    [simres[ta+1,ba+1,10], simres[ta+1,ba+1,11]],
-                    [simres[ta,ba+1,10], simres[ta,ba+1,11]]])
-                    bbPath = mplPath.Path(boxpath)
-                    for n in xrange(0,numin):
-                        boxlocs[n,2] = ra_ta[boxlocs[n,0],boxlocs[n,1]]
-                        boxlocs[n,3] = dec_ta[boxlocs[n,0],boxlocs[n,1]]
-                        boxlocs[n,4] = bbPath.contains_point((boxlocs[n,2],
-                                                              boxlocs[n,3]))                                        
-                    boxlocs = boxlocs[np.where(boxlocs[:,4] == 1)]
-                    numin = np.shape(boxlocs)[0]
-                if (numin > 0):
-                    text_file.write('Average Enclosed' + ' ,')
-                    rtot = 0; gtot = 0; btot = 0
-                    for n in xrange(0,numin):
-                        rtot += colr[boxlocs[n,0]+ra_ta_d0,boxlocs[n,1]+ra_ta_d1]
-                        gtot += colg[boxlocs[n,0]+ra_ta_d0,boxlocs[n,1]+ra_ta_d1]
-                        btot += colb[boxlocs[n,0]+ra_ta_d0,boxlocs[n,1]+ra_ta_d1]
-                        text_file.write(str(boxlocs[n,0]+ra_ta_d0) + ' ,' +
-                                        str(boxlocs[n,1]+ra_ta_d1) + ' ,')                    
-                    srcolors[ta,ba,0] = int(round(float(rtot)/numin))
-                    srcolors[ta,ba,1] = int(round(float(gtot)/numin))
-                    srcolors[ta,ba,2] = int(round(float(btot)/numin))
-                else:
-                    text_file.write('Nearest Neighbour' + ' ,')
-                    avera = (simres[ta,ba,10] + simres[ta,ba+1,10] +
-                            simres[ta+1,ba,10] + simres[ta+1,ba+1,10])/4
-                    avedec = (simres[ta,ba,11] + simres[ta,ba+1,11] +
-                            simres[ta+1,ba,11] + simres[ta+1,ba+1,11])/4       
-                    distarr = abs(ra_ta - avera) + abs(dec_ta - avedec)
-                    loc = np.where(distarr == np.min(distarr))
-                    srcolors[ta,ba,0] = colr[loc[0][0]+ra_ta_d0,loc[1][0]+ra_ta_d1]
-                    srcolors[ta,ba,1] = colg[loc[0][0]+ra_ta_d0,loc[1][0]+ra_ta_d1]
-                    srcolors[ta,ba,2] = colb[loc[0][0]+ra_ta_d0,loc[1][0]+ra_ta_d1]
-                    text_file.write(str(loc[0][0] + ra_ta_d0) + ' ,' +
-                                    str(loc[1][0] + ra_ta_d1) + ' ,')
-                srcolors[ta,ba,3] = numin
-                srcolors[ta,ba,4] = 1
-                text_file.write('\n')
-            print float(ta*100)/tno
-    np.save(colmapsav,srcolors)
-        
+    non_zeros_0 = simres_rounded[:,:,0].nonzero()[0]
+    non_zeros_1 = simres_rounded[:,:,0].nonzero()[1]
+    no_points = non_zeros_0.size
+    
+    for x in xrange(0,no_points):
+        tidx = non_zeros_0[x]
+        bidx = non_zeros_1[x]
+        ridx = simres_rounded[tidx,bidx,1]
+        didx = simres_rounded[tidx,bidx,2]
+        srcolors[tidx,bidx,0] = 1
+        srcolors[tidx,bidx,1] = colr[didx,ridx]
+        srcolors[tidx,bidx,2] = colg[didx,ridx]
+        srcolors[tidx,bidx,3] = colb[didx,ridx]
+
 b = time.clock()
 #%%****************************
 #THIRD CELL - SAVE DATA TO FITS
 #******************************       
 
-greyscale_arr = (srcolors[:,:,0] + srcolors[:,:,1] + srcolors[:,:,2])/3
+greyscale_arr = (srcolors[:,:,1] + srcolors[:,:,2] + srcolors[:,:,3])/3
 fits_arr = greyscale_arr.T #indexed by beta first then ejec_t
 
 dustplotsave = os.path.join(imagedir, 'dustplots')
@@ -376,20 +334,24 @@ if reply == True:
     if imgmax < 255: imgmax = 255
         
     fudgefactor = 0.8
-    low = 10000
-    hih = 80000
+    if comdenom == 'c2011l4':
+        low = 3000
+        hih = 20000
+    elif comdenom == 'c2006p1':
+        low = 10000
+        hih = 1500000  
     #newmap = greyscale_remap(200,50,mode = 'Linear')
         
-    greyscale_disp = False
+    greyscale_disp = True
     if (greyscale_disp == True):  
         for ta in xrange(0, tno-1):
-            for ba in np.where(simres[ta+1,:,15] == 1)[0][:-1].tolist():
-                #fillval = sorted([1, greyscale_arr[ta,ba], 9999999999])[1]
-                #fillco = int(round(255*(np.log10(fillval) - np.log10(low))*
-                #					1 / (np.log10(hih) - np.log10(low))))
-                #fillco = int(round(greyscale_arr[ta,ba]*255/imgmax/fudgefactor))
-                #fillco = sorted([0, fillco, 255])[1]
-                fillco = greyscale_arr[ta,ba]
+            for ba in xrange(0, bno-1):
+                fillval = sorted([1, greyscale_arr[ta,ba], 9999999999])[1]
+                fillco = int(round(255*(np.log10(fillval) - np.log10(low))*
+                					1 / (np.log10(hih) - np.log10(low))))
+                fillco = int(round(greyscale_arr[ta,ba]*255/imgmax/fudgefactor))
+                fillco = sorted([0, fillco, 255])[1]
+#               fillco = greyscale_arr[ta,ba]
                 b1 = beta2ypix(simres[ta,ba,1], border, pixhi, b1sfl, hscle)
                 t1 = linsimt2xpix(simres[ta,ba,0], border, t2sfl, wscle)
                 b2 = beta2ypix(simres[ta,ba+1,1], border, pixhi, b1sfl, hscle)
@@ -402,7 +364,7 @@ if reply == True:
                 ,fill=(fillco,fillco,fillco,255))
     else:
         for ta in xrange(0, tno-1):
-            for ba in np.where(simres[ta+1,:,15] == 1)[0][:-1].tolist():
+            for ba in xrange(0, bno-1):
                 b1 = beta2ypix(simres[ta,ba,1], border, pixhi, b1sfl, hscle)
                 t1 = linsimt2xpix(simres[ta,ba,0], border, t2sfl, wscle)
                 b2 = beta2ypix(simres[ta,ba+1,1], border, pixhi, b1sfl, hscle)
