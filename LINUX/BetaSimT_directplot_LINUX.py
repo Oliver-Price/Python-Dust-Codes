@@ -15,26 +15,26 @@ import numpy as np
 from astropy.io import fits
 import matplotlib.path as mplPath
 from PIL import Image, ImageDraw, ImageFont
-from dust_functions_LINUX import orb_obs, beta2ypix, linsimt2xpix, \
+from dust_functions_LINUX import orb_obs, beta2ypix, simt2xpix, \
 radec_slim
 
 #hard coded parameters - can script these in for softer coding
-datafolder = '/unsafe/users/op2/mcnaught/stereo_a/'
-fpsav = '/unsafe/users/op2/mcnaught/fpsimsav/'
-orbitdir = '/unsafe/users/op2/mcnaught/orbitdata/'
-pngsav = '/unsafe/users/op2/mcnaught/dustpngs/'
-fitssav = '/unsafe/users/op2/mcnaught/dustfits/'
-mapsav = '/unsafe/users/op2/mcnaught/pymapsav/'
-txtmaps = '/unsafe/users/op2/mcnaught/txtmappings/'
-betau = 2.5
-betal = 0.6
+datafolder = '/unsafe/users/op2/panstarrs/stereo_b/'
+fpsav = '/unsafe/users/op2/panstarrs/fpsimsav/'
+orbitdir = '/unsafe/users/op2/panstarrs/orbitdata/'
+pngsav = '/unsafe/users/op2/panstarrs/dustpngs/'
+fitssav = '/unsafe/users/op2/panstarrs/dustfits/'
+mapsav = '/unsafe/users/op2/panstarrs/pymapsav/'
+txtmaps = '/unsafe/users/op2/panstarrs/txtmappings/'
+betau = 3.0
+betal = 0.02
 bno = 600
-simtu = 8.0
-simtl = 2.0
+simtu = 12.0
+simtl = 0.5
 tno = 600
-comdenom = 'C2006P1'
-comname = 'McNaught'
-obsloc = 'Stereo A'
+comdenom = 'C2011L4'
+comname = 'Pan-STARRS'
+obsloc = 'Stereo B'
                      
 #purely for diagnostics
 tstart = time.time()
@@ -43,14 +43,16 @@ tstart = time.time()
 image_list = sorted(os.listdir(fpsav))
 image_total = len(image_list)
 
-for image_id in range(63,75): #image_total):
+earth_obs = orb_obs('Earth_from_Stereo_B_2013_03_01_2013_04_30_OBSERVER_PY.txt',
+                      orbitdir)         
+
+for image_id in range(86,87):
     
 	image_procname = image_list[image_id].split('.')[0]
 	image_basename = image_procname[:21]
 	image_simressave = os.path.join(fpsav, image_list[image_id])
-	image_fits = os.path.join(datafolder,image_basename + ".fts")
+	image_fits = os.path.join(datafolder,image_basename + ".fits")
 	print (image_basename)
-
 
 	image_mapped = os.path.join(mapsav,image_procname + "_mapped.npy")
 	image_txt_mapping = os.path.join(txtmaps,image_procname + "_map.txt")
@@ -64,7 +66,7 @@ for image_id in range(63,75): #image_total):
 
 	fitscoords = image_fits
 	onedimg = fits.open(fitscoords)
-	w = wcs.WCS(onedimg[0].header, key = 'A')
+	w = wcs.WCS(onedimg[0].header)
 
 	#make a 2xN array of all pixel locations
 	ya = onedimg[0].data.shape[0]
@@ -111,16 +113,23 @@ for image_id in range(63,75): #image_total):
 	cyear = int(image_basename[0:4])
 	ctime = astropy.time.Time(datetime.datetime(cyear, cmonth, cday,
 				                               chour , cmin, csec))
-				                               
-	col_max_locs = np.where(bw_color[:,:370] == np.max(bw_color[:,:370]))[1]
-	brightest_col = stats.mode(col_max_locs)[0][0]
-		
-	brightest_row = np.where(bw_color[:,brightest_col+3] == 
-										np.max(bw_color[:,brightest_col+3]))[0][0]
 	
-	bw_color[:,brightest_col-2:brightest_col+2] = 0
-	bw_color[brightest_row-5:brightest_row+5,brightest_col-5:brightest_col+5] = 0
-
+	month_cel = np.where(abs(earth_obs[:,1] - cmonth) < 1e-4)[0]
+	day_cel = np.where(abs(earth_obs[:,2] - cday) < 1e-4)[0]
+	hour_cel = np.where(abs(earth_obs[:,3] - chour) < 1e-4)[0]
+	min_cel = np.where(abs(earth_obs[:,4] - cmin) < 1e-4)[0]
+	com_obs_cel = np.intersect1d(np.intersect1d(month_cel,day_cel),
+						np.intersect1d(hour_cel,min_cel))[0]
+	
+	earth_dist_arr = abs(ra - earth_obs[com_obs_cel][5]) + abs(dec - earth_obs[com_obs_cel][6])
+	earth_dist_arr_minloc = np.argmin(earth_dist_arr)
+	earth_loc_x = earth_dist_arr_minloc//1024
+	earth_loc_y = earth_dist_arr_minloc%1024
+	
+	bw_color[earth_loc_x-6:earth_loc_x+7,earth_loc_y-6:earth_loc_y+7] = 0
+	bw_color[earth_loc_x-2:earth_loc_x+3,earth_loc_y-50:earth_loc_y+51] = 0
+	bw_color[earth_loc_x-1:earth_loc_x+2,:] = 0
+	
 	mapping_exists = os.path.exists(image_mapped)
 	
 	if (mapping_exists == True): #load if it has
@@ -128,7 +137,7 @@ for image_id in range(63,75): #image_total):
 	   
 	elif (mapping_exists == False): #do if it hasnt
 		srcolors = np.zeros((tno,bno,3),dtype=int)
-		
+
 		with open(image_txt_mapping, "w") as text_file: 
 		
 			sync_int_list = np.zeros((tno-1), dtype = int)
@@ -253,7 +262,7 @@ for image_id in range(63,75): #image_total):
 		hdulist = fits.HDUList([hdu])
 		hdulist.writeto(image_dust_fits)
   
-	if not os.path.exists(image_dust_img):         
+	if True: #not os.path.exists(image_dust_img):         
 	    
 		t2sfl = float('%.2g' % simtl)
 		b1sfl = float('%.1g' % betal)
@@ -261,18 +270,23 @@ for image_id in range(63,75): #image_total):
 		pixhi = 1200
 		pixwt = int(round(float(pixhi)/bno*tno))
 		border = 150
-		hscle = pixhi/(np.log10(betau) - np.log10(betal))
+		hscle = pixhi/(betau - betal)
 		wscle = pixwt/(simtu - simtl)
 
-		dustimg = Image.new('RGBA', (pixwt+int(2.5*border),
+		dustimg = Image.new('RGBA', (pixwt+int(3*border),
 				                  	pixhi+int(3*border)),(0,0,0,255))
 		d = ImageDraw.Draw(dustimg)
 
 		imgmax = srcolors[:,:,0].max()
 		if imgmax < 255: imgmax = 255
         
-		low = 10000
-		hih = 1500000
+		low = 20000
+		hih = 100000
+		
+		if image_id == 86 or image_id == 85 or image_id == 84:
+		
+			low = 7000
+			hih = 65000
 		
 		sync_int_list = np.zeros((tno-1), dtype = int)
 			
@@ -294,13 +308,13 @@ for image_id in range(63,75): #image_total):
 								1 / (np.log10(hih) - np.log10(low))))
 				fillco = sorted([0, fillco, 255])[1]
 				b1 = beta2ypix(simres[ta,ba,1], border, pixhi, b1sfl, hscle)
-				t1 = linsimt2xpix(simres[ta,ba,0], border, t2sfl, wscle)
+				t1 = simt2xpix(simres[ta,ba,0], border, pixwt, t2sfl, wscle)
 				b2 = beta2ypix(simres[ta,ba+1,1], border, pixhi, b1sfl, hscle)
-				t2 = linsimt2xpix(simres[ta,ba+1,0], border, t2sfl, wscle)
+				t2 = simt2xpix(simres[ta,ba+1,0], border, pixwt, t2sfl, wscle)
 				b3 = beta2ypix(simres[ta+1,ba+1,1], border, pixhi, b1sfl, hscle)
-				t3 = linsimt2xpix(simres[ta+1,ba+1,0], border, t2sfl, wscle)
+				t3 = simt2xpix(simres[ta+1,ba+1,0], border, pixwt, t2sfl, wscle)
 				b4 = beta2ypix(simres[ta+1,ba,1], border, pixhi, b1sfl, hscle)
-				t4 = linsimt2xpix(simres[ta+1,ba,0], border, t2sfl, wscle)
+				t4 = simt2xpix(simres[ta+1,ba,0], border, pixwt, t2sfl, wscle)
 				a = d.polygon([(t1,b1),(t2,b2),(t3,b3),(t4,b4)]
 				,fill=(fillco,fillco,fillco,255))
              
@@ -308,14 +322,16 @@ for image_id in range(63,75): #image_total):
         (border*2+pixwt,border*2+pixhi),(border,border*2+pixhi)], \
         outline = (255,255,255,128))
     
-		bminticks = np.array([0.7,0.8,0.9,1.1,1.2,1.3,1.4,1.6,1.7,
-									 1.8,1.9,2.1,2.2,2.3,2.4])
-		bmajticks = np.array([0.6,1.0,1.5,2,2.5])
-		tmajticks = np.array([2,3,4,5,6,7,8])
+		bmajticks = np.array([0.01,0.1,0.5,1,2,3])
+		bminticks = np.array([0.2,0.3,0.4,0.6,0.7,0.8,0.9,1.2,1.4,1.6,1.8,2.2,2.4,2.6,2.8,])
+		
+		tmajticks = np.array([0,2,4,6,8,10,12])
+		tminticks = np.array([1,3,5,7,9,11])
 		
 		bminticlocs = beta2ypix(bminticks, border, pixhi, b1sfl, hscle)
 		bmajticlocs = beta2ypix(bmajticks, border, pixhi, b1sfl, hscle)
-		tmajticlocs = linsimt2xpix(tmajticks, border, t2sfl, wscle)
+		tmajticlocs = simt2xpix(tmajticks, border, pixwt, t2sfl, wscle)
+		tminticlocs = simt2xpix(tminticks, border, pixwt, t2sfl, wscle)
  
 		majt = 20  #major tick length
 		mint = 10  #minor tick length
@@ -326,6 +342,10 @@ for image_id in range(63,75): #image_total):
  
 		for div in range(0, (np.size(bminticlocs))): #beta axis minor ticks
 			b = d.line([(border+mint,bminticlocs[div]),(border,bminticlocs[div])]
+			,fill = (255,255,255,128))
+			
+		for div in range(0, (np.size(tminticlocs))): #beta axis minor ticks
+			b = d.line([(tminticlocs[div],xaxis-mint),(tminticlocs[div],xaxis)]
 			,fill = (255,255,255,128))
  
 		for div in range(0, (np.size(tmajticlocs))): #simt axis major ticks

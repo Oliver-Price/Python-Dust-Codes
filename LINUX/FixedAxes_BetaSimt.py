@@ -19,33 +19,33 @@ from dust_functions_LINUX import orb_vector, beta2ypix, simt2xpix, \
 radec_slim
 
 #hard coded parameters - can script these in for softer coding
-datafolder = '/unsafe/users/op2/mcnaught/stereo_a/'
-fpsav = '/unsafe/users/op2/mcnaught/fpsimsav/'
-orbitdir = '/unsafe/users/op2/mcnaught/orbitdata/'
-pngsav = '/unsafe/users/op2/mcnaught/dustpngs/'
-fixaxsav = '/unsafe/users/op2/mcnaught/fixedaxispngs/'
-fitssav = '/unsafe/users/op2/mcnaught/dustfits/'
-mapsav = '/unsafe/users/op2/mcnaught/pymapsav/'
-txtmaps = '/unsafe/users/op2/mcnaught/txtmappings/'
-betau = 2.5
-betal = 0.6
+datafolder = '/unsafe/users/op2/panstarrs/stereo_a/'
+fpsav = '/unsafe/users/op2/panstarrs/fpsimsav/'
+orbitdir = '/unsafe/users/op2/panstarrs/orbitdata/'
+pngsav = '/unsafe/users/op2/panstarrs/dustpngs/'
+fixaxsav = '/unsafe/users/op2/panstarrs/fixedaxispngs/'
+fitssav = '/unsafe/users/op2/panstarrs/dustfits/'
+mapsav = '/unsafe/users/op2/panstarrs/pymapsav/'
+txtmaps = '/unsafe/users/op2/panstarrs/txtmappings/'
+betau = 3.0
+betal = 0.02
 bno = 600
-simtu = 8.0
-simtl = 2.0
+simtu = 12.0
+simtl = 0.5
 tno = 600
-comdenom = 'C2006P1'
-comname = 'McNaught'
-obsloc = 'Stereo A'
+comdenom = 'C2011L4'
+comname = 'Pan-STARRS'
+obsloc = 'Stereo B'
 
-axlotime = astropy.time.Time(datetime.datetime(2007,1,6,0,1,0))
-				                               
-axhitime = astropy.time.Time(datetime.datetime(2007,1,13,0,1,0))
+#THESE NEED TO BE CHANGED
+axlotime = astropy.time.Time(datetime.datetime(2013,3,3,0,0,0))        
+axhitime = astropy.time.Time(datetime.datetime(2013,3,11,12,0,0))
 
 #choosing comet data to us
 image_list = sorted(os.listdir(mapsav))
 image_total = len(image_list)
 
-for image_id in range(40, image_total):
+for image_id in range(170, image_total):
 
 	image_procname = image_list[image_id].split('_mapped')[0]
 	image_basename = image_procname[:21]
@@ -95,8 +95,8 @@ for image_id in range(40, image_total):
 		imgmax = srcolors[:,:,0].max()
 		if imgmax < 255: imgmax = 255
         
-		low = 10000
-		hih = 1500000
+		low = 20000
+		hih = 100000
 		
 		sync_int_list = np.zeros((tno-1), dtype = int)
 			
@@ -136,14 +136,16 @@ for image_id in range(40, image_total):
         (border*2+pixwt,border*2+pixhi),(border,border*2+pixhi)], \
         outline = (255,255,255,255))
     
-		bminticks = np.array([0.7,0.8,0.9,1.1,1.2,1.3,1.4,1.6,1.7,
-									 1.8,1.9,2.1,2.2,2.3,2.4])
-		bmajticks = np.array([0.6,1.0,1.5,2,2.5])
-		tmajticks = np.arange(t2sfl, t2sfu + 1)
+		bmajticks = np.array([0.01,0.1,0.5,1,2,3])
+		bminticks = np.array([0.2,0.3,0.4,0.6,0.7,0.8,0.9,1.2,1.4,1.6,1.8,2.2,2.4,2.6,2.8,])
+		
+		tmajticks = np.arange(t2sfl, t2sfu, 2)
+		tminticks = np.arange(t2sfl, t2sfu)
 		
 		bminticlocs = beta2ypix(bminticks, border, pixhi, b1sfl, hscle)
 		bmajticlocs = beta2ypix(bmajticks, border, pixhi, b1sfl, hscle)
 		tmajticlocs = simt2xpix(tmajticks, border, pixwt, t2sfl, wscle)
+		tminticlocs = simt2xpix(tminticks, border, pixwt, t2sfl, wscle)
  
 		majt = 20  #major tick length
 		mint = 10  #minor tick length
@@ -151,16 +153,19 @@ for image_id in range(40, image_total):
 		fontloc = r'/home/op2/python/lucon.ttf'
 		fnt = ImageFont.truetype(fontloc, 20)
 		dtime = astropy.time.TimeDelta(1, format='jd')
-		onemin = astropy.time.TimeDelta(60, format='sec')
  
 		for div in range(0, (np.size(bminticlocs))): #beta axis minor ticks
 			b = d.line([(border+mint,bminticlocs[div]),(border,bminticlocs[div])]
+			,fill = (255,255,255,255))
+			
+		for div in range(0, (np.size(tminticlocs))): #simt axis minor ticks
+			b = d.line([(tminticlocs[div],xaxis-mint),(tminticlocs[div],xaxis)]
 			,fill = (255,255,255,255))
  
 		for div in range(0, (np.size(tmajticlocs))): #simt axis major ticks
 			b = d.line([(tmajticlocs[div],xaxis-majt),(tmajticlocs[div],xaxis)],
 			fill = (255,255,255,255))
-			ticktime = ctime - dtime*tmajticks[div] - onemin
+			ticktime = ctime - dtime*tmajticks[div]
 			tick = ticktime.isot.replace('T','\n')[0:16]
 			d.text((tmajticlocs[div] - len(tick)*3,xaxis + 10), \
 			tick, font=fnt, fill=(255,255,255,255))

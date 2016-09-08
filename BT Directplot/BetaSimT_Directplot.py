@@ -10,7 +10,7 @@ import pickle
 import numpy as np
 import matplotlib.path as mplPath
 from orbitdata_loading_functions import orb_vector, orb_obs
-from plot_functions import beta2ypix, linsimt2xpix, logsimt2xpix, radec_slim, \
+from BT_plot_functions import beta2ypix, linsimt2xpix, logsimt2xpix, radec_slim, \
 greyscale_remap
 from astropy.io import fits
 from PIL import Image, ImageDraw, ImageFont

@@ -30,6 +30,7 @@ reached accounting for a LT time to earth.
 OUTPUTS: Final location and finishing time
 '''
 import numpy as np
+import math as m
 
 def part_sim(beta, simt, ndt, ltdt, pstart, efinp, cor): 
     simt = simt*10 + cor #simt in minutes
@@ -49,12 +50,15 @@ def part_sim(beta, simt, ndt, ltdt, pstart, efinp, cor):
     return (t,traj)
     
 def diff(pstate, beta):
-    diffed = np.empty((6),dtype = float)
-    diffed[0:3] = 1.1574074074074073e-05*pstate[3:6]
-    invr = 1/(np.linalg.norm(pstate[0:3]))
+    diff0 = 1.1574074074074073e-05*pstate[3]
+    diff1 = 1.1574074074074073e-05*pstate[4]
+    diff2 = 1.1574074074074073e-05*pstate[5]
+    invr = 1/(m.sqrt(pstate[0]**2 + pstate[1]**2 + pstate[2]**2))
     acc = (-3.4249098175024633e-09)*(1-beta)*invr*invr*invr
-    diffed[3:6] = acc*pstate[0:3] #3rd invr normalises the position vector
-    return diffed
+    diff3 = acc*pstate[0] #3rd invr normalises the position vector
+    diff4 = acc*pstate[1]
+    diff5 = acc*pstate[2] 
+    return np.array([diff0,diff1,diff2,diff3,diff4,diff5])
     
 def rk4(pstate, beta, dt): 
     dt = dt*60 #DT INPUT IN MINUTES
