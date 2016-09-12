@@ -86,7 +86,7 @@ elif inv == True:
 picklesavefile = os.path.join(pysav, filebase + '_dustplot')
 picklexists = os.path.exists(picklesavefile)
 
-forceredraw = True
+forceredraw = False
 if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     
     #ensures image inputted correctly depending on size of data cube
@@ -497,7 +497,7 @@ while test_mode == True:
         for bidx in xrange(0,bno):
             [minblock,maxblock] = find_largest_nonzero_block(simres[:,bidx,14])
             if minblock == None:
-                np.delete(bidx_list,bidx - deletions)
+                bidx_list = np.delete(bidx_list,bidx - deletions)
                 deletions += 1
             else:
                 tmin[bidx] = minblock
@@ -546,7 +546,7 @@ while test_mode == True:
     if "Syndynes" in drawopts: draw_syndynes(dynfill,d,simres,bno,rapixl,decpixl,tmin,tmax,bidx_list)
     if "Synchrones" in drawopts: draw_synchrones(chrfill,d,simres,tno,rapixl,decpixl,bmin,bmax,tidx_list)
     if "Data Points" in drawopts: draw_datap(drfill,d,simres)
-#    elif "Data Region Enclosed" in drawopts:  draw_data_reg(drfill,d,simres,tno,bmax,border,pixwidth) 
+    elif "Data Region Enclosed" in drawopts:  draw_data_reg(drfill,d,simres,bmax,bmin,bidx_list,tmax,tmin,tidx_list,border,pixwidth)
     bt_anno_idx = annotate_plotting(d,drawopts,border,pixwidth,fnt,featur_fill,dynfill,chrfill,drfill)
     
     write_bt_ranges(d,border, pixwidth, fnt, featur_fill,
@@ -554,5 +554,5 @@ while test_mode == True:
     
     if (drawopts != "No Image"):
         comimg.show()    
-        cimgsav = os.path.join(imagedir, 'temp.png')    
+        cimgsav = os.path.join(imagedir, 'temp_' + filebase + '.png')    
         comimg.save(cimgsav,'png')

@@ -78,7 +78,7 @@ def find_largest_nonzero_block(array_in):
     
     if sizes.size > 0:
         l_index = np.argmax(sizes)
-        return start_locs[0][l_index], stop_locs[0][l_index]
+        return start_locs[0][l_index], stop_locs[0][l_index]-1
     else: return None, None
 
 #%% get in fits astrometry for current image

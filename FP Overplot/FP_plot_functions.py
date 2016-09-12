@@ -134,25 +134,23 @@ def draw_datap(drfill,d,simres,xsiz = 2):
                   ( simres[ta,ba,12] + xsiz , simres[ta,ba,13] - xsiz ) ] ,
                   fill = drfill )
                       
-def draw_data_reg(drfill,d,simres,tno,bmax,border,pixwidth,lwidth = 5):                
+def draw_data_reg(drfill,d,simres,bmax,bmin,bidx_list,tmax,tmin,tidx_list,border,pixwidth,lwidth = 5):                
     
-    d.line( [ ( simres[0,0,12]  , simres[0,0,13] ) ,
-                  ( simres[0,bmax[0],12] , simres[0,bmax[0],13] ) ] ,
-                    fill = drfill , width = lwidth)
-    d.line( [ ( simres[tno-1,0,12]  , simres[tno-1,0,13] ) ,
-                  ( simres[tno-1,bmax[tno-1],12] ,
-                   simres[tno-1,bmax[tno-1],13] ) ] ,    
-                    fill = drfill , width = lwidth)    
-                    
-    for ta in xrange(0,tno - 1):
-        
+    for ba in bidx_list[:-1].tolist():
+        d.line( [ ( simres[tmax[ba],ba,12]  , simres[tmax[ba],ba,13] ) ,
+                      ( simres[tmax[ba+1],ba+1,12] , simres[tmax[ba+1],ba+1,13] ) ]
+                      , fill = drfill , width = lwidth)
+        d.line( [ ( simres[tmin[ba],ba,12]  , simres[tmin[ba],ba,13] ) ,
+                      ( simres[tmin[ba+1],ba+1,12] , simres[tmin[ba+1],ba+1,13] ) ]
+                      , fill = drfill , width = lwidth)
+    for ta in tidx_list[:-1].tolist():
         d.line( [ ( simres[ta,bmax[ta],12]  , simres[ta,bmax[ta],13] ) ,
                       ( simres[ta+1,bmax[ta+1],12] , simres[ta+1,bmax[ta+1],13] ) ]
                       , fill = drfill , width = lwidth)
-        d.line( [ ( simres[ta,0,12]  , simres[ta,0,13] ) ,
-                      ( simres[ta+1,0,12] , simres[ta+1,0,13] ) ]
-                      , fill = drfill , width = lwidth)
+        d.line( [ ( simres[ta,bmin[ta],12]  , simres[ta,bmin[ta],13] ) ,
+                      ( simres[ta+1,bmin[ta+1],12] , simres[ta+1,bmin[ta+1],13] ) ]
 
+                      , fill = drfill , width = lwidth)
 #%%
 #****************************
 #FP Grid Annotation Functions
