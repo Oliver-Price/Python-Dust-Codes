@@ -36,7 +36,7 @@ def mon2num(month):
     
 #%% - converts earth centric equatorial xyz coord to ra and dec
     
-def pos2radec(position):
+def pos2radec(position,fourpi = False):
     ra = m.atan(position[1]/position[0])*360/(2*m.pi)
     if position[0] >= 0:
         if position[1] < 0:
@@ -45,7 +45,10 @@ def pos2radec(position):
         ra = ra + 180
     r = np.linalg.norm(position)
     dec = m.asin(position[2]/r)*360/(2*m.pi)
-    return (ra,dec)
+    if fourpi == False: return (ra,dec)
+    elif fourpi == True: 
+        if ra < 180: return (ra + 360,dec)
+        if ra >= 180: return (ra,dec)
 
 #%% - fix occurences where range is incorrect or where data wraps from 360 ra to 0
 

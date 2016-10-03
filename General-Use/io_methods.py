@@ -52,24 +52,16 @@ def correct_for_imagetype(imagedir, fitsin, fitsinfile):
        
 def col_corrections(inv,colr,colg,colb):
     
-    im_max = max(np.max(colr),np.max(colg),np.max(colb))
-    if im_max > 255:   
-        coltr = np.rint(colr*255/im_max)
-        coltg = np.rint(colg*255/im_max)
-        coltb = np.rint(colb*255/im_max)
-    else:
-        coltr = colr; coltg = colg; coltb = colb
-        
     if inv == False:   
-        colcr = coltr; colcg = coltg; colcb = coltb
+        colcr = colr; colcg = colg; colcb = colb
         backgr_fill = (0,0,0,255)
         featur_fill = (255,255,255,255)
     elif inv == True:
-        colcr = 255 - coltr; colcg = 255  - coltg; colcb = 255 - coltb
+        colcr = 255 - colr; colcg = 255  - colg; colcb = 255 - colb
         backgr_fill = (255,255,255,255)
         featur_fill = (0,0,0,255)
         
-    if 'float' in str(colr.dtype):
+    if 'float' in str(colcr.dtype):
          colcr = colcr.astype(int)
          colcg = colcg.astype(int)
          colcb = colcb.astype(int)
@@ -103,10 +95,18 @@ def get_obs_loc(obslocstr, imagedir):
     
 def get_stereo_instrument(imagedir):
 
-    name_locs = np.array(['HI-1', 'HI-2'])
+    sname_locs = np.array(['HI-1', 'HI-2'])
     stermsg = "Please select STEREO instrument"
-    sterchoices = name_locs.tolist()
+    sterchoices = sname_locs.tolist()
     sterinst = easygui.buttonbox(stermsg, choices=sterchoices)
+    
+    mname_locs = np.array(['Base', 'Difference', 'Multiscale Gaussian Normalisation'])
+    modemsg = "Please select STEREO instrument"
+    modechoices = mname_locs.tolist()
+    mode = easygui.buttonbox(modemsg, choices=modechoices)
+    
+    if "Diff" in mode: sterinst = sterinst + '-diff'
+    if "Multi" in mode: sterinst = sterinst + '-MGN'
     imagedir = os.path.join(imagedir, sterinst)
 
     return sterinst, imagedir

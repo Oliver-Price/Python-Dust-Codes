@@ -17,8 +17,8 @@ from PIL import Image, ImageDraw, ImageFont
 sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")  
 
 from orbitdata_loading_functions import orb_vector, orb_obs
-from BT_plot_functions import beta2ypix, linsimt2xpix, logsimt2xpix, radec_slim, \
-greyscale_remap
+from BT_plot_functions import beta2ypix, linsimt2xpix
+from io_methods import get_obs_loc, get_stereo_instrument
 
 
 #%%**********************
@@ -42,22 +42,9 @@ with open(inputfile, "r") as c:
     horiztag = cdata[40][10:]
 
 #choose observer locations
-bool_locs = np.array([(('EARTH' in obslocstr) or ('Earth' in obslocstr)),
-                 (('STEREO-A' in obslocstr) or ('Stereo-A' in obslocstr)
-                 or ('STEREO_A' in obslocstr) or ('Stereo_A' in obslocstr)),
-                 (('STEREO-B' in obslocstr) or ('Stereo-B' in obslocstr)
-                 or ('STEREO_B' in obslocstr) or ('Stereo_B' in obslocstr)),
-                 (('SOHO' in obslocstr) or ('Soho' in obslocstr))])
-name_locs = np.array(['Earth', 'Stereo_A', 'Stereo_B', 'Soho'])
-case_locs = np.size(np.nonzero(bool_locs))
-if case_locs > 1:
-    obsmsg = "Please select observer location"
-    obschoices = name_locs[bool_locs].tolist()
-    obsloc = easygui.buttonbox(obsmsg, choices=obschoices)
-    imagedir = os.path.join(imagedir, obsloc)
-elif case_locs == 1:
-    obsloc = name_locs[bool_locs][0]
-else: sys.exit("No Good Observer Location")
+[obsloc, imagedir] = get_obs_loc(obslocstr, imagedir)
+if "Stereo" in obsloc: [sterinst, imagedir] = get_stereo_instrument(imagedir)
+else: sterinst = None
     
 #import the orbit data
 obsveceq = orb_vector(comdenom, obsloc, pysav, orbitdir,
@@ -138,35 +125,35 @@ else:
     rafmin = ramin
     rafmax = ramax
 
+if obsloc == 'Stereo_A' and sterinst == 'HI-1':
+    maskfits = r"C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\hi2A_mask.fts"
+    maskedimg = fits.open(maskfits)
+    imagemask  = maskedimg[0].data[::2,::2]
+else:
+    imagemask = np.ones_like(colr,dtype=int)
+
 #check if this has already been done
 colmapsav = simin[:-4] + '_srcolors.npy'
 locmapsav = simin[:-4] + '_pixelmapping.txt'
-colmapsavexists = os.path.exists(colmapsav)
-a = time.clock()
 
-if (colmapsavexists == True): #load if it has
-    srcolors = np.load(colmapsav)
-    
-elif (colmapsavexists == False): #do if it hasnt
-    srcolors = np.zeros((tno,bno,4),dtype=int)
-    simres_rounded = np.round(simres[:,:,14:17]).astype(int)
-    simres_rounded = np.clip(simres_rounded, 0, 1023)    
-    
-    non_zeros_0 = simres_rounded[:,:,0].nonzero()[0]
-    non_zeros_1 = simres_rounded[:,:,0].nonzero()[1]
-    no_points = non_zeros_0.size
-    
-    for x in xrange(0,no_points):
-        tidx = non_zeros_0[x]
-        bidx = non_zeros_1[x]
-        ridx = simres_rounded[tidx,bidx,1]
-        didx = simres_rounded[tidx,bidx,2]
-        srcolors[tidx,bidx,0] = 1
-        srcolors[tidx,bidx,1] = colr[didx,ridx]
-        srcolors[tidx,bidx,2] = colg[didx,ridx]
-        srcolors[tidx,bidx,3] = colb[didx,ridx]
+srcolors = np.zeros((tno,bno,4),dtype=int)
+simres_rounded = np.round(simres[:,:,14:17]).astype(int)
+simres_rounded = np.clip(simres_rounded, 0, 1023)    
 
-b = time.clock()
+non_zeros_0 = simres_rounded[:,:,0].nonzero()[0]
+non_zeros_1 = simres_rounded[:,:,0].nonzero()[1]
+no_points = non_zeros_0.size
+
+for x in xrange(0,no_points):
+    tidx = non_zeros_0[x]
+    bidx = non_zeros_1[x]
+    ridx = simres_rounded[tidx,bidx,1]
+    didx = simres_rounded[tidx,bidx,2]
+    srcolors[tidx,bidx,0] = 1*imagemask[didx,ridx]
+    srcolors[tidx,bidx,1] = colr[didx,ridx]
+    srcolors[tidx,bidx,2] = colg[didx,ridx]
+    srcolors[tidx,bidx,3] = colb[didx,ridx]
+
 #%%****************************
 #THIRD CELL - SAVE DATA TO FITS
 #******************************       
@@ -314,11 +301,6 @@ if reply == True:
     simtl = simres[0,0,0]; simtu = simres[tno-1,0,0]
     betal = simres[0,0,1]; betau = simres[0,bno-1,1]
     
-    t2sfu = float('%.2g' % simtu)
-    t2sfl = float('%.2g' % simtl)
-    b1sfu = float('%.1g' % betau)
-    b1sfl = float('%.1g' % betal)
-    
     pixhi = 1200
     pixwt = int(round(float(pixhi)/bno*tno))
     border = 100
@@ -351,28 +333,27 @@ if reply == True:
                 					1 / (np.log10(hih) - np.log10(low))))
                 fillco = int(round(greyscale_arr[ta,ba]*255/imgmax/fudgefactor))
                 fillco = sorted([0, fillco, 255])[1]
-#               fillco = greyscale_arr[ta,ba]
-                b1 = beta2ypix(simres[ta,ba,1], border, pixhi, b1sfl, hscle)
-                t1 = linsimt2xpix(simres[ta,ba,0], border, t2sfl, wscle)
-                b2 = beta2ypix(simres[ta,ba+1,1], border, pixhi, b1sfl, hscle)
-                t2 = linsimt2xpix(simres[ta,ba+1,0], border, t2sfl, wscle)
-                b3 = beta2ypix(simres[ta+1,ba+1,1], border, pixhi, b1sfl, hscle)
-                t3 = linsimt2xpix(simres[ta+1,ba+1,0], border, t2sfl, wscle)
-                b4 = beta2ypix(simres[ta+1,ba,1], border, pixhi, b1sfl, hscle)
-                t4 = linsimt2xpix(simres[ta+1,ba,0], border, t2sfl, wscle)
+                b1 = beta2ypix(simres[ta,ba,1], border, pixhi, betal, hscle)
+                t1 = linsimt2xpix(simres[ta,ba,0], border, simtl, wscle)
+                b2 = beta2ypix(simres[ta,ba+1,1], border, pixhi, betal, hscle)
+                t2 = linsimt2xpix(simres[ta,ba+1,0], border, simtl, wscle)
+                b3 = beta2ypix(simres[ta+1,ba+1,1], border, pixhi, betal, hscle)
+                t3 = linsimt2xpix(simres[ta+1,ba+1,0], border, simtl, wscle)
+                b4 = beta2ypix(simres[ta+1,ba,1], border, pixhi, betal, hscle)
+                t4 = linsimt2xpix(simres[ta+1,ba,0], border, simtl, wscle)
                 a = d.polygon([(t1,b1),(t2,b2),(t3,b3),(t4,b4)]
                 ,fill=(fillco,fillco,fillco,255))
     else:
         for ta in xrange(0, tno-1):
             for ba in xrange(0, bno-1):
-                b1 = beta2ypix(simres[ta,ba,1], border, pixhi, b1sfl, hscle)
-                t1 = linsimt2xpix(simres[ta,ba,0], border, t2sfl, wscle)
-                b2 = beta2ypix(simres[ta,ba+1,1], border, pixhi, b1sfl, hscle)
-                t2 = linsimt2xpix(simres[ta,ba+1,0], border, t2sfl, wscle)
-                b3 = beta2ypix(simres[ta+1,ba+1,1], border, pixhi, b1sfl, hscle)
-                t3 = linsimt2xpix(simres[ta+1,ba+1,0], border, t2sfl, wscle)
-                b4 = beta2ypix(simres[ta+1,ba,1], border, pixhi, b1sfl, hscle)
-                t4 = linsimt2xpix(simres[ta+1,ba,0], border, t2sfl, wscle)
+                b1 = beta2ypix(simres[ta,ba,1], border, pixhi, betal, hscle)
+                t1 = linsimt2xpix(simres[ta,ba,0], border, simtl, wscle)
+                b2 = beta2ypix(simres[ta,ba+1,1], border, pixhi, betal, hscle)
+                t2 = linsimt2xpix(simres[ta,ba+1,0], border, simtl, wscle)
+                b3 = beta2ypix(simres[ta+1,ba+1,1], border, pixhi, betal, hscle)
+                t3 = linsimt2xpix(simres[ta+1,ba+1,0], border, simtl, wscle)
+                b4 = beta2ypix(simres[ta+1,ba,1], border, pixhi, betal, hscle)
+                t4 = linsimt2xpix(simres[ta+1,ba,0], border, simtl, wscle)
                 a = d.polygon([(t1,b1),(t2,b2),(t3,b3),(t4,b4)]
                 ,fill=(srcolors[ta,ba,0],srcolors[ta,ba,1],srcolors[ta,ba,2],255))
                 

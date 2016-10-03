@@ -19,7 +19,7 @@ import pickle
 import matplotlib.path as mplPath
 from PIL import Image, ImageDraw, ImageFont
 
-sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")  
+sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")
 
 from orbitdata_loading_functions import orb_vector, orb_obs
 from FP_plot_functions import ra2xpix, dec2ypix, setaxisup, plotpixel
@@ -29,8 +29,8 @@ from FP_diagnostics import plot_orbit, plot_orbit_points, plot_sunearth_vec
 from FP_diagnostics import write_bt_ranges, write_properties, plot_compos_unc
 from imagetime_methods import image_time_yudish, image_time_user, image_time_stereo
 from conversion_routines import pos2radec, fixwraps, find_largest_nonzero_block 
-from FP_io_methods import col_corrections, get_obs_loc, correct_for_imagetype
-from FP_io_methods import get_stereo_instrument
+from io_methods import col_corrections, get_obs_loc, correct_for_imagetype
+from io_methods import get_stereo_instrument
 from simulation_setup import simulation_setup
 from particle_sim import part_sim
 
@@ -92,8 +92,8 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     #ensures image inputted correctly depending on size of data cube
     [colr, colg, colb, fitscoords] = correct_for_imagetype(imagedir, fitsin, fitsinfile)
     
-    #correcting for wrong data type, correct range to 255, account for inversion
-    [backgr_fill, featur_fill, colcr, colcg, colcb] = col_corrections(inv,colr,colg,colb)
+    #correcting for wrong data type, account for inversion FOR NON FITS ONLY
+    [backgr_fill, featur_fill, colpr, colpg, colpb] = col_corrections(inv,colr,colg,colb)
         
 #%%**********************
 #SECOND CELL - Plot Image
@@ -102,10 +102,14 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     #get RA/DEC data    
     onedimg = fits.open(fitscoords)
     if 'Earth' in obsloc:
+        plotmethodlog = False
         w = wcs.WCS(onedimg[0].header)
     elif 'Stereo' in obsloc:
         w = wcs.WCS(onedimg[0].header, key = 'A')
+        if 'diff' or 'MGN' in sterinst: plotmethodlog = False
+        else: plotmethodlog = True
     elif 'Soho' in obsloc:
+        plotmethodlog = True
         sys.exit("soho data not yet implemented")
     
     #make a 2xN array of all pixel locations
@@ -140,29 +144,41 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     imgheight = pixheight+int(3*border)
     comimg = Image.new('RGBA', ( imgwidth , imgheight ) ,backgr_fill)
     d = ImageDraw.Draw(comimg)
-    
-    if obsloc != "Earth":
-        plotmethodlog = True
-    else: plotmethodlog = False
-    
+       
     if plotmethodlog == True:
+        
         if comdenom == 'c2011l4':
             low = 3000
-            hih = 20000
+            if obsloc == 'Stereo-B': hih = 20000
+            elif obsloc == 'Stereo-A': hih = 70000
         elif comdenom == 'c2006p1':
             low = 10000
-            hih = 1500000        
+            hih = 1500000
+        
+        grad = (255 / (np.log10(hih) - np.log10(low)))      
+        
+        colcr = (np.clip(np.round((np.log10(np.clip(colr,1,999999999))- np.log10(low))*grad),0,255)).astype(int)
+        colcg = (np.clip(np.round((np.log10(np.clip(colg,1,999999999))- np.log10(low))*grad),0,255)).astype(int)
+        colcb = (np.clip(np.round((np.log10(np.clip(colb,1,999999999))- np.log10(low))*grad),0,255)).astype(int)
         
         for x in xrange(0, ya-2):
             for y in xrange(0, xa-2):
-                fillval = sorted([1, colr[x,y], 9999999999])[1]
-                fillco = int(round(255*(np.log10(fillval) - np.log10(low))*
-    								1 / (np.log10(hih) - np.log10(low))))
-                fillco = sorted([0, fillco, 255])[1]
                 plotpixel(d,x,y,ra_m,dec,border,pixwidth,pixheight,decmin,rafmin,
-                          scale,fillco,fillco,fillco)
+                          scale,colcr[x,y],colcg[x,y],colcb[x,y])
                 
-    elif plotmethodlog == False:            
+    elif plotmethodlog == False:  
+
+        if comdenom == 'c2006p1':
+            if 'diff' in sterinst: 
+                low = -1000
+                hih = 1000
+            elif 'MGN' in sterinst:  
+                low = -0.7
+                hih = 1.25
+            colcr = np.clip(255.0/(hih-low)*(colr-low),0,255).astype(int)
+            colcg = np.clip(255.0/(hih-low)*(colg-low),0,255).astype(int)
+            colcb = np.clip(255.0/(hih-low)*(colb-low),0,255).astype(int)
+            
         for x in xrange(0, ya-2):
             for y in xrange(0, xa-2):
                 plotpixel(d,x,y,ra_m,dec,border,pixwidth,pixheight,decmin,rafmin,
@@ -348,7 +364,6 @@ else:
 #%%**********************************************
 #SEVENTH CELL - Preparing to simulate dust motion
 #************************************************
-
 test_mode = True
 while test_mode == True:
     
@@ -394,9 +409,9 @@ while test_mode == True:
                 sim_lo = part_sim(bvals[0],simt10min,30,3,pstart,efinp,dtmin)
                 sim_hi = part_sim(bvals[bno-1],simt10min,30,3,pstart,efinp,dtmin)
                 ra_dec_lo_test = pos2radec(sim_lo[1][0:3] -
-                obsveceq[int(comcel-10*simt10min+sim_lo[0]),6:9])
+                obsveceq[int(comcel-10*simt10min+sim_lo[0]),6:9],fourpi = True)
                 ra_dec_hi_test = pos2radec(sim_hi[1][0:3] -
-                obsveceq[int(comcel-10*simt10min+sim_hi[0]),6:9])
+                obsveceq[int(comcel-10*simt10min+sim_hi[0]),6:9],fourpi = True)
                 sync_box_path = np.array(
                 [[ra_dec_lo_test[0],ra_dec_lo_test[1]],
                 [ra_dec_hi_test[0],ra_dec_hi_test[1]]])
@@ -433,7 +448,7 @@ while test_mode == True:
                 simres[tidx,bidx,3] = comcel-10*simt10min+sim[0] #find relevant cell for end of traj
                 simres[tidx,bidx,4:10] = sim[1] #finishing pos/vel
                 simres[tidx,bidx,10:12] = pos2radec(sim[1][0:3] - 
-                obsveceq[int(simres[tidx,bidx,3]),6:9])
+                obsveceq[int(simres[tidx,bidx,3]),6:9],fourpi = True)
                 point_in_image = int(com_Path.contains_point(
                 (simres[tidx,bidx,10],simres[tidx,bidx,11])))
                 simres[tidx,bidx,12] = ra2xpix(simres[tidx,bidx,10],border,pixwidth,rafmin,scale)
@@ -475,7 +490,7 @@ while test_mode == True:
                 simres[tidx,bidx,3] = comcel-10*simt10min+sim[0] #find relevant cell for end of traj
                 simres[tidx,bidx,4:10] = sim[1] #finishing pos/vel
                 simres[tidx,bidx,10:12] = pos2radec(sim[1][0:3] - 
-                obsveceq[int(simres[tidx,bidx,3]),6:9])
+                obsveceq[int(simres[tidx,bidx,3]),6:9],fourpi = True)
                 point_in_image = int(com_Path.contains_point
                 ((simres[tidx,bidx,10],simres[tidx,bidx,11])))
                 simres[tidx,bidx,12] = ra2xpix(simres[tidx,bidx,10],border,pixwidth,rafmin,scale)
