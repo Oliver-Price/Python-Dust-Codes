@@ -3,15 +3,14 @@ import easygui
 import pickle
 import os
 import sys
-import numpy as np
 
 def simulation_setup(savefile):
     
     saveexists = os.path.exists(savefile)
     
     if (saveexists == False):
-        betau = 1; betal = 0.001; bno = 50
-        simtu = 100; simtl = 1; tno = 50; tspace = 'Linear'
+        betau = 1; betal = 0.1; bno = 50
+        simtu = 10; simtl = 1; tno = 50
         threshold = None #formerly used for phase space reduction, now defunct
         drawopts = "Synchrones Only"
         sav_bool = False
@@ -25,11 +24,10 @@ def simulation_setup(savefile):
             simtu = sparameters[3]
             simtl = sparameters[4]
             tno = sparameters[5]
-            tspace = sparameters[6]
-            threshold = sparameters[7]
-            drawopts = sparameters[8]
-            sav_bool = sparameters[9]
-            test_mode = sparameters[10]
+            threshold = sparameters[6]
+            drawopts = sparameters[7]
+            sav_bool = sparameters[8]
+            test_mode = sparameters[9]
             
     while 1:
         
@@ -37,15 +35,14 @@ def simulation_setup(savefile):
         +' : ' + str(bno) + ' values\n')
         message += ('Ejection Times From ' + str(simtl) + ' to ' + str(simtu)
         +' : ' + str(tno) + ' values\n')
-        message += ('Ejection Time Spacing: ' + tspace + ' \n')
         message += ('Draw Options: ' + drawopts + ' \n')
         message += ('Save Data: ' + str(sav_bool) + ' \n')
         message += ('Test Mode: ' + str(test_mode) + ' \n')
         reply = easygui.buttonbox(msg= message,
                                   title='Choosing Simulation Parameters',
               choices=('Change Beta Values', 'Change Ejection Time Values',
-                       'Toggle Time Spacing', 'Change Draw Options',
-                       'Toggle Data Save', 'Toggle Test Mode', 'OK All'),
+                       'Change Draw Options', 'Toggle Data Save',
+                       'Toggle Test Mode', 'OK All'),
                        image=None)
                        
         if reply == None: sys.exit()
@@ -98,11 +95,6 @@ def simulation_setup(savefile):
                 simtl = float(tfieldValues[0])
                 tno = int(tfieldValues[2])
                                        
-        if reply == 'Toggle Time Spacing':
-           
-            if tspace == 'Logarithmic': tspace = 'Linear'                  
-            elif tspace == 'Linear': tspace = 'Logarithmic' 
-                                      
         if reply == 'Change Draw Options':
 
             dmsg = "Choose draw options"
@@ -120,9 +112,8 @@ def simulation_setup(savefile):
         if reply == 'OK All': break  
             
     with open(savefile, 'w') as f:
-        pickle.dump([betau, betal, bno, simtu, simtl, tno, tspace, threshold,
+        pickle.dump([betau, betal, bno, simtu, simtl, tno, threshold,
                      drawopts, sav_bool, test_mode], f)
     
-    return (betau, betal, bno, simtu, simtl, tno, tspace, drawopts,
-            sav_bool, test_mode)
+    return (betau, betal, bno, simtu, simtl, tno, drawopts, sav_bool, test_mode)
     

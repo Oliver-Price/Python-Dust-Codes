@@ -68,26 +68,36 @@ comveceq10 = orb_vector(comdenom, obsloc, pysav, orbitdir,
 comobs = orb_obs(comdenom, obsloc, pysav, orbitdir, horiztag)
 
 #choosing fits file to display and getting pathnames
-fitsin = easygui.fileopenbox(default = os.path.join(imagedir, r"*.fits"),
-                             filetypes= r"*.fits")
+fitsin = easygui.fileopenbox(default = os.path.join(imagedir,'*'))
+if fitsin == '.': sys.exit("No file selected")
 fitsinfile = os.path.basename(fitsin)
 filebase = fitsinfile[:string.find(fitsinfile,'.')]
 
 inv = False
+pngdir = os.path.join(imagedir, 'cometplots')
+if not os.path.exists(pngdir): os.makedirs(pngdir)
 #check if image exists already/invert it
 if inv == False:   
-    imgsav = os.path.join(imagedir, filebase + '.png')
+    imgsav = os.path.join(pngdir, filebase + '.png')
     imgexists = os.path.exists(imgsav)
 elif inv == True:
-    imgsav = os.path.join(imagedir, filebase + '_inverted.png')
+    imgsav = os.path.join(pngdir, filebase + '_inverted.png')
     imgexists = os.path.exists(imgsav)  
 
 #parameter savefile locations
-picklesavefile = os.path.join(pysav, filebase + '_dustplot')
+picklesavefile = os.path.join(pysav, 'imgsavs')
+if not os.path.exists(picklesavefile): os.makedirs(picklesavefile)
+picklesavefile = os.path.join(picklesavefile, obsloc)
+if not os.path.exists(picklesavefile): os.makedirs(picklesavefile)
+if "Stereo" in obsloc: picklesavefile = os.path.join(picklesavefile, sterinst)
+if not os.path.exists(picklesavefile): os.makedirs(picklesavefile)
+picklesavefile = os.path.join(picklesavefile, filebase + '_plot_param.pickle')
+ 
 picklexists = os.path.exists(picklesavefile)
 
 forceredraw = False
 if (imgexists == False) or (picklexists == False) or (forceredraw == True):
+    print "preparing image"
     
     #ensures image inputted correctly depending on size of data cube
     [colr, colg, colb, fitscoords] = correct_for_imagetype(imagedir, fitsin, fitsinfile)
@@ -144,7 +154,12 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     imgheight = pixheight+int(3*border)
     comimg = Image.new('RGBA', ( imgwidth , imgheight ) ,backgr_fill)
     d = ImageDraw.Draw(comimg)
-       
+    
+    if '2' in sterinst:
+        maskedimg = fits.open('C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\hi2A_mask.fts')
+        imagemask  = maskedimg[0].data[::2,::2][:-1,:-1]
+    else: imagemask = np.ones_like(colr)[:-1,:-1]
+    
     if plotmethodlog == True:
         
         if comdenom == 'c2011l4':
@@ -161,13 +176,17 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         colcg = (np.clip(np.round((np.log10(np.clip(colg,1,999999999))- np.log10(low))*grad),0,255)).astype(int)
         colcb = (np.clip(np.round((np.log10(np.clip(colb,1,999999999))- np.log10(low))*grad),0,255)).astype(int)
         
-        for x in xrange(0, ya-2):
-            for y in xrange(0, xa-2):
-                plotpixel(d,x,y,ra_m,dec,border,pixwidth,pixheight,decmin,rafmin,
+        non_zeros_0 = np.where(imagemask == 1)[0]
+        non_zeros_1 = np.where(imagemask == 1)[1]
+        no_points = non_zeros_0.size
+        
+        for xp in xrange(0,no_points):
+            x = non_zeros_0[xp]
+            y = non_zeros_1[xp]
+            plotpixel(d,x,y,ra_m,dec,border,pixwidth,pixheight,decmin,rafmin,
                           scale,colcr[x,y],colcg[x,y],colcb[x,y])
                 
-    elif plotmethodlog == False:  
-
+    elif plotmethodlog == False:
         if comdenom == 'c2006p1':
             if 'diff' in sterinst: 
                 low = -1000
@@ -179,10 +198,15 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
             colcg = np.clip(255.0/(hih-low)*(colg-low),0,255).astype(int)
             colcb = np.clip(255.0/(hih-low)*(colb-low),0,255).astype(int)
             
-        for x in xrange(0, ya-2):
-            for y in xrange(0, xa-2):
-                plotpixel(d,x,y,ra_m,dec,border,pixwidth,pixheight,decmin,rafmin,
-                scale,colcr[x,y],colcg[x,y],colcb[x,y])
+        non_zeros_0 = np.where(imagemask == 1)[0]
+        non_zeros_1 = np.where(imagemask == 1)[1]
+        no_points = non_zeros_0.size
+        
+        for xp in xrange(0,no_points):
+            x = non_zeros_0[xp]
+            y = non_zeros_1[xp]
+            plotpixel(d,x,y,ra_m,dec,border,pixwidth,pixheight,decmin,rafmin,
+                          scale,colcr[x,y],colcg[x,y],colcb[x,y])
             
 #%%********************
 #THIRD CELL - Draw Axis
@@ -278,8 +302,6 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
 #FIFTH CELL - Plot Comet Traj, Comet-Sun Vector + Uncertainty
 #************************************************************
 
-    #ALSO NEED TO ADD SYNCHRONE TESTING AS IN LINUX
-
     #find ra and dec of comet
     LT_cor = int(np.round(np.linalg.norm(comveceq[comcel,6:9] - 
     obsveceq[comcel,6:9])*8.316746397269274))
@@ -309,7 +331,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     [ltcomcel, vtraj, vtrajcel] = plot_orbit(comobs,comveceq,obsveceq,axisdata,d,comcel,trajfill,ra_img_lower,
     ra_img_higher,border,pixwidth,rafmin,scale,pixheight,decmin,fnt,featur_fill, com_in_image)      
     
-    if vtraj != None:
+    if vtraj is not None:
         plot_orbit_points(d,vtraj,smallfnt,featur_fill,pixheight,pixwidth,border)    
     
     if com_in_image == True:
@@ -323,9 +345,17 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         
         if obsloc == 'Earth' and uncertainty_range_exists == True:
             plot_compos_unc(d,idls,vtraj,vtrajcel,border,pixwidth,fnt,trajucfill,featur_fill)
+    
     else:
-        trajucfill = None;comsunfill = None
-        
+        trajucfill = None;comsunfill = None   
+    
+    #draw the sun if it's in a good place
+    sun_pos = pos2radec(-obsveceq[comcel,6:9],fourpi = True)
+    if sun_pos[0] <= rafmax and sun_pos[0] >= rafmin:
+        if sun_pos[1] <= decmax and sun_pos[1] >= decmin:
+            sun_x = ra2xpix(sun_pos[0],border,pixwidth,rafmin,scale)
+            sun_y = dec2ypix(sun_pos[1],border,pixheight,decmin,scale)
+            d.ellipse((sun_x-2, sun_y-2, sun_x+2, sun_y+2), fill = (255,255,0,255))
 #%%***********************************************************
 #SIXTH CELL - Save image and parameters or load existing image
 #*************************************************************
@@ -370,9 +400,14 @@ while test_mode == True:
     comimg = Image.open(imgsav)
     d = ImageDraw.Draw(comimg)
     
-    simsavefile = os.path.join(pysav, filebase + '_simsetup')
-    [betau, betal, bno, simtu, simtl, tno, tspace, drawopts, sav_bool, test_mode] \
-    = simulation_setup(simsavefile)
+    simsavefile = os.path.join(pysav, 'simsavs')
+    if not os.path.exists(simsavefile ): os.makedirs(simsavefile)
+    simsavefile = os.path.join(simsavefile, obsloc)
+    if not os.path.exists(simsavefile ): os.makedirs(simsavefile)
+    if "Stereo" in obsloc: simsavefile = os.path.join(simsavefile, sterinst)
+    if not os.path.exists(simsavefile ): os.makedirs(simsavefile)
+    simsavefile  = os.path.join(simsavefile, filebase + '_simsetup.pickle')
+    [betau, betal, bno, simtu, simtl, tno, drawopts, sav_bool, test_mode] = simulation_setup(simsavefile)
     
     #finds maximum possible simulateable time and ensure simtu is bounded by this
     simtmax = np.round(ctime.jd - comveceq10[0,0])
@@ -382,11 +417,7 @@ while test_mode == True:
     else:
         simtu = simtu
         
-    #option for log distributed or linear distributed
-    if (tspace == 'Logarithmic'):
-        tvals = np.logspace(np.log10(simtl), np.log10(simtu), num=tno)
-    elif (tspace == 'Linear'):
-        tvals = np.linspace(simtl, simtu, tno)
+    tvals = np.linspace(simtl, simtu, tno)
     
     #create log distributed beta values, accounting that log(0) is impossible
     if (betal == 0):
@@ -529,8 +560,16 @@ while test_mode == True:
     for x in xrange(0,no_points):
         nu_radecs[x,0] = simres[non_zeros_0[x],non_zeros_1[x],10]
         nu_radecs[x,1] = simres[non_zeros_0[x],non_zeros_1[x],11]
+        
+    if np.mean(ra_m-ra) == 360:
+        nu_radecs[:,0] = nu_radecs[:,0] - 360
     
-    pixlocs = w.wcs_world2pix(nu_radecs,0)
+    try:
+        pixlocs = w.wcs_world2pix(nu_radecs,0)
+    except:
+        onedimg = fits.open(fitscoords)
+        w = wcs.WCS(onedimg[0].header)
+        pixlocs = w.wcs_world2pix(nu_radecs,0)
     
     for x in xrange(0,no_points):
         simres[non_zeros_0[x],non_zeros_1[x],15] = pixlocs[x][0]
@@ -538,13 +577,17 @@ while test_mode == True:
         
     if (sav_bool == True):
         simressavefile = os.path.join(pysav, 'simres')
-        simressavefile = os.path.join(simressavefile, filebase + '_' + str(betal) + '_'
-                         + str(betau) + '_' + str(bno)+ '_' + str(simtu) + '_'
-                         + str(simtl) + '_' + str(tno))
+        if not os.path.exists(simressavefile): os.makedirs(simressavefile)
+        simressavefile = os.path.join(simressavefile, obsloc)
+        if not os.path.exists(simressavefile): os.makedirs(simressavefile)
+        if "Stereo" in obsloc: simsavbase = filebase[:filebase.find('A')+1]
+        simressavefile = os.path.join(simressavefile, simsavbase + '_' + str(betal) + '_'
+                         + str(betau) + '_' + str(bno)+ '_' + str(simtl) + '_'
+                         + str(simtu) + '_' + str(tno))
         simressavefile = string.replace(simressavefile,'.','\'')
         np.save(simressavefile, simres)
-        with open(simressavefile + '_parameters' , 'w') as f:
-            pickle.dump([tmax, bmax, tno, bno, tspace], f)
+        with open(simressavefile + '_parameters.pickle' , 'w') as f:
+            pickle.dump([tmax, bmax, tvals, bvals], f)
     
 #%%***************************
 #NINTH CELL - Plot dust motion
@@ -568,6 +611,7 @@ while test_mode == True:
                     betau, betal, simtu, simtl, bt_anno_idx)
     
     if (drawopts != "No Image"):
-        comimg.show()    
-        cimgsav = os.path.join(imagedir, 'temp_' + filebase + '.png')    
+        comimg.show()
+        cimgdir = os.path.join(imagedir, 'FPplots')
+        cimgsav = os.path.join(imagedir, 'FP_' + filebase + '.png')    
         comimg.save(cimgsav,'png')

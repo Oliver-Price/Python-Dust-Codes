@@ -8,7 +8,6 @@ import os
 import sys
 import pickle
 import numpy as np
-import time
 import astropy
 from astropy.io import fits
 from astropy import wcs
@@ -17,8 +16,9 @@ from PIL import Image, ImageDraw, ImageFont
 sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")  
 
 from orbitdata_loading_functions import orb_vector, orb_obs
-from BT_plot_functions import beta2ypix, linsimt2xpix
+from BT_plot_functions import beta2ypix, simt2xpix, plotpixel
 from io_methods import get_obs_loc, get_stereo_instrument
+from conversion_routines import fixwraps, round_to_1, round_to_base
 
 
 #%%**********************
@@ -44,7 +44,6 @@ with open(inputfile, "r") as c:
 #choose observer locations
 [obsloc, imagedir] = get_obs_loc(obslocstr, imagedir)
 if "Stereo" in obsloc: [sterinst, imagedir] = get_stereo_instrument(imagedir)
-else: sterinst = None
     
 #import the orbit data
 obsveceq = orb_vector(comdenom, obsloc, pysav, orbitdir,
@@ -56,18 +55,21 @@ comveceq10 = orb_vector(comdenom, obsloc, pysav, orbitdir,
 comobs = orb_obs(comdenom, obsloc, pysav, orbitdir, horiztag)
 
 #choosing fits file to display and getting pathnames
-fitsin = easygui.fileopenbox(default = os.path.join(imagedir, r"*.fits"))
-fitsinfile = os.path.basename(fitsin)
-filebase = fitsinfile[:string.find(fitsinfile,'.')]
+pngdir = os.path.join(imagedir, 'cometplots')
+pngin = easygui.fileopenbox(default = os.path.join(pngdir,'*'))
+infile = os.path.basename(pngin)
+filebase = infile[:string.find(infile,'.')]
 
 #parameter savefile location
-picklesavefile = os.path.join(pysav, filebase + '_dustplot')
-picklexists = os.path.exists(picklesavefile)
+picklesavefile = os.path.join(pysav, 'imgsavs')
+picklesavefile = os.path.join(picklesavefile, obsloc)
+if "Stereo" in obsloc: picklesavefile = os.path.join(picklesavefile, sterinst)
+picklesavefile = os.path.join(picklesavefile, filebase + '_plot_param.pickle')
 
 greyscale = True
 
 #check vital information exists
-if (picklexists == False):
+if not os.path.exists(picklesavefile):
     sys.exit("Image not calculated")
 
 #import important information
@@ -93,15 +95,17 @@ with open(picklesavefile) as f:
         
 #find and import simulation results
 simresdir = os.path.join(pysav, 'simres')
-simin = easygui.fileopenbox(default = os.path.join(simresdir, filebase + '*'))
+if "Stereo" in obsloc: simsavbase = filebase[:filebase.find('A')+1]
+simresdir = os.path.join(simresdir, obsloc)
+simin = easygui.fileopenbox(default = os.path.join(simresdir, simsavbase + '*'))
 simres = np.load(simin)
 
-with open(simin[:-4] + '_parameters') as f:
+with open(simin[:-4] + '_parameters.pickle') as f:
     sparameters = pickle.load(f)
     tmax = sparameters[0]
-    tno = sparameters[2]
-    bno = sparameters[3]
-    tspace = sparameters[4]
+    bmax = sparameters[1]
+    tvals = sparameters[2]
+    bvals = sparameters[3]
 
 #%%*********************************************************
 #SECOND CELL - IDENTIFYING PIXEL VALUES TO USE FOR BETA/SIMT
@@ -116,27 +120,34 @@ elif 'Soho' in obsloc:
     sys.exit("soho data not yet implemented")
 
 #putting ra into sensible values
-if ramax < 0:
-    ra_m = np.copy(ra) + 360
-    rafmin = np.amin(ra_m)
-    rafmax = np.amax(ra_m)
-else:
-    ra_m = ra
-    rafmin = ramin
-    rafmax = ramax
-
-if obsloc == 'Stereo_A' and sterinst == 'HI-1':
-    maskfits = r"C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\hi2A_mask.fts"
-    maskedimg = fits.open(maskfits)
+[ra_m, rafmin, rafmax] = fixwraps(ra, ramax, ramin)
+    
+#imagemask for HI-2
+if '2' in sterinst:
+    maskedimg = fits.open('C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\hi2A_mask.fts')
     imagemask  = maskedimg[0].data[::2,::2]
-else:
-    imagemask = np.ones_like(colr,dtype=int)
+    
+if '1' in sterinst:
+    direndindx = os.path.dirname(fitscoords).find("HI-1") + 4
+    fits_dir = os.path.dirname(fitscoords)[:direndindx]
+    fits_list = os.listdir(fits_dir)
+    fitstr = [s for s in fits_list if filebase[:21] in s][0]
+    orig_fits_file = os.path.join(fits_dir,fitstr)
+    
+    hdulist2 = fits.open(orig_fits_file)
+    colours = (hdulist2[0].data)
+    
+    imagemask = np.ones_like(colr)
+    imagemask[np.where(colours > 1.5e6)] = 0
+
+else: imagemask = np.ones_like(colr)
 
 #check if this has already been done
 colmapsav = simin[:-4] + '_srcolors.npy'
 locmapsav = simin[:-4] + '_pixelmapping.txt'
 
-srcolors = np.zeros((tno,bno,4),dtype=int)
+tno = np.size(tvals); bno = np.size(bvals)
+srcolors = np.zeros((tno,bno,4),dtype=float)
 simres_rounded = np.round(simres[:,:,14:17]).astype(int)
 simres_rounded = np.clip(simres_rounded, 0, 1023)    
 
@@ -162,11 +173,9 @@ greyscale_arr = (srcolors[:,:,1] + srcolors[:,:,2] + srcolors[:,:,3])/3
 fits_arr = greyscale_arr.T #indexed by beta first then ejec_t
 
 dustplotsave = os.path.join(imagedir, 'dustplots')
-if not os.path.exists(dustplotsave):
-    os.makedirs(dustplotsave)
+if not os.path.exists(dustplotsave): os.makedirs(dustplotsave)
 dustplotsave = os.path.join(dustplotsave, simin.split('\\')[-1][:-4])
-dustplotfits = dustplotsave + '.fits'
-dustplotvals = dustplotsave + '.txt'
+dustplotfits = dustplotsave + '.fits'; dustplotvals = dustplotsave + '.txt'
 
 if not os.path.exists(dustplotfits):
     hdu = fits.PrimaryHDU(fits_arr)    
@@ -177,12 +186,8 @@ if not os.path.exists(dustplotfits):
     hdulist.writeto(dustplotfits)
 
 with open(dustplotvals, "w") as text_file:
-    text_file.write('Ejection Times from ' + str(simres[0,0,0]) + ' to ' +
-    str(simres[-1,0,0]) + ' days, ')
-    if tspace == 'Linear':
-        text_file.write('with a linear spacing of ' + 
-                        str(np.round(24*60*(simres[1,0,0] - simres[0,0,0]),1))
-                        + ' minutes')  
+    text_file.write('Ejection Times from ' + str(tvals[0]) + ' to ' +
+    str(tvals[-1]) + ' days')
     text_file.write('\nBeta from ' + str(simres[0,0,1]) + ' to ' +
     str(simres[-1,0,0]))  
     text_file.write('\nEjection Time Values:\n ' +  str(simres[:,0,0])[1:-1] +
@@ -295,68 +300,67 @@ colormsg = "Preview dustplot output?"
 reply = easygui.ynbox(msg=colormsg)
 
 if reply == True:    
-    if tspace == 'Logarithmic':
-        sys.exit('Only a linear timescale can be displayed')     
-        
-    simtl = simres[0,0,0]; simtu = simres[tno-1,0,0]
-    betal = simres[0,0,1]; betau = simres[0,bno-1,1]
+    simtl = tvals[0]; simtu = tvals[-1]; betal = bvals[0]; betau = bvals[-1]
     
-    pixhi = 1200
+    pixhi = 800
     pixwt = int(round(float(pixhi)/bno*tno))
     border = 100
-    hscle = pixhi/(np.log10(betau) - np.log10(betal))
+    hscle = pixhi/(betau - betal)
     wscle = pixwt/(simtu - simtl)
         
     dustimg = Image.new('RGBA', (pixwt+int(2.5*border),
                                  pixhi+int(3*border)),(0,0,0,255))
     d = ImageDraw.Draw(dustimg)
-    nmmax = np.log(np.max(srcolors[:,:,3])+1)
     
     imgmax = greyscale_arr.max()
     if imgmax < 255: imgmax = 255
-        
-    fudgefactor = 0.8
+
+    if 'Earth' in obsloc:
+        plotmethodlog = False
+    elif 'Stereo' in obsloc:
+        if 'diff' or 'MGN' in sterinst: plotmethodlog = False
+        else: plotmethodlog = True
+    elif 'Soho' in obsloc:
+        plotmethodlog = True
+        sys.exit("soho data not yet implemented")
+
     if comdenom == 'c2011l4':
         low = 3000
-        hih = 20000
+        if obsloc == 'Stereo-B': hih = 20000
+        elif obsloc == 'Stereo-A': hih = 70000
     elif comdenom == 'c2006p1':
         low = 10000
-        hih = 1500000  
-    #newmap = greyscale_remap(200,50,mode = 'Linear')
+        hih = 1500000
+        if 'diff' in sterinst: 
+            low = -1000
+            hih = 1000
+        elif 'MGN' in sterinst:  
+            low = -0.7
+            hih = 1.25
+            
+    good_bool = srcolors[1:,1:,0] + srcolors[:-1,:-1,0] + srcolors[1:,:-1,0] + srcolors[:-1,1:,0]
+    good_locs = np.where(good_bool==4)
+
+    if (plotmethodlog == True):
         
-    greyscale_disp = True
-    if (greyscale_disp == True):  
-        for ta in xrange(0, tno-1):
-            for ba in xrange(0, bno-1):
-                fillval = sorted([1, greyscale_arr[ta,ba], 9999999999])[1]
-                fillco = int(round(255*(np.log10(fillval) - np.log10(low))*
-                					1 / (np.log10(hih) - np.log10(low))))
-                fillco = int(round(greyscale_arr[ta,ba]*255/imgmax/fudgefactor))
-                fillco = sorted([0, fillco, 255])[1]
-                b1 = beta2ypix(simres[ta,ba,1], border, pixhi, betal, hscle)
-                t1 = linsimt2xpix(simres[ta,ba,0], border, simtl, wscle)
-                b2 = beta2ypix(simres[ta,ba+1,1], border, pixhi, betal, hscle)
-                t2 = linsimt2xpix(simres[ta,ba+1,0], border, simtl, wscle)
-                b3 = beta2ypix(simres[ta+1,ba+1,1], border, pixhi, betal, hscle)
-                t3 = linsimt2xpix(simres[ta+1,ba+1,0], border, simtl, wscle)
-                b4 = beta2ypix(simres[ta+1,ba,1], border, pixhi, betal, hscle)
-                t4 = linsimt2xpix(simres[ta+1,ba,0], border, simtl, wscle)
-                a = d.polygon([(t1,b1),(t2,b2),(t3,b3),(t4,b4)]
-                ,fill=(fillco,fillco,fillco,255))
+        grad = 1/(np.log10(hih) - np.log10(low))
+        fillvals = np.clip(srcolors[:,:,1],1,9999999999)
+        filcols = np.round(255*grad*(np.log10(fillvals) - np.log10(low)))
+        filcols = np.clip(filcols,0,255).astype('int')
+        
+        for x in range(0, np.size(good_locs[0])):
+            ta = good_locs[0][x]; ba = good_locs[1][x]
+            plotpixel(d,ta,ba,simres,dec,border,pixwt,pixhi,betal,simtl,
+                      wscle,hscle,filcols[ta,ba],filcols[ta,ba],filcols[ta,ba])
     else:
-        for ta in xrange(0, tno-1):
-            for ba in xrange(0, bno-1):
-                b1 = beta2ypix(simres[ta,ba,1], border, pixhi, betal, hscle)
-                t1 = linsimt2xpix(simres[ta,ba,0], border, simtl, wscle)
-                b2 = beta2ypix(simres[ta,ba+1,1], border, pixhi, betal, hscle)
-                t2 = linsimt2xpix(simres[ta,ba+1,0], border, simtl, wscle)
-                b3 = beta2ypix(simres[ta+1,ba+1,1], border, pixhi, betal, hscle)
-                t3 = linsimt2xpix(simres[ta+1,ba+1,0], border, simtl, wscle)
-                b4 = beta2ypix(simres[ta+1,ba,1], border, pixhi, betal, hscle)
-                t4 = linsimt2xpix(simres[ta+1,ba,0], border, simtl, wscle)
-                a = d.polygon([(t1,b1),(t2,b2),(t3,b3),(t4,b4)]
-                ,fill=(srcolors[ta,ba,0],srcolors[ta,ba,1],srcolors[ta,ba,2],255))
-                
+        fillco1 = np.clip(255.0/(hih-low)*(srcolors[:,:,1]-low),0,255).astype(int)
+        fillco2 = np.clip(255.0/(hih-low)*(srcolors[:,:,2]-low),0,255).astype(int)
+        fillco3 = np.clip(255.0/(hih-low)*(srcolors[:,:,3]-low),0,255).astype(int)
+        for x in range(0, np.size(good_locs[0])):
+            ta = good_locs[0][x]; ba = good_locs[1][x]
+            plotpixel(d,ta,ba,simres,dec,border,pixwt,pixhi,betal,simtl,
+                          wscle,hscle,fillco1[ta,ba],fillco2[ta,ba],fillco3[ta,ba])
+            
 #%%**********************
 #SEVENTH CELL - DRAW AXIS
 #************************
@@ -365,35 +369,36 @@ if reply == True:
         (border*2+pixwt,border*2+pixhi),(border,border*2+pixhi)], \
         outline = (255,255,255,128))
     
-    decades = np.logspace(-4,4,9)
+    bl1sf = round_to_1(betal); bu1sf = round_to_1(betau)
+    tl1sf = round(simtl); tu1sf = round(simtu)
     
-    bdecl = np.searchsorted(decades,betal, side = 'right')-1
-    bdecu = np.searchsorted(decades,betau)
+    tdivmajors = np.array([1.,2.,3.])
+    tdivnos = (1/tdivmajors) * (tu1sf - tl1sf)
+    tnodivs = 6
+    tdividx = np.where((tdivnos <= tnodivs)==True)[0][0]
+    tmajticks = np.arange(tu1sf, tl1sf-0.0001, -tdivmajors[tdividx])
     
-    bminticks = np.linspace(decades[bdecl],decades[bdecl+1],10)
-    for bdec in xrange(bdecl+1, bdecu):
-        bminticks = np.concatenate((bminticks,
-                          np.linspace(decades[bdec],decades[bdec+1],10)[1:10]))
-    bminticks = bminticks[np.searchsorted(bminticks,b1sfl):
-                              np.searchsorted(bminticks,b1sfu)+1]
-    bmajticks = np.intersect1d(bminticks,decades)
-    bmajticks = np.union1d(bmajticks,np.array([b1sfl]))
-    bmajticks = np.union1d(bmajticks,np.array([b1sfu]))
-    bminticlocs = beta2ypix(bminticks, border, pixhi, b1sfl, hscle)
-    bmajticlocs = beta2ypix(bmajticks, border, pixhi, b1sfl, hscle)
+    tdivminors = np.array([0.5,1,1])
+    tminticks = np.arange(tu1sf, tl1sf-0.0001, -tdivminors[tdividx])
+    tminticks = np.setdiff1d(tminticks,tmajticks)
+            
+    bdivmajors = np.array([0.1,0.2,0.5,1,2])
+    bdivnos = (1/bdivmajors) * (bu1sf - bl1sf)
+    bnodivs = 10
+    bdividx = np.where((bdivnos <= bnodivs)==True)[0][0]
+    bu2majdv = round_to_base(betau, bdivmajors[bdividx])
+    bl2majdv = round_to_base(betal, bdivmajors[bdividx])   
+    bmajticks = np.arange(bu2majdv, bl2majdv-0.0001, -bdivmajors[bdividx])
     
-    lindivmajors = np.array([0.1,0.2,0.5,1,2,5,10,20,50,100,200])
-    lindivrecips = np.array([10,5,2,1,0.5,0.2,0.1,0.05,0.02,0.01,0.005])
+    bdivminors = bdivmajors/5
+    bu2mindv = round_to_base(betau, bdivminors[bdividx])
+    bminticks = np.arange(bu2mindv, bl2majdv-0.0001, -bdivminors[bdividx])
+    bminticks = np.setdiff1d(bminticks,bmajticks)
     
-    tdivnos = lindivrecips * (t2sfu - t2sfl)
-    nodivs = 6
-    tdividx = (np.abs(tdivnos-nodivs)).argmin()
-    tlodi = np.floor(t2sfl*lindivrecips[tdividx])*lindivmajors[tdividx]
-    thidi = np.ceil(t2sfu*lindivrecips[tdividx])*lindivmajors[tdividx]
-    tmajticks = np.arange(tlodi, thidi+1e-10, lindivmajors[tdividx])
-        
-    #tminticlocs = linsimt2xpix(tminticks, border, t1sfl, wscle)
-    tmajticlocs = linsimt2xpix(tmajticks, border, t2sfl, wscle)
+    bminlocs = beta2ypix(bminticks, border, pixhi, betal, hscle)
+    tminlocs = simt2xpix(tminticks, border, pixwt, simtl, wscle)
+    bmajlocs = beta2ypix(bmajticks, border, pixhi, betal, hscle)
+    tmajlocs = simt2xpix(tmajticks, border, pixwt, simtl, wscle)
     
     majt = 20  #major tick length
     mint = 10  #minor tick length
@@ -402,36 +407,40 @@ if reply == True:
     fnt = ImageFont.truetype(fontloc, 20)
     dtime = astropy.time.TimeDelta(1, format='jd')
     
-    for div in xrange(0, (np.size(bminticlocs))): #beta axis minor ticks
-        b = d.line([(border+mint,bminticlocs[div]),(border,bminticlocs[div])],\
+    for div in xrange(0, (np.size(bminlocs))): #beta axis minor ticks
+        b = d.line([(border+mint,bminlocs[div]),(border,bminlocs[div])],\
+        fill = (255,255,255,128))
+        
+    for div in xrange(0, (np.size(tminlocs))): #beta axis minor ticks
+        b = d.line([(tminlocs[div],xaxis-mint),(tminlocs[div],xaxis)],\
         fill = (255,255,255,128))
     
-    for div in xrange(0, (np.size(tmajticlocs))): #simt axis major ticks
-        b = d.line([(tmajticlocs[div],xaxis-majt),(tmajticlocs[div],xaxis)],\
+    for div in xrange(0, (np.size(tmajlocs))): #simt axis major ticks
+        b = d.line([(tmajlocs[div],xaxis-majt),(tmajlocs[div],xaxis)],\
         fill = (255,255,255,128))
         ticktime = ctime - dtime*tmajticks[div]
         tick = string.replace(ticktime.isot,'T','\n')[0:16]
-        d.text((tmajticlocs[div] - len(tick)*5,xaxis + 10), \
+        d.text((tmajlocs[div] - len(tick)*5,xaxis + 10), \
         tick, font=fnt, fill=(255,255,255,128))
     
-    for div in xrange(0, (np.size(bmajticlocs))): #beta axis major ticks
-        b = d.line([(border+majt,bmajticlocs[div]),(border,bmajticlocs[div])],\
+    for div in xrange(0, (np.size(bmajlocs))): #beta axis major ticks
+        b = d.line([(border+majt,bmajlocs[div]),(border,bmajlocs[div])],\
         fill = (255,255,255,128))
         tick = str(bmajticks[div])
-        d.text((border - len(tick)*5 - 40,bmajticlocs[div] - 10 ), \
+        d.text((border - len(tick)*5 - 40,bmajlocs[div] - 10 ), \
         tick, font=fnt, fill=(255,255,255,128))
         
     #axis labels
     d.text((1.5*border + pixwt*0.5 - 150,pixhi + 2.7*border), \
     "Date/Time of Ejection", font=fnt, fill=(255,255,255,128))
-    d.text((0.25*border - 10,0.75*border - 20), \
+    d.text((0.25*border - 10,border-10), \
     "Beta", font=fnt, fill=(255,255,255,128))
     
     #plot title
-    plttitle = (comdenom.upper() + ' ' + comname[:-1] + ' from ' + 
-    obsloc + ' from date: ' + string.replace(ctime.isot[0:16],'T',' at '))
     tfnt = ImageFont.truetype(fontloc, 30)
-    d.text((1.5*border + pixwt*0.5 - len(plttitle)*5 - 200,.35*border), \
+    plttitle = (comdenom.upper() + ' ' + comname[:-1] + ' from ' + obsloc
+    + '\n'+ string.replace(ctime.isot[0:16],'T',' at '))
+    d.text((1.2*border,.25*border), \
     plttitle, font=tfnt, fill=(255,255,255,128))
     
     dustimg.show()

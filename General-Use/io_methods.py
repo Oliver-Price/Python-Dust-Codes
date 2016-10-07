@@ -8,45 +8,34 @@ import sys
 #%% - methods deals with various size data cubes
   
 def correct_for_imagetype(imagedir, fitsin, fitsinfile):
-    #choose img type
-    colormsg = "Please select image type:"
-    colorchoices = ["Colour","Black & White"]
-    reply = easygui.buttonbox(colormsg, choices=colorchoices)
-        
-    if reply == "Colour":
 
-        #we have to use a temporary 1d fits file to get WCS data
-        #this is due to astropy being unable to handle RGB fits images well
-        fitstemp = os.path.join(imagedir, 'temporary_' + fitsinfile)
-        hdulist = fits.open(fitsin)
+    hdulist = fits.open(fitsin)
+    colours = (hdulist[0].data)
+    no_dim = colours.ndim
+    
+    if no_dim == 2:
+        fitscoords = fitsin
+        colr = colours #black and white colour scheme
+        colg = colours
+        colb = colours
+    
+    elif no_dim == 3:
         
-        #opening color data
-        colours = (hdulist[0].data)
         colr = colours[0,:,:]
         colg = colours[1,:,:]
         colb = colours[2,:,:]
-        
+    
         #making a 1d image for doing ra/dec coordinates
+        fitstemp = os.path.join(imagedir, 'temporary_' + fitsinfile)
         oldtemp = os.path.isfile(fitstemp) #if one doesn't already exist
         if oldtemp == False: 
             hdulist[0].data = hdulist[0].data[0] #makes image from red plane
             hdulist[0].header['naxis'] = 1       #edits header so ds9 will work
             hdulist.writeto(fitstemp)
-            
-        hdulist.close()
+
         fitscoords = fitstemp #directs program to look at temp image for coords
-     
-    elif reply == "Black & White":
-        
-        #simple case, we can use base image for coords
-        hdulist = fits.open(fitsin)
-        colours = (hdulist[0].data)
-        fitscoords = fitsin
-        colr = colours #black and white colour scheme
-        colg = colours
-        colb = colours
-        
-        return colr, colg, colb, fitscoords
+    
+    return colr, colg, colb, fitscoords
         
 #%% corrects for data > 255, inversions, wrong data type etc.
        
@@ -100,8 +89,8 @@ def get_stereo_instrument(imagedir):
     sterchoices = sname_locs.tolist()
     sterinst = easygui.buttonbox(stermsg, choices=sterchoices)
     
-    mname_locs = np.array(['Base', 'Difference', 'Multiscale Gaussian Normalisation'])
-    modemsg = "Please select STEREO instrument"
+    mname_locs = np.array(['Base', 'Difference', 'Multiscale Gaussian Normalised'])
+    modemsg = "Please select image type"
     modechoices = mname_locs.tolist()
     mode = easygui.buttonbox(modemsg, choices=modechoices)
     

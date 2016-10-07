@@ -4,6 +4,7 @@ import numpy as np
 import easygui
 import os
 import sys
+from math import log10, floor
 
 #%% - converts month text to a number
 
@@ -84,4 +85,12 @@ def find_largest_nonzero_block(array_in):
         return start_locs[0][l_index], stop_locs[0][l_index]-1
     else: return None, None
 
-#%% get in fits astrometry for current image
+#%% rounding functions wot i copied from stack overflow
+
+#to 1 significant figure
+def round_to_1(x):
+    return round(x, -int(floor(log10(abs(x)))))
+
+#to nearest multiple of base
+def round_to_base(x, base):
+    return int(base * round(float(x)/base))

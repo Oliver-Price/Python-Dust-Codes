@@ -75,7 +75,7 @@ def plot_orbit_points(d,vtraj,smallfnt,featur_fill,pixheight,pixwidth,border):
 
     #find locations to plot on orbit
     mnsiz = 5
-    max_orbit_points = 10
+    max_orbit_points = 6
     orbit_cells = np.where(vtraj[:,10] == 0)[0]
     if np.size(orbit_cells) > max_orbit_points:
         orbit_cells = np.intersect1d(np.where(vtraj[:,9]%3 == 0)[0],orbit_cells)

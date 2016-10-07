@@ -7,15 +7,27 @@ import numpy as np
 #*************************
 #DIRECT DUSTPLOT FUNCTIONS
 #*************************
-
-def logsimt2xpix(simt, border, simtl, scale):
-    return border*1.5 + (np.log10(simt) - np.log10(simtl))*scale
     
-def linsimt2xpix(simt, border, simtl, scale):
-    return border*1.5 + (simt - simtl)*scale
+def simt2xpix(simt, border, pixwidth, simtl, scale):
+    return pixwidth + border*1.5 + (simtl - simt)*scale
     
 def beta2ypix(beta, border, pixheight, betal, scale):
-    return pixheight + border*1.5 - (np.log10(beta) - np.log10(betal))*scale
+    return pixheight + border*1.5 + (betal - beta)*scale
+
+def plotpixel(d,ta,ba,simres,dec,border,pixwt,pixhi,betal,simtl,wscle,hscle,
+                fillco1,fillco2,fillco3):
+    b1 = beta2ypix(simres[ta,ba,1], border, pixhi, betal, hscle)
+    t1 = simt2xpix(simres[ta,ba,0], border, pixwt, simtl, wscle)
+    b2 = beta2ypix(simres[ta,ba+1,1], border, pixhi, betal, hscle)
+    t2 = simt2xpix(simres[ta,ba+1,0], border, pixwt, simtl, wscle)
+    b3 = beta2ypix(simres[ta+1,ba+1,1], border, pixhi, betal, hscle)
+    t3 = simt2xpix(simres[ta+1,ba+1,0], border, pixwt,simtl, wscle)
+    b4 = beta2ypix(simres[ta+1,ba,1], border, pixhi, betal, hscle)
+    t4 = simt2xpix(simres[ta+1,ba,0], border, pixwt, simtl, wscle)
+    d.polygon([(t1,b1),(t2,b2),(t3,b3),(t4,b4)],fill=(fillco1,fillco2,fillco3,255))
+
+
+#%% Antiquated
     
 #scaling function to increase contrast
 def greyscale_remap(upper_saturation,lower_saturation, mode = 'lin'):
