@@ -155,9 +155,10 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     comimg = Image.new('RGBA', ( imgwidth , imgheight ) ,backgr_fill)
     d = ImageDraw.Draw(comimg)
     
-    if '2' in sterinst:
-        maskedimg = fits.open('C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\hi2A_mask.fts')
-        imagemask  = maskedimg[0].data[::2,::2][:-1,:-1]
+    if "Stereo" in obsloc:
+        if '2' in sterinst:
+            maskedimg = fits.open('C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\hi2A_mask.fts')
+            imagemask  = maskedimg[0].data[::2,::2][:-1,:-1]
     else: imagemask = np.ones_like(colr)[:-1,:-1]
     
     if plotmethodlog == True:
@@ -188,15 +189,20 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
                 
     elif plotmethodlog == False:
         if comdenom == 'c2006p1':
-            if 'diff' in sterinst: 
-                low = -1000
-                hih = 1000
-            elif 'MGN' in sterinst:  
-                low = -0.7
-                hih = 1.25
-            colcr = np.clip(255.0/(hih-low)*(colr-low),0,255).astype(int)
-            colcg = np.clip(255.0/(hih-low)*(colg-low),0,255).astype(int)
-            colcb = np.clip(255.0/(hih-low)*(colb-low),0,255).astype(int)
+            if "Stereo" in obsloc:
+                if 'diff' in sterinst: 
+                    low = -1000
+                    hih = 1000
+                elif 'MGN' in sterinst:  
+                    low = -0.7
+                    hih = 1.25
+                colcr = np.clip(255.0/(hih-low)*(colr-low),0,255).astype(int)
+                colcg = np.clip(255.0/(hih-low)*(colg-low),0,255).astype(int)
+                colcb = np.clip(255.0/(hih-low)*(colb-low),0,255).astype(int)
+            else:
+                colcr = colpr
+                colcg = colpg
+                colcb = colpb                
             
         non_zeros_0 = np.where(imagemask == 1)[0]
         non_zeros_1 = np.where(imagemask == 1)[1]
@@ -381,7 +387,7 @@ else:
         comcel = parameters[0]; comcel10 = parameters[1]; ramax = parameters[2]
         decmax = parameters[3]; ramin = parameters[4]; decmin = parameters[5]
         border = parameters[6]; pixheight = parameters[7]; pixwidth = parameters[8]
-        scale = parameters[9]; ctime = parameters[10]; dtmin = parameters[11]
+        scale = parameters[9]; ctime = parameters[10]; dtmin = parameters[11]; ra = parameters[12]
         trajfill = parameters[17]; trajucfill = parameters[18]; comsunfill = parameters[19]
         backgr_fill = parameters[20]; imgwidth = parameters[21]; imgheight = parameters[22]
         rafmin = parameters[23]; rafmax = parameters[24]; rapixl = parameters[25]
@@ -492,12 +498,11 @@ while test_mode == True:
             tidx += 1
             print float(tidx)*100/tno
             
-        bmin = np.zeros((tno),dtype = int)
-        tidx_list = np.arange(tno)
-        bidx_list = np.arange(bno)
-        
-        tmin = np.zeros((bno),dtype = int)
-        for bidx in xrange(0,bno):
+        tidx_list = np.unique(np.nonzero(simres[:,:,14])[0])
+        bidx_list = np.unique(np.nonzero(simres[:,:,14])[1])
+        bmin = np.zeros_like(tidx_list,dtype = int)        
+        tmin = np.zeros_like(bidx_list,dtype = int)        
+        for bidx in bidx_list.tolist():
             tmax[bidx] = simres[:,bidx,14].nonzero()[0][-1]
         
     if image_case == 2:
@@ -505,13 +510,14 @@ while test_mode == True:
         tidx_list = np.where(sync_intersects == 1)[0]
         syn_exit_tt = np.zeros((2,2),dtype = int)
         syn_exit_tt[0,1] = 1
+        bprev = bno-1
         
         for tidx_list_val in xrange(0,np.size(tidx_list)):
             bidx = bno-1
             tidx = tidx_list[tidx_list_val]
             syn_exited_image = 0
             prev_stat = 0
-            while (bidx >= 0 and syn_exited_image == 0):
+            while (bidx >= 0 and (syn_exited_image == 0 or bidx >= bprev)):
                 simt10min = int(round(144*tvals[tidx]))
                 pstart = comveceq10[comcel10-simt10min,6:12]
                 sim = part_sim(bvals[bidx],simt10min,30,3,pstart,efinp,dtmin)
@@ -531,6 +537,7 @@ while test_mode == True:
                 prev_stat = point_in_image
                 bidx -= 1
             print float(tidx)*100/tno
+            bprev = bidx
             try:simres[tidx,bidx+1-point_in_image,15] = 0
             except:pass
             try:
@@ -538,6 +545,7 @@ while test_mode == True:
                 bmax[tidx] = simres[tidx,:,14].nonzero()[0][-1]
             except: sync_intersects[tidx] = 0
         
+        simres[np.where(simres[:,:,14]==0)] = 0
         bidx_list = np.arange(bno)
         deletions = 0
         for bidx in xrange(0,bno):
@@ -561,9 +569,14 @@ while test_mode == True:
         nu_radecs[x,0] = simres[non_zeros_0[x],non_zeros_1[x],10]
         nu_radecs[x,1] = simres[non_zeros_0[x],non_zeros_1[x],11]
         
-    if np.mean(ra_m-ra) == 360:
-        nu_radecs[:,0] = nu_radecs[:,0] - 360
-    
+    try:    
+        if np.mean(ra_m-ra) == 360:
+            nu_radecs[:,0] = nu_radecs[:,0] - 360
+    except:
+        [ra_m, rafmin, rafmax] = fixwraps(ra, ramax, ramin)
+        if np.mean(ra_m-ra) == 360:
+            nu_radecs[:,0] = nu_radecs[:,0] - 360
+        
     try:
         pixlocs = w.wcs_world2pix(nu_radecs,0)
     except:
@@ -595,7 +608,7 @@ while test_mode == True:
 
     dynfill = (255,0,0,255) #syndynes
     chrfill = (255,192,0,255) #synchrones
-    drfill = (255,0,255,255) #data points and data region
+    drfill = (255,0,255,255) #data points and data
     
     fontloc = r'C:\Windows\winsxs\amd64_microsoft-windows-f..etype-lucidaconsole_31bf3856ad364e35_6.1.7600.16385_none_5b3be3e0926bd543\lucon.ttf'
     fnt = ImageFont.truetype(fontloc, 20)  

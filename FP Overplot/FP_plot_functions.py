@@ -101,7 +101,7 @@ def setaxisup(ramax,ramin,decmax,decmin,border,pixheight,pixwidth,scale):
 def draw_syndynes(dynfill,d,simres,bno,rapixl,decpixl,tmin,tmax,bidx_list):
     
     for ba in bidx_list.tolist():
-        for ta in xrange(tmin[ba], tmax[ba]-1):
+        for ta in xrange(tmin[ba], tmax[ba]):
             d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
             (simres[ta+1,ba,12],simres[ta+1,ba,13])],\
             fill = dynfill)

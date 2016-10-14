@@ -93,4 +93,4 @@ def round_to_1(x):
 
 #to nearest multiple of base
 def round_to_base(x, base):
-    return int(base * round(float(x)/base))
+    return base * round(float(x)/base)
