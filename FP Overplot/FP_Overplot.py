@@ -594,6 +594,7 @@ while test_mode == True:
         simressavefile = os.path.join(simressavefile, obsloc)
         if not os.path.exists(simressavefile): os.makedirs(simressavefile)
         if "Stereo" in obsloc: simsavbase = filebase[:filebase.find('A')+1]
+        else: simsavbase = filebase
         simressavefile = os.path.join(simressavefile, simsavbase + '_' + str(betal) + '_'
                          + str(betau) + '_' + str(bno)+ '_' + str(simtl) + '_'
                          + str(simtu) + '_' + str(tno))

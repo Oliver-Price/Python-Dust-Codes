@@ -1,5 +1,5 @@
 #EASY PREP FOR LOADING ORBIT DATA FOR IMAGETIMEHEADERS
-
+sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")  
 from orbitdata_loading_functions import orb_vector, orb_obs
 import easygui
 import numpy as np

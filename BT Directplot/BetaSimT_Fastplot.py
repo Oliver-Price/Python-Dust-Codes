@@ -18,7 +18,7 @@ sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")
 from orbitdata_loading_functions import orb_vector, orb_obs
 from BT_plot_functions import beta2ypix, simt2xpix, plotpixel
 from io_methods import get_obs_loc, get_stereo_instrument
-from conversion_routines import fixwraps, round_to_1, round_to_base
+from conversion_routines import fixwraps, round_to_base, RoundToSigFigs
 
 
 #%%**********************
@@ -96,6 +96,7 @@ with open(picklesavefile) as f:
 #find and import simulation results
 simresdir = os.path.join(pysav, 'simres')
 if "Stereo" in obsloc: simsavbase = filebase[:filebase.find('A')+1]
+else: simsavbase = filebase
 simresdir = os.path.join(simresdir, obsloc)
 simin = easygui.fileopenbox(default = os.path.join(simresdir, simsavbase + '*'))
 simres = np.load(simin)
@@ -123,22 +124,23 @@ elif 'Soho' in obsloc:
 [ra_m, rafmin, rafmax] = fixwraps(ra, ramax, ramin)
     
 #imagemask for HI-2
-if '2' in sterinst:
-    maskedimg = fits.open('C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\hi2A_mask.fts')
-    imagemask  = maskedimg[0].data[::2,::2]
-    
-if '1' in sterinst:
-    direndindx = os.path.dirname(fitscoords).find("HI-1") + 4
-    fits_dir = os.path.dirname(fitscoords)[:direndindx]
-    fits_list = os.listdir(fits_dir)
-    fitstr = [s for s in fits_list if filebase[:21] in s][0]
-    orig_fits_file = os.path.join(fits_dir,fitstr)
-    
-    hdulist2 = fits.open(orig_fits_file)
-    colours = (hdulist2[0].data)
-    
-    imagemask = np.ones_like(colr)
-    imagemask[np.where(colours > 1.5e6)] = 0
+if "Stereo" in obsloc:
+    if '2' in sterinst:
+        maskedimg = fits.open('C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\hi2A_mask.fts')
+        imagemask  = maskedimg[0].data[::2,::2]
+        
+    elif '1' in sterinst:
+        direndindx = os.path.dirname(fitscoords).find("HI-1") + 4
+        fits_dir = os.path.dirname(fitscoords)[:direndindx]
+        fits_list = os.listdir(fits_dir)
+        fitstr = [s for s in fits_list if filebase[:21] in s][0]
+        orig_fits_file = os.path.join(fits_dir,fitstr)
+        
+        hdulist2 = fits.open(orig_fits_file)
+        colours = (hdulist2[0].data)
+        
+        imagemask = np.ones_like(colr)
+        imagemask[np.where(colours > 1.5e6)] = 0
 
 else: imagemask = np.ones_like(colr)
 
@@ -329,14 +331,18 @@ if reply == True:
         if obsloc == 'Stereo-B': hih = 20000
         elif obsloc == 'Stereo-A': hih = 70000
     elif comdenom == 'c2006p1':
-        low = 10000
-        hih = 1500000
-        if 'diff' in sterinst: 
-            low = -1000
-            hih = 1000
-        elif 'MGN' in sterinst:  
-            low = -0.7
-            hih = 1.25
+        if "Stereo" in obsloc:
+            low = 10000
+            hih = 1500000
+            if 'diff' in sterinst: 
+                low = -1000
+                hih = 1000
+            elif 'MGN' in sterinst:  
+                low = -0.7
+                hih = 1.25
+        elif obsloc == 'Earth':
+            low = 0
+            hih = 255
             
     good_bool = srcolors[1:,1:,0] + srcolors[:-1,:-1,0] + srcolors[1:,:-1,0] + srcolors[:-1,1:,0]
     good_locs = np.where(good_bool==4)
@@ -369,7 +375,7 @@ if reply == True:
         (border*2+pixwt,border*2+pixhi),(border,border*2+pixhi)], \
         outline = (255,255,255,128))
     
-    bl1sf = round_to_1(betal); bu1sf = round_to_1(betau)
+    bl1sf = RoundToSigFigs(betal,1); bu1sf = RoundToSigFigs(betau,1)
     tl1sf = round(simtl); tu1sf = round(simtu)
     
     tdivmajors = np.array([1.,2.,3.])
@@ -390,9 +396,10 @@ if reply == True:
     bl2majdv = round_to_base(betal, bdivmajors[bdividx])   
     bmajticks = np.arange(bu2majdv, bl2majdv-0.0001, -bdivmajors[bdividx])
     
-    bdivminors = bdivmajors/5
+    bdivminors = np.array([0.02,0.05,0.1,0.2,0.5])
     bu2mindv = round_to_base(betau, bdivminors[bdividx])
-    bminticks = np.arange(bu2mindv, bl2majdv-0.0001, -bdivminors[bdividx])
+    bl2mindv = round_to_base(betal, bdivminors[bdividx])   
+    bminticks = np.arange(bu2mindv, bl2mindv-0.0001, -bdivminors[bdividx])
     bminticks = np.setdiff1d(bminticks,bmajticks)
     
     bminlocs = beta2ypix(bminticks, border, pixhi, betal, hscle)

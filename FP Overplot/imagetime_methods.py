@@ -49,8 +49,8 @@ def image_time_user():
             if img_t_fieldValues[i].strip() == "": #check if entered
                 errmsg += ('"%s" is a required field.\n\n'
                 % img_t_fieldNames[i])
-            if len(img_t_fieldValues[i].strip()) != img_t_fieldLengths[i]: #check length
-                errmsg +=  ('"%s" must be a %d digit number.\n\n'
+            if len(img_t_fieldValues[i].strip()) > img_t_fieldLengths[i]: #check length
+                errmsg +=  ('"%s" must be at most a %d digit number.\n\n'
                     % (img_t_fieldNames[i], img_t_fieldLengths[i]))
     
         try:    #check date is a real date

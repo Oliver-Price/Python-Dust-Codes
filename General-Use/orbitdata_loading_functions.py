@@ -211,6 +211,8 @@ def orb_obs(denom, observer, savefolder, datafolder, horiz, idlmode = False):
 
     #checks if save data exsits
     savename = 'data_' + denom + '_' + observer + '_celestialcoords'
+    if idlmode == True:
+        savename += '_idl'
     savefile = os.path.join(savefolder, savename)
     saveexists = os.path.isfile(savefile)
 
