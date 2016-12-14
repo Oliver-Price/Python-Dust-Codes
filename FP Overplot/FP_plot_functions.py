@@ -98,9 +98,9 @@ def setaxisup(ramax,ramin,decmax,decmin,border,pixheight,pixwidth,scale):
 #FP Grid Plot Functions
 #**********************
     
-def draw_syndynes(dynfill,d,simres,bno,rapixl,decpixl,tmin,tmax,bidx_list):
+def draw_syndynes(dynfill,d,simres,bno,rapixl,decpixl,tmin,tmax,bidx_list,spacing):
     
-    for ba in bidx_list.tolist():
+    for ba in np.append(bidx_list[:-1][::spacing],bidx_list[-1]).tolist():
         for ta in xrange(tmin[ba], tmax[ba]):
             d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
             (simres[ta+1,ba,12],simres[ta+1,ba,13])],\
@@ -110,9 +110,9 @@ def draw_syndynes(dynfill,d,simres,bno,rapixl,decpixl,tmin,tmax,bidx_list):
 #        (simres[0,ba,12],simres[0,ba,13])],\
 #        fill = dynfill)
 
-def draw_synchrones(chrfill,d,simres,tno,rapixl,decpixl,bmin,bmax,tidx_list):
+def draw_synchrones(chrfill,d,simres,tno,rapixl,decpixl,bmin,bmax,tidx_list,spacing):
 
-    for ta in tidx_list.tolist():
+    for ta in np.append(tidx_list[:-1][::spacing],tidx_list[-1]).tolist():
         for ba in xrange(bmin[ta], bmax[ta]):
             d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
             (simres[ta,ba+1,12],simres[ta,ba+1,13])],\

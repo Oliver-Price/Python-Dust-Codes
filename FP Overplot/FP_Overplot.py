@@ -18,19 +18,20 @@ import datetime
 import pickle
 import matplotlib.path as mplPath
 from PIL import Image, ImageDraw, ImageFont
+import webbrowser
 
 sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")
 
 from orbitdata_loading_functions import orb_vector, orb_obs
 from FP_plot_functions import ra2xpix, dec2ypix, setaxisup, plotpixel
-from FP_plot_functions import draw_synchrones, draw_syndynes, draw_datap
+from FP_plot_functions import draw_syndynes, draw_synchrones, draw_datap
 from FP_plot_functions import draw_data_reg, annotate_plotting
 from FP_diagnostics import plot_orbit, plot_orbit_points, plot_sunearth_vec
 from FP_diagnostics import write_bt_ranges, write_properties, plot_compos_unc
 from imagetime_methods import image_time_yudish, image_time_user, image_time_stereo
 from conversion_routines import pos2radec, fixwraps, find_largest_nonzero_block 
-from io_methods import col_corrections, get_obs_loc, correct_for_imagetype
-from io_methods import get_stereo_instrument
+from io_methods import get_obs_loc, correct_for_imagetype
+from io_methods import get_stereo_instrument, get_soho_instrument
 from simulation_setup import simulation_setup
 from particle_sim import part_sim
 
@@ -57,7 +58,8 @@ with open(inputfile, "r") as c:
 #choose observer locations
 [obsloc, imagedir] = get_obs_loc(obslocstr, imagedir)
 if "Stereo" in obsloc: [sterinst, imagedir] = get_stereo_instrument(imagedir)
-    
+if obsloc == "Soho": [sohoinst, imagedir] = get_soho_instrument(imagedir)
+   
 #import the orbit data
 obsveceq = orb_vector(comdenom, obsloc, pysav, orbitdir,
                       horiztag, opts = 'obs,eq')
@@ -90,6 +92,7 @@ if not os.path.exists(picklesavefile): os.makedirs(picklesavefile)
 picklesavefile = os.path.join(picklesavefile, obsloc)
 if not os.path.exists(picklesavefile): os.makedirs(picklesavefile)
 if "Stereo" in obsloc: picklesavefile = os.path.join(picklesavefile, sterinst)
+if "Soho" in obsloc: picklesavefile = os.path.join(picklesavefile, sohoinst)
 if not os.path.exists(picklesavefile): os.makedirs(picklesavefile)
 picklesavefile = os.path.join(picklesavefile, filebase + '_plot_param.pickle')
  
@@ -103,7 +106,16 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     [colr, colg, colb, fitscoords] = correct_for_imagetype(imagedir, fitsin, fitsinfile)
     
     #correcting for wrong data type, account for inversion FOR NON FITS ONLY
-    [backgr_fill, featur_fill, colpr, colpg, colpb] = col_corrections(inv,colr,colg,colb)
+    if inv == False:
+        backgr_fill = (0,0,0,255)
+        featur_fill = (255,255,255,255)
+        trajfill = (0,255,255,255)
+        trajucfill = (0,0,255,255)
+    elif inv == True:
+        backgr_fill = (255,255,255,255)
+        featur_fill = (0,0,0,255)
+        trajfill = (0,0,255,255)
+        trajucfill = (0,255,255,255)
         
 #%%**********************
 #SECOND CELL - Plot Image
@@ -116,11 +128,12 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         w = wcs.WCS(onedimg[0].header)
     elif 'Stereo' in obsloc:
         w = wcs.WCS(onedimg[0].header, key = 'A')
-        if 'diff' or 'MGN' in sterinst: plotmethodlog = False
+        if 'diff' in sterinst or 'MGN' in sterinst: plotmethodlog = False
         else: plotmethodlog = True
     elif 'Soho' in obsloc:
-        plotmethodlog = True
-        sys.exit("soho data not yet implemented")
+        w = wcs.WCS(onedimg[0].header)
+        if 'diff' in sohoinst or 'MGN' in sohoinst: plotmethodlog = False
+        else: plotmethodlog = True
     
     #make a 2xN array of all pixel locations
     ya = onedimg[0].data.shape[0]
@@ -155,31 +168,48 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     comimg = Image.new('RGBA', ( imgwidth , imgheight ) ,backgr_fill)
     d = ImageDraw.Draw(comimg)
     
-    if "Stereo" in obsloc:
-        if '2' in sterinst:
-            maskedimg = fits.open('C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\hi2A_mask.fts')
-            imagemask  = maskedimg[0].data[::2,::2][:-1,:-1]
+    if ("Stereo" in obsloc) and ('2' in sterinst):
+        maskedimg = fits.open('C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\hi2A_mask.fts')
+        imagemask  = maskedimg[0].data[::2,::2][:-1,:-1]
     else: imagemask = np.ones_like(colr)[:-1,:-1]
+    
+    if comdenom == 'c2011l4':
+        low = 3000
+        if obsloc == 'Stereo-B': hih = 20000
+        elif obsloc == 'Stereo-A': hih = 70000
+            
+    elif comdenom == 'c2006p1':
+        if "Stereo" in obsloc:
+            low = 10000
+            hih = 1500000
+            if 'diff' in sterinst: 
+                low = -1000
+                hih = 1000
+            elif 'MGN' in sterinst:  
+                low = -0.7
+                hih = 1.25
+        elif obsloc == 'Earth':
+            low = 0
+            hih = 255
+        elif obsloc == 'Soho':
+            low = 4.8e-10
+            hih = 1.4e-9
+            if 'MGN' in sohoinst:  
+                low = -0.6
+                hih = 0.8    
     
     if plotmethodlog == True:
         
-        if comdenom == 'c2011l4':
-            low = 3000
-            if obsloc == 'Stereo-B': hih = 20000
-            elif obsloc == 'Stereo-A': hih = 70000
-        elif comdenom == 'c2006p1':
-            low = 10000
-            hih = 1500000
-        
         grad = (255 / (np.log10(hih) - np.log10(low)))      
-        
-        colcr = (np.clip(np.round((np.log10(np.clip(colr,1,999999999))- np.log10(low))*grad),0,255)).astype(int)
-        colcg = (np.clip(np.round((np.log10(np.clip(colg,1,999999999))- np.log10(low))*grad),0,255)).astype(int)
-        colcb = (np.clip(np.round((np.log10(np.clip(colb,1,999999999))- np.log10(low))*grad),0,255)).astype(int)
-        
+        colcr = (np.clip(np.round((np.log10(np.clip(colr,1e-20,999999999))- np.log10(low))*grad),0,255)).astype(int)
+        colcg = (np.clip(np.round((np.log10(np.clip(colg,1e-20,999999999))- np.log10(low))*grad),0,255)).astype(int)
+        colcb = (np.clip(np.round((np.log10(np.clip(colb,1e-20,999999999))- np.log10(low))*grad),0,255)).astype(int)
         non_zeros_0 = np.where(imagemask == 1)[0]
         non_zeros_1 = np.where(imagemask == 1)[1]
         no_points = non_zeros_0.size
+        
+        if inv == True:
+            colcr = 255-colcb; colcb = 255-colcb; colcg = 255-colcg
         
         for xp in xrange(0,no_points):
             x = non_zeros_0[xp]
@@ -188,25 +218,17 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
                           scale,colcr[x,y],colcg[x,y],colcb[x,y])
                 
     elif plotmethodlog == False:
-        if comdenom == 'c2006p1':
-            if "Stereo" in obsloc:
-                if 'diff' in sterinst: 
-                    low = -1000
-                    hih = 1000
-                elif 'MGN' in sterinst:  
-                    low = -0.7
-                    hih = 1.25
-                colcr = np.clip(255.0/(hih-low)*(colr-low),0,255).astype(int)
-                colcg = np.clip(255.0/(hih-low)*(colg-low),0,255).astype(int)
-                colcb = np.clip(255.0/(hih-low)*(colb-low),0,255).astype(int)
-            else:
-                colcr = colpr
-                colcg = colpg
-                colcb = colpb                
+
+        colcr = np.clip(255.0/(hih-low)*(colr-low),0,255).astype(int)
+        colcg = np.clip(255.0/(hih-low)*(colg-low),0,255).astype(int)
+        colcb = np.clip(255.0/(hih-low)*(colb-low),0,255).astype(int)         
             
         non_zeros_0 = np.where(imagemask == 1)[0]
         non_zeros_1 = np.where(imagemask == 1)[1]
         no_points = non_zeros_0.size
+        
+        if inv == True:
+            colcr = 255-colcb; colcb = 255-colcb; colcg = 255-colcg
         
         for xp in xrange(0,no_points):
             x = non_zeros_0[xp]
@@ -231,8 +253,8 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     rdaxis = pixheight + border*2
     
     fontloc = r'C:\Windows\winsxs\amd64_microsoft-windows-f..etype-lucidaconsole_31bf3856ad364e35_6.1.7600.16385_none_5b3be3e0926bd543\lucon.ttf'
-    fnt = ImageFont.truetype(fontloc, 20)
-    smallfnt = ImageFont.truetype(fontloc, 10)
+    fnt = ImageFont.truetype(fontloc, 25)
+    smallfnt = ImageFont.truetype(fontloc, 20)
     largefnt = ImageFont.truetype(fontloc, 30)
     
     for div in xrange(0, (np.size(axisdata[1]))): #RA axis major ticks
@@ -250,8 +272,8 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         b = d.line([(border+majt,axisdata[4][div]),(border,axisdata[4][div])],\
         fill= featur_fill)
         tick = str(axisdata[3][div])
-        d.text((border - len(tick)*5 - 40,axisdata[4][div] - 10 ), \
-        tick, font=fnt, fill=(255,255,255,128))
+        d.text((border - 8 - 15*len(tick),axisdata[4][div] - 10 ), \
+        tick, font=fnt, fill=featur_fill)
         
     for div in xrange(0, (np.size(axisdata[5]))): #DEC axis minor ticks
         b = d.line([(border+mint,axisdata[5][div]),(border,axisdata[5][div])],\
@@ -262,12 +284,12 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     "Right Ascension (Degrees)", font=fnt, fill= featur_fill)
     d.text((0.25*border - 10,0.75*border - 20), \
     "Declination (Degrees)", font=fnt, fill= featur_fill)
-    
+    '''
     #plot title
     plttitle = (comdenom.upper() + ' ' + comname)
     d.text((1.5*border + pixwidth*0.5 - len(plttitle)*5 - 60,.35*border), \
     plttitle, font=largefnt, fill= featur_fill)
-    
+    '''
     pix = comimg.load()
     
 #%%**************************
@@ -284,14 +306,12 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         if reply == "Yudish Imagetimeheader": [idls,ctime,uncertainty_range_exists] = image_time_yudish(comdenom,fitsinfile,idlsav)
         if reply == "User Entry": [ctime,uncertainty_range_exists] = image_time_user()
                                           
-    elif obsloc == 'Stereo_A' or 'Stereo_B':
+    elif 'S' in obsloc:
         
         [ctime,uncertainty_range_exists] = image_time_stereo(filebase)
 
-    elif obsloc == 'Soho': sys.exit("SOHO Image times need adding")
-        
     #find relevant observer parameters of comet at observer time
-    comcel = np.where(abs(obsveceq[:,0] - ctime.jd) < 1e-4)[0][0]
+    comcel = np.where(abs(obsveceq[:,0] - ctime.jd)==abs(obsveceq[:,0] - ctime.jd).min())[0][0]
     
     #find closest matching cell in dt = 10min data
     comcel10 = np.where(abs(comveceq10[:,0] - ctime.jd) < 3.5e-3)[0][0]
@@ -314,17 +334,20 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     com_ra_dec = pos2radec(comveceq[comcel - LT_cor,6:9] - obsveceq[comcel,6:9])
     
     #check if comet is within image
-    com_box_path = np.array(
-                    	[[ra_m[0,0],		dec[0,0]		],
-                   		 [ra_m[ya-1,0],	 	dec[ya-1,0]		],
-                  		 [ra_m[ya-1,xa-1],  dec[ya-1,xa-1]	],
-                   		 [ra_m[0,xa-1],	 	dec[0,xa-1]		],
-                            [ra_m[0,0],		dec[0,0]		]])              		 
+    com_box_path = np.zeros((2*sum(np.shape(ra_m))-3,2),dtype =float)
+    len1 = np.shape(ra_m)[0]; len0 = np.shape(ra_m)[1]
+    com_box_path[0:len0,0] = ra_m[0,:]
+    com_box_path[0:len0,1] = dec[0,:]
+    com_box_path[len0:len0+len1-1,0] = ra_m[1:,-1]
+    com_box_path[len0:len0+len1-1,1] = dec[1:,-1]
+    com_box_path[len0+len1-1:2*len0+len1-2,0] = ra_m[-1,-2::-1]
+    com_box_path[len0+len1-1:2*len0+len1-2,1] = dec[-1,-2::-1]
+    com_box_path[2*len0+len1-2:2*len0+2*len1-3,0] = ra_m[-2::-1,0]
+    com_box_path[2*len0+len1-2:2*len0+2*len1-3,1] = dec[-2::-1,0]
+   		 
     com_Path = mplPath.Path(com_box_path)    
     
     com_in_image = com_Path.contains_point((com_ra_dec[0],com_ra_dec[1]))
-    
-    trajfill = (0,255,255,255)
     
     #account for sometimes negative axisdata
     if (axisdata[6] < 0):
@@ -343,7 +366,6 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     if com_in_image == True:
      
         #setting RGBA colours of lines
-        trajucfill = (0,100,255,255)
         comsunfill = (0,255,0,255)
         
         plot_sunearth_vec(d,comveceq,obsveceq,ltcomcel,axisdata,ra_img_higher,ra_img_lower,
@@ -369,8 +391,8 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     rapixl = ra2xpix(com_ra_dec[0],border,pixwidth,rafmin,scale)
     decpixl = dec2ypix(com_ra_dec[1],border,pixheight,decmin,scale)
 
-    comimg.show() #shows for refrence
     comimg.save(imgsav,'png')
+    webbrowser.open(imgsav)
     
     with open(picklesavefile, 'w') as f:
         pickle.dump([comcel, comcel10, ramax, decmax, ramin, decmin, border,
@@ -395,7 +417,7 @@ else:
         com_in_image = parameters[29]; featur_fill = parameters[30]; fitscoords = parameters[31]
         
     comimg = Image.open(imgsav)
-    comimg.show()
+    webbrowser.open(imgsav)
    
 #%%**********************************************
 #SEVENTH CELL - Preparing to simulate dust motion
@@ -406,11 +428,12 @@ while test_mode == True:
     comimg = Image.open(imgsav)
     d = ImageDraw.Draw(comimg)
     
-    simsavefile = os.path.join(pysav, 'simsavs')
+    simsavefile = os.path.join(pysav, 'simsetupsavs')
     if not os.path.exists(simsavefile ): os.makedirs(simsavefile)
     simsavefile = os.path.join(simsavefile, obsloc)
     if not os.path.exists(simsavefile ): os.makedirs(simsavefile)
     if "Stereo" in obsloc: simsavefile = os.path.join(simsavefile, sterinst)
+    if "Soho" in obsloc: simsavefile = os.path.join(simsavefile, sohoinst)
     if not os.path.exists(simsavefile ): os.makedirs(simsavefile)
     simsavefile  = os.path.join(simsavefile, filebase + '_simsetup.pickle')
     [betau, betal, bno, simtu, simtl, tno, drawopts, sav_bool, test_mode] = simulation_setup(simsavefile)
@@ -494,7 +517,8 @@ while test_mode == True:
                 bidx += 1
             try:simres[tidx,bidx - 1 + point_in_image,15] = 0
             except: pass
-            bmax[tidx] = simres[tidx,:,14].nonzero()[0][-1]            
+            try:bmax[tidx] = simres[tidx,:,14].nonzero()[0][-1]
+            except: bmax[tidx] = 0            
             tidx += 1
             print float(tidx)*100/tno
             
@@ -594,6 +618,7 @@ while test_mode == True:
         simressavefile = os.path.join(simressavefile, obsloc)
         if not os.path.exists(simressavefile): os.makedirs(simressavefile)
         if "Stereo" in obsloc: simsavbase = filebase[:filebase.find('A')+1]
+        elif "Soho" in obsloc: simsavbase = filebase[:filebase.find('Clear')+5]
         else: simsavbase = filebase
         simressavefile = os.path.join(simressavefile, simsavbase + '_' + str(betal) + '_'
                          + str(betau) + '_' + str(bno)+ '_' + str(simtl) + '_'
@@ -614,9 +639,13 @@ while test_mode == True:
     fontloc = r'C:\Windows\winsxs\amd64_microsoft-windows-f..etype-lucidaconsole_31bf3856ad364e35_6.1.7600.16385_none_5b3be3e0926bd543\lucon.ttf'
     fnt = ImageFont.truetype(fontloc, 20)  
     bt_anno_idx = 0
-        
-    if "Syndynes" in drawopts: draw_syndynes(dynfill,d,simres,bno,rapixl,decpixl,tmin,tmax,bidx_list)
-    if "Synchrones" in drawopts: draw_synchrones(chrfill,d,simres,tno,rapixl,decpixl,bmin,bmax,tidx_list)
+    
+    if "Wide" in drawopts:
+        tspacing = int(tno/5); bspacing = int(bno/5)
+    else:
+        tspacing = 1; bspacing = 1
+    if "Syndynes" in drawopts: draw_syndynes(dynfill,d,simres,bno,rapixl,decpixl,tmin,tmax,bidx_list,bspacing)
+    if "Synchrones" in drawopts: draw_synchrones(chrfill,d,simres,tno,rapixl,decpixl,bmin,bmax,tidx_list,tspacing)
     if "Data Points" in drawopts: draw_datap(drfill,d,simres)
     elif "Data Region Enclosed" in drawopts:  draw_data_reg(drfill,d,simres,bmax,bmin,bidx_list,tmax,tmin,tidx_list,border,pixwidth)
     bt_anno_idx = annotate_plotting(d,drawopts,border,pixwidth,fnt,featur_fill,dynfill,chrfill,drfill)
@@ -625,7 +654,8 @@ while test_mode == True:
                     betau, betal, simtu, simtl, bt_anno_idx)
     
     if (drawopts != "No Image"):
-        comimg.show()
         cimgdir = os.path.join(imagedir, 'FPplots')
-        cimgsav = os.path.join(imagedir, 'FP_' + filebase + '.png')    
+        if not os.path.exists(cimgdir): os.makedirs(cimgdir)
+        cimgsav = os.path.join(cimgdir, 'FP_' + filebase + '.png')    
         comimg.save(cimgsav,'png')
+        webbrowser.open(cimgsav)

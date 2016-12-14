@@ -37,26 +37,6 @@ def correct_for_imagetype(imagedir, fitsin, fitsinfile):
     
     return colr, colg, colb, fitscoords
         
-#%% corrects for data > 255, inversions, wrong data type etc.
-       
-def col_corrections(inv,colr,colg,colb):
-    
-    if inv == False:   
-        colcr = colr; colcg = colg; colcb = colb
-        backgr_fill = (0,0,0,255)
-        featur_fill = (255,255,255,255)
-    elif inv == True:
-        colcr = 255 - colr; colcg = 255  - colg; colcb = 255 - colb
-        backgr_fill = (255,255,255,255)
-        featur_fill = (0,0,0,255)
-        
-    if 'float' in str(colcr.dtype):
-         colcr = colcr.astype(int)
-         colcg = colcg.astype(int)
-         colcb = colcb.astype(int)
-         
-    return backgr_fill, featur_fill, colcr, colcg, colcb
-
 #%% load in correct observer location
     
 def get_obs_loc(obslocstr, imagedir):
@@ -99,3 +79,18 @@ def get_stereo_instrument(imagedir):
     imagedir = os.path.join(imagedir, sterinst)
 
     return sterinst, imagedir
+    
+def get_soho_instrument(imagedir):
+
+    sohoinst = 'C3_Clear'
+    
+    mname_locs = np.array(['Base', 'Difference', 'Multiscale Gaussian Normalised'])
+    modemsg = "Please select image type"
+    modechoices = mname_locs.tolist()
+    mode = easygui.buttonbox(modemsg, choices=modechoices)
+    
+    if "Diff" in mode: sohoinst = sohoinst + '_diff'
+    if "Multi" in mode: sohoinst = sohoinst + '_MGN'
+    imagedir = os.path.join(imagedir, sohoinst)
+
+    return sohoinst, imagedir

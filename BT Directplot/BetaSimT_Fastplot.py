@@ -12,14 +12,14 @@ import astropy
 from astropy.io import fits
 from astropy import wcs
 from PIL import Image, ImageDraw, ImageFont
+import webbrowser
 
 sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")  
 
 from orbitdata_loading_functions import orb_vector, orb_obs
 from BT_plot_functions import beta2ypix, simt2xpix, plotpixel
-from io_methods import get_obs_loc, get_stereo_instrument
-from conversion_routines import fixwraps, round_to_base, RoundToSigFigs
-
+from io_methods import get_obs_loc, get_stereo_instrument, get_soho_instrument
+from conversion_routines import fixwraps, round_to_base
 
 #%%**********************
 #FIRST CELL - GET DATA IN
@@ -44,6 +44,7 @@ with open(inputfile, "r") as c:
 #choose observer locations
 [obsloc, imagedir] = get_obs_loc(obslocstr, imagedir)
 if "Stereo" in obsloc: [sterinst, imagedir] = get_stereo_instrument(imagedir)
+if obsloc == "Soho": [sohoinst, imagedir] = get_soho_instrument(imagedir)
     
 #import the orbit data
 obsveceq = orb_vector(comdenom, obsloc, pysav, orbitdir,
@@ -59,11 +60,14 @@ pngdir = os.path.join(imagedir, 'cometplots')
 pngin = easygui.fileopenbox(default = os.path.join(pngdir,'*'))
 infile = os.path.basename(pngin)
 filebase = infile[:string.find(infile,'.')]
+if 'inverted' in infile:
+    filebase = filebase.split("_inverted")[0]
 
 #parameter savefile location
 picklesavefile = os.path.join(pysav, 'imgsavs')
 picklesavefile = os.path.join(picklesavefile, obsloc)
 if "Stereo" in obsloc: picklesavefile = os.path.join(picklesavefile, sterinst)
+if "Soho" in obsloc: picklesavefile = os.path.join(picklesavefile, sohoinst)
 picklesavefile = os.path.join(picklesavefile, filebase + '_plot_param.pickle')
 
 greyscale = True
@@ -96,6 +100,7 @@ with open(picklesavefile) as f:
 #find and import simulation results
 simresdir = os.path.join(pysav, 'simres')
 if "Stereo" in obsloc: simsavbase = filebase[:filebase.find('A')+1]
+elif "Soho" in obsloc: simsavbase = filebase[:filebase.find('Clear')+5]   
 else: simsavbase = filebase
 simresdir = os.path.join(simresdir, obsloc)
 simin = easygui.fileopenbox(default = os.path.join(simresdir, simsavbase + '*'))
@@ -118,7 +123,7 @@ if 'Earth' in obsloc:
 elif 'Stereo' in obsloc:
     w = wcs.WCS(onedimg[0].header, key = 'A')
 elif 'Soho' in obsloc:
-    sys.exit("soho data not yet implemented")
+    w = wcs.WCS(onedimg[0].header)
 
 #putting ra into sensible values
 [ra_m, rafmin, rafmax] = fixwraps(ra, ramax, ramin)
@@ -141,7 +146,20 @@ if "Stereo" in obsloc:
         
         imagemask = np.ones_like(colr)
         imagemask[np.where(colours > 1.5e6)] = 0
-
+        
+elif "Soho" in obsloc:
+        direndindx = os.path.dirname(fitscoords).find("Clear") + 5
+        fits_dir = os.path.dirname(fitscoords)[:direndindx]
+        fits_list = os.listdir(fits_dir)
+        fitstr = [s for s in fits_list if filebase[:21] in s][0]
+        orig_fits_file = os.path.join(fits_dir,fitstr)
+        
+        hdulist2 = fits.open(orig_fits_file)
+        colours = (hdulist2[0].data)
+        
+        imagemask = np.ones_like(colr)
+        imagemask[np.where(colours > 1.35e-9)] = 0
+        
 else: imagemask = np.ones_like(colr)
 
 #check if this has already been done
@@ -174,7 +192,7 @@ for x in xrange(0,no_points):
 greyscale_arr = (srcolors[:,:,1] + srcolors[:,:,2] + srcolors[:,:,3])/3
 fits_arr = greyscale_arr.T #indexed by beta first then ejec_t
 
-dustplotsave = os.path.join(imagedir, 'dustplots')
+dustplotsave = os.path.join(imagedir, 'fitsdust')
 if not os.path.exists(dustplotsave): os.makedirs(dustplotsave)
 dustplotsave = os.path.join(dustplotsave, simin.split('\\')[-1][:-4])
 dustplotfits = dustplotsave + '.fits'; dustplotvals = dustplotsave + '.txt'
@@ -304,7 +322,7 @@ reply = easygui.ynbox(msg=colormsg)
 if reply == True:    
     simtl = tvals[0]; simtu = tvals[-1]; betal = bvals[0]; betau = bvals[-1]
     
-    pixhi = 800
+    pixhi = 1000
     pixwt = int(round(float(pixhi)/bno*tno))
     border = 100
     hscle = pixhi/(betau - betal)
@@ -323,8 +341,8 @@ if reply == True:
         if 'diff' or 'MGN' in sterinst: plotmethodlog = False
         else: plotmethodlog = True
     elif 'Soho' in obsloc:
-        plotmethodlog = True
-        sys.exit("soho data not yet implemented")
+        if 'diff' or 'MGN' in sohoinst: plotmethodlog = False
+        else: plotmethodlog = True
 
     if comdenom == 'c2011l4':
         low = 3000
@@ -343,14 +361,20 @@ if reply == True:
         elif obsloc == 'Earth':
             low = 0
             hih = 255
-            
+        elif obsloc == 'Soho':
+            low = 4.8e-10
+            hih = 1.4e-9
+            if 'MGN' in sohoinst:  
+                low = -0.6
+                hih = 0.8
+        
     good_bool = srcolors[1:,1:,0] + srcolors[:-1,:-1,0] + srcolors[1:,:-1,0] + srcolors[:-1,1:,0]
     good_locs = np.where(good_bool==4)
 
     if (plotmethodlog == True):
         
         grad = 1/(np.log10(hih) - np.log10(low))
-        fillvals = np.clip(srcolors[:,:,1],1,9999999999)
+        fillvals = np.clip(srcolors[:,:,1],1e-20,9999999999)
         filcols = np.round(255*grad*(np.log10(fillvals) - np.log10(low)))
         filcols = np.clip(filcols,0,255).astype('int')
         
@@ -374,22 +398,19 @@ if reply == True:
     a = d.polygon([(border,border),(border*2+pixwt,border), \
         (border*2+pixwt,border*2+pixhi),(border,border*2+pixhi)], \
         outline = (255,255,255,128))
-    
-    bl1sf = RoundToSigFigs(betal,1); bu1sf = RoundToSigFigs(betau,1)
-    tl1sf = round(simtl); tu1sf = round(simtu)
-    
+        
     tdivmajors = np.array([1.,2.,3.])
-    tdivnos = (1/tdivmajors) * (tu1sf - tl1sf)
+    tdivnos = (1/tdivmajors) * (simtu - simtl)
     tnodivs = 6
     tdividx = np.where((tdivnos <= tnodivs)==True)[0][0]
-    tmajticks = np.arange(tu1sf, tl1sf-0.0001, -tdivmajors[tdividx])
+    tmajticks = np.arange(simtu, simtl-0.0001, -tdivmajors[tdividx])
     
     tdivminors = np.array([0.5,1,1])
-    tminticks = np.arange(tu1sf, tl1sf-0.0001, -tdivminors[tdividx])
+    tminticks = np.arange(simtu, simtl-0.0001, -tdivminors[tdividx])
     tminticks = np.setdiff1d(tminticks,tmajticks)
             
     bdivmajors = np.array([0.1,0.2,0.5,1,2])
-    bdivnos = (1/bdivmajors) * (bu1sf - bl1sf)
+    bdivnos = (1/bdivmajors) * (betau - betal)
     bnodivs = 10
     bdividx = np.where((bdivnos <= bnodivs)==True)[0][0]
     bu2majdv = round_to_base(betau, bdivmajors[bdividx])
@@ -450,6 +471,9 @@ if reply == True:
     d.text((1.2*border,.25*border), \
     plttitle, font=tfnt, fill=(255,255,255,128))
     
-    dustimg.show()
-    dustimgsav = simin[:-4] + '.png'  
-    dustimg.save(dustimgsav,'png')
+    dustimgfol = os.path.join(imagedir, 'dustplots')
+    if not os.path.exists(dustimgfol): os.makedirs(dustimgfol)
+    simparstr = simin.split('\\')[-1][:-4]
+    dustimgsave = os.path.join(dustimgfol,simparstr + '.png')
+    dustimg.save(dustimgsave,'png')
+    webbrowser.open(dustimgsave)

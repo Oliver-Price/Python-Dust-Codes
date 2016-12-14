@@ -101,6 +101,7 @@ def simulation_setup(savefile):
             dtitle = "Choosing draw options"
             dchoices = ["Synchrones Only", "Syndynes only",
                         "Synchrones and Syndynes",
+                        "Wide Spaced Synchrones and Syndynes",
                         "Synchrones, Syndynes and Data Points",
                         "Data Region Enclosed","No Image"]
             drawopts_ans = easygui.choicebox(dmsg, dtitle, dchoices)

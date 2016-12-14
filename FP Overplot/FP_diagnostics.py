@@ -75,6 +75,7 @@ def plot_orbit_points(d,vtraj,smallfnt,featur_fill,pixheight,pixwidth,border):
 
     #find locations to plot on orbit
     mnsiz = 5
+    cwid = 2
     max_orbit_points = 6
     orbit_cells = np.where(vtraj[:,10] == 0)[0]
     if np.size(orbit_cells) > max_orbit_points:
@@ -85,29 +86,28 @@ def plot_orbit_points(d,vtraj,smallfnt,featur_fill,pixheight,pixwidth,border):
         orbit_cells = np.intersect1d(np.where(vtraj[:,9]%12 == 0)[0],orbit_cells) 
     if np.size(orbit_cells) > max_orbit_points:
         orbit_cells = np.intersect1d(np.where(vtraj[:,9]%24 == 0)[0],orbit_cells)
-    if np.size(orbit_cells) > max_orbit_points:
-        orbit_cells = np.intersect1d(np.where(vtraj[:,8]%2 == 0)[0],orbit_cells)   
-    if np.size(orbit_cells) > max_orbit_points:
-        orbit_cells = np.intersect1d(np.where(vtraj[:,8]%4 == 0)[0],orbit_cells)
- 
-        
+#    if np.size(orbit_cells) > max_orbit_points:
+#        orbit_cells = np.intersect1d(np.where(vtraj[:,8]%2 == 0)[0],orbit_cells)   
+#    if np.size(orbit_cells) > max_orbit_points:
+#        orbit_cells = np.intersect1d(np.where(vtraj[:,8]%4 == 0)[0],orbit_cells)
+#        
     #plot these locations on the orbit                                
     for midn in orbit_cells.tolist():
         d.line( [ (vtraj[midn,2] + mnsiz ,vtraj[midn,3]+ mnsiz ), 
         (vtraj[midn,2]- mnsiz ,vtraj[midn,3]- mnsiz ) ],
-        fill = featur_fill )
+        fill = featur_fill , width= cwid)
         d.line([(vtraj[midn,2] - mnsiz ,vtraj[midn,3]+ mnsiz ),
         (vtraj[midn,2]+ mnsiz ,vtraj[midn,3]- mnsiz )],
-        fill = featur_fill)
-        orbtxtx = 2; orbtxty = 2;
-        if (vtraj[midn,3] > 0.93*pixheight+1.5*border):
-            orbtxty = 0; orbtxtx = 3
-        if (vtraj[midn,2] > 0.93*pixwidth+1.5*border):
-            orbtxtx = -13
-        d.text((vtraj[midn,2] + orbtxtx*mnsiz,vtraj[midn,3] + orbtxty*mnsiz),
-        (str(int(vtraj[midn,6])) + '/' + str(int(vtraj[midn,7])) + '/' + 
-        str(int(vtraj[midn,8])) + "\n%02d:00") % int(vtraj[midn,9]) ,
-        font=smallfnt, fill= featur_fill)
+        fill = featur_fill , width= cwid)
+#        orbtxtx = 2; orbtxty = 2;
+#        if (vtraj[midn,3] > 0.93*pixheight+1.5*border):
+#            orbtxty = 0; orbtxtx = 3
+#        if (vtraj[midn,2] > 0.93*pixwidth+1.5*border):
+#            orbtxtx = -13
+#        d.text((vtraj[midn,2] + orbtxtx*mnsiz,vtraj[midn,3] + orbtxty*mnsiz),
+#        (str(int(vtraj[midn,6])) + '/' + str(int(vtraj[midn,7])) + '/' + 
+#        str(int(vtraj[midn,8])) + "\n%02d:00") % int(vtraj[midn,9]) ,
+#        font=smallfnt, fill= featur_fill)
 
 #%%*******************
 #Plot Sun-Earth Vector
