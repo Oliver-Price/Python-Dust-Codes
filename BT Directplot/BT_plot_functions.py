@@ -13,6 +13,9 @@ def simt2xpix(simt, border, pixwidth, simtl, scale):
     
 def beta2ypix(beta, border, pixheight, betal, scale):
     return pixheight + border*1.5 + (betal - beta)*scale
+    
+def logbeta2ypix(beta, border, pixheight, betal, scale):
+    return pixheight + border*1.5 + (np.log(betal) - np.log(beta))*scale
 
 def plotpixel(d,ta,ba,simres,dec,border,pixwt,pixhi,betal,simtl,wscle,hscle,
                 fillco1,fillco2,fillco3):
@@ -23,6 +26,18 @@ def plotpixel(d,ta,ba,simres,dec,border,pixwt,pixhi,betal,simtl,wscle,hscle,
     b3 = beta2ypix(simres[ta+1,ba+1,1], border, pixhi, betal, hscle)
     t3 = simt2xpix(simres[ta+1,ba+1,0], border, pixwt,simtl, wscle)
     b4 = beta2ypix(simres[ta+1,ba,1], border, pixhi, betal, hscle)
+    t4 = simt2xpix(simres[ta+1,ba,0], border, pixwt, simtl, wscle)
+    d.polygon([(t1,b1),(t2,b2),(t3,b3),(t4,b4)],fill=(fillco1,fillco2,fillco3,255))
+
+def logplotpixel(d,ta,ba,simres,dec,border,pixwt,pixhi,betal,simtl,wscle,hscle,
+                fillco1,fillco2,fillco3):
+    b1 = logbeta2ypix(simres[ta,ba,1], border, pixhi, betal, hscle)
+    t1 = simt2xpix(simres[ta,ba,0], border, pixwt, simtl, wscle)
+    b2 = logbeta2ypix(simres[ta,ba+1,1], border, pixhi, betal, hscle)
+    t2 = simt2xpix(simres[ta,ba+1,0], border, pixwt, simtl, wscle)
+    b3 = logbeta2ypix(simres[ta+1,ba+1,1], border, pixhi, betal, hscle)
+    t3 = simt2xpix(simres[ta+1,ba+1,0], border, pixwt,simtl, wscle)
+    b4 = logbeta2ypix(simres[ta+1,ba,1], border, pixhi, betal, hscle)
     t4 = simt2xpix(simres[ta+1,ba,0], border, pixwt, simtl, wscle)
     d.polygon([(t1,b1),(t2,b2),(t3,b3),(t4,b4)],fill=(fillco1,fillco2,fillco3,255))
 

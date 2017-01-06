@@ -29,6 +29,11 @@ def plotpixel(d,x,y,ra_m,dec,border,pixwidth,pixheight,decmin,rafmin,scale,
     d.polygon([(ra1,dec1),(ra2,dec2),(ra3,dec3),(ra4,dec4)] ,\
     fill=(fillco1,fillco2,fillco3,255))
     
+def plotpixel2(d,x,y,rp,dp,fillco1,fillco2,fillco3):
+    d.polygon([(rp[x,y],dp[x,y]),(rp[x+1,y],dp[x+1,y]),
+               (rp[x+1,y+1],dp[x+1,y+1]),(rp[x,y+1],dp[x,y+1])] ,\
+    fill=(fillco1,fillco2,fillco3,255))
+        
 
 #%%
 #*****************

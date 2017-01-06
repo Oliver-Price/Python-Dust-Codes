@@ -17,7 +17,7 @@ import webbrowser
 sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")  
 
 from orbitdata_loading_functions import orb_vector, orb_obs
-from BT_plot_functions import beta2ypix, simt2xpix, plotpixel
+from BT_plot_functions import beta2ypix, simt2xpix, plotpixel, logbeta2ypix, logplotpixel
 from io_methods import get_obs_loc, get_stereo_instrument, get_soho_instrument
 from conversion_routines import fixwraps, round_to_base
 
@@ -121,7 +121,10 @@ onedimg = fits.open(fitscoords)
 if 'Earth' in obsloc:
     w = wcs.WCS(onedimg[0].header)
 elif 'Stereo' in obsloc:
-    w = wcs.WCS(onedimg[0].header, key = 'A')
+    if comdenom == 'c2011l4':
+        w = wcs.WCS(onedimg[0].header)
+    elif comdenom == 'c2006p1':
+        w = wcs.WCS(onedimg[0].header, key = 'A')
 elif 'Soho' in obsloc:
     w = wcs.WCS(onedimg[0].header)
 
@@ -319,14 +322,20 @@ if reply == True:
 colormsg = "Preview dustplot output?"
 reply = easygui.ynbox(msg=colormsg)
 
+logaxis = True
+
 if reply == True:    
     simtl = tvals[0]; simtu = tvals[-1]; betal = bvals[0]; betau = bvals[-1]
     
     pixhi = 1000
     pixwt = int(round(float(pixhi)/bno*tno))
     border = 100
-    hscle = pixhi/(betau - betal)
     wscle = pixwt/(simtu - simtl)
+    
+    if logaxis == True:
+        hscle = pixhi/(np.log(betau) - np.log(betal))
+    else:
+        hscle = pixhi/(betau - betal)        
         
     dustimg = Image.new('RGBA', (pixwt+int(2.5*border),
                                  pixhi+int(3*border)),(0,0,0,255))
@@ -343,11 +352,16 @@ if reply == True:
     elif 'Soho' in obsloc:
         if 'diff' or 'MGN' in sohoinst: plotmethodlog = False
         else: plotmethodlog = True
-
+        
     if comdenom == 'c2011l4':
-        low = 3000
-        if obsloc == 'Stereo-B': hih = 20000
-        elif obsloc == 'Stereo-A': hih = 70000
+        if obsloc == 'Stereo_B':
+            low = 30000; hih = 800000
+            if 'MGN' in sterinst:
+                low = -0.15; hih = 0.45
+            if 'diff' in sterinst:
+                low = -180; hih = 240
+        elif obsloc == 'Stereo_A': low = 3000; hih = 70000
+            
     elif comdenom == 'c2006p1':
         if "Stereo" in obsloc:
             low = 10000
@@ -371,26 +385,48 @@ if reply == True:
     good_bool = srcolors[1:,1:,0] + srcolors[:-1,:-1,0] + srcolors[1:,:-1,0] + srcolors[:-1,1:,0]
     good_locs = np.where(good_bool==4)
 
-    if (plotmethodlog == True):
-        
-        grad = 1/(np.log10(hih) - np.log10(low))
-        fillvals = np.clip(srcolors[:,:,1],1e-20,9999999999)
-        filcols = np.round(255*grad*(np.log10(fillvals) - np.log10(low)))
-        filcols = np.clip(filcols,0,255).astype('int')
-        
-        for x in range(0, np.size(good_locs[0])):
-            ta = good_locs[0][x]; ba = good_locs[1][x]
-            plotpixel(d,ta,ba,simres,dec,border,pixwt,pixhi,betal,simtl,
-                      wscle,hscle,filcols[ta,ba],filcols[ta,ba],filcols[ta,ba])
-    else:
-        fillco1 = np.clip(255.0/(hih-low)*(srcolors[:,:,1]-low),0,255).astype(int)
-        fillco2 = np.clip(255.0/(hih-low)*(srcolors[:,:,2]-low),0,255).astype(int)
-        fillco3 = np.clip(255.0/(hih-low)*(srcolors[:,:,3]-low),0,255).astype(int)
-        for x in range(0, np.size(good_locs[0])):
-            ta = good_locs[0][x]; ba = good_locs[1][x]
-            plotpixel(d,ta,ba,simres,dec,border,pixwt,pixhi,betal,simtl,
-                          wscle,hscle,fillco1[ta,ba],fillco2[ta,ba],fillco3[ta,ba])
+    if logaxis == True:
+        if (plotmethodlog == True):
             
+            grad = 1/(np.log10(hih) - np.log10(low))
+            fillvals = np.clip(srcolors[:,:,1],1e-20,9999999999)
+            filcols = np.round(255*grad*(np.log10(fillvals) - np.log10(low)))
+            filcols = np.clip(filcols,0,255).astype('int')
+            
+            for x in range(0, np.size(good_locs[0])):
+                ta = good_locs[0][x]; ba = good_locs[1][x]
+                logplotpixel(d,ta,ba,simres,dec,border,pixwt,pixhi,betal,simtl,
+                          wscle,hscle,filcols[ta,ba],filcols[ta,ba],filcols[ta,ba])
+        else:
+            fillco1 = np.clip(255.0/(hih-low)*(srcolors[:,:,1]-low),0,255).astype(int)
+            fillco2 = np.clip(255.0/(hih-low)*(srcolors[:,:,2]-low),0,255).astype(int)
+            fillco3 = np.clip(255.0/(hih-low)*(srcolors[:,:,3]-low),0,255).astype(int)
+            for x in range(0, np.size(good_locs[0])):
+                ta = good_locs[0][x]; ba = good_locs[1][x]
+                logplotpixel(d,ta,ba,simres,dec,border,pixwt,pixhi,betal,simtl,
+                              wscle,hscle,fillco1[ta,ba],fillco2[ta,ba],fillco3[ta,ba])
+    
+    else:
+        if (plotmethodlog == True):
+            
+            grad = 1/(np.log10(hih) - np.log10(low))
+            fillvals = np.clip(srcolors[:,:,1],1e-20,9999999999)
+            filcols = np.round(255*grad*(np.log10(fillvals) - np.log10(low)))
+            filcols = np.clip(filcols,0,255).astype('int')
+            
+            for x in range(0, np.size(good_locs[0])):
+                ta = good_locs[0][x]; ba = good_locs[1][x]
+                plotpixel(d,ta,ba,simres,dec,border,pixwt,pixhi,betal,simtl,
+                          wscle,hscle,filcols[ta,ba],filcols[ta,ba],filcols[ta,ba])
+        else:
+            fillco1 = np.clip(255.0/(hih-low)*(srcolors[:,:,1]-low),0,255).astype(int)
+            fillco2 = np.clip(255.0/(hih-low)*(srcolors[:,:,2]-low),0,255).astype(int)
+            fillco3 = np.clip(255.0/(hih-low)*(srcolors[:,:,3]-low),0,255).astype(int)
+            for x in range(0, np.size(good_locs[0])):
+                ta = good_locs[0][x]; ba = good_locs[1][x]
+                plotpixel(d,ta,ba,simres,dec,border,pixwt,pixhi,betal,simtl,
+                              wscle,hscle,fillco1[ta,ba],fillco2[ta,ba],fillco3[ta,ba])
+                
 #%%**********************
 #SEVENTH CELL - DRAW AXIS
 #************************
@@ -409,23 +445,30 @@ if reply == True:
     tminticks = np.arange(simtu, simtl-0.0001, -tdivminors[tdividx])
     tminticks = np.setdiff1d(tminticks,tmajticks)
             
-    bdivmajors = np.array([0.1,0.2,0.5,1,2])
+    bdivmajors = np.array([0.1,0.2,0.5,1,2,5,10,20,50])
     bdivnos = (1/bdivmajors) * (betau - betal)
     bnodivs = 10
     bdividx = np.where((bdivnos <= bnodivs)==True)[0][0]
     bu2majdv = round_to_base(betau, bdivmajors[bdividx])
     bl2majdv = round_to_base(betal, bdivmajors[bdividx])   
     bmajticks = np.arange(bu2majdv, bl2majdv-0.0001, -bdivmajors[bdividx])
+    if (0 in bmajticks) and (logaxis == True):
+        bmajticks[bmajticks == 0] = float('%.1g' % betal)
     
-    bdivminors = np.array([0.02,0.05,0.1,0.2,0.5])
+    bdivminors = np.array([0.02,0.05,0.1,0.2,0.5,1,2,5,10])
     bu2mindv = round_to_base(betau, bdivminors[bdividx])
     bl2mindv = round_to_base(betal, bdivminors[bdividx])   
     bminticks = np.arange(bu2mindv, bl2mindv-0.0001, -bdivminors[bdividx])
     bminticks = np.setdiff1d(bminticks,bmajticks)
     
-    bminlocs = beta2ypix(bminticks, border, pixhi, betal, hscle)
+    if logaxis == True:
+            bminlocs = logbeta2ypix(bminticks, border, pixhi, betal, hscle)
+            bmajlocs = logbeta2ypix(bmajticks, border, pixhi, betal, hscle)
+    else:
+            bminlocs = beta2ypix(bminticks, border, pixhi, betal, hscle)
+            bmajlocs = beta2ypix(bmajticks, border, pixhi, betal, hscle)
+    
     tminlocs = simt2xpix(tminticks, border, pixwt, simtl, wscle)
-    bmajlocs = beta2ypix(bmajticks, border, pixhi, betal, hscle)
     tmajlocs = simt2xpix(tmajticks, border, pixwt, simtl, wscle)
     
     majt = 20  #major tick length

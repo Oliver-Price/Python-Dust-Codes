@@ -127,7 +127,10 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         plotmethodlog = False
         w = wcs.WCS(onedimg[0].header)
     elif 'Stereo' in obsloc:
-        w = wcs.WCS(onedimg[0].header, key = 'A')
+        if comdenom == 'c2011l4':
+            w = wcs.WCS(onedimg[0].header)
+        elif comdenom == 'c2006p1':
+            w = wcs.WCS(onedimg[0].header, key = 'A')
         if 'diff' in sterinst or 'MGN' in sterinst: plotmethodlog = False
         else: plotmethodlog = True
     elif 'Soho' in obsloc:
@@ -174,9 +177,13 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     else: imagemask = np.ones_like(colr)[:-1,:-1]
     
     if comdenom == 'c2011l4':
-        low = 3000
-        if obsloc == 'Stereo-B': hih = 20000
-        elif obsloc == 'Stereo-A': hih = 70000
+        if obsloc == 'Stereo_B':
+            low = 30000; hih = 800000
+            if 'MGN' in sterinst:
+                low = -0.15; hih = 0.45
+            if 'diff' in sterinst:
+                low = -180; hih = 240
+        elif obsloc == 'Stereo_A': low = 3000; hih = 70000
             
     elif comdenom == 'c2006p1':
         if "Stereo" in obsloc:
@@ -617,7 +624,8 @@ while test_mode == True:
         if not os.path.exists(simressavefile): os.makedirs(simressavefile)
         simressavefile = os.path.join(simressavefile, obsloc)
         if not os.path.exists(simressavefile): os.makedirs(simressavefile)
-        if "Stereo" in obsloc: simsavbase = filebase[:filebase.find('A')+1]
+        if "Stereo_A" in obsloc: simsavbase = filebase[:filebase.find('A')+1]
+        elif "Stereo_B" in obsloc: simsavbase = filebase[:filebase.find('B')+1]
         elif "Soho" in obsloc: simsavbase = filebase[:filebase.find('Clear')+5]
         else: simsavbase = filebase
         simressavefile = os.path.join(simressavefile, simsavbase + '_' + str(betal) + '_'

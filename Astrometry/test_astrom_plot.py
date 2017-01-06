@@ -12,7 +12,7 @@ sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")
 sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\FP Overplot")
 
 from conversion_routines import fixwraps
-from FP_plot_functions import setaxisup, plotpixel, ra2xpix, dec2ypix
+from FP_plot_functions import setaxisup, plotpixel2, ra2xpix, dec2ypix
 
 fitsdir = r'C:\PhD\Comet_data\Comet_PanSTARRS_C2011L4\Gallery\Stereo_B\calibrated pngs'
 outdir = r'C:\PhD\Comet_data\Comet_PanSTARRS_C2011L4\Gallery\Stereo_B\calibrated pngs\aligned pngs'
@@ -23,7 +23,7 @@ fits_list = [s for s in dir_list if ".fits" in s]
 fits_total = len(fits_list)
 rc = np.load(rdcsav)
 
-for fits_no in xrange(162, fits_total):
+for fits_no in xrange(0,1):
 
     print fits_no
     image_basename = fits_list[fits_no]
@@ -102,11 +102,13 @@ for fits_no in xrange(162, fits_total):
     non_zeros_1 = np.where(imagemask == 1)[1]
     no_points = non_zeros_0.size 
     
+    rp = ra2xpix(ra_m, border, pixwidth, trafmin, scale)
+    dp = dec2ypix(dec, border, pixheight, tdecmin, scale)
+    
     for xp in xrange(0,no_points):
         x = non_zeros_0[xp]
         y = non_zeros_1[xp]
-        plotpixel(d,x,y,ra_m,dec,border,pixwidth,pixheight,tdecmin,trafmin,
-                      scale,colours[x,y],colours[x,y],colours[x,y])
+        plotpixel2(d,x,y,rp,dp,colours[x,y],colours[x,y],colours[x,y])
                 
     #draws a border       
     a = d.polygon([(border,border),(border*2+pixwidth,border), \
@@ -167,4 +169,4 @@ for fits_no in xrange(162, fits_total):
     
     imgsav = os.path.join(outdir, image_basename.split('.')[0] + '.png')
     comimg.save(imgsav,'png')
-    #comimg.show()
+    comimg.show()
