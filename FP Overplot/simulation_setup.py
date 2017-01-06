@@ -103,7 +103,7 @@ def simulation_setup(savefile):
                         "Synchrones and Syndynes",
                         "Wide Spaced Synchrones and Syndynes",
                         "Synchrones, Syndynes and Data Points",
-                        "Data Region Enclosed","No Image"]
+                        "Data Region Enclosed","Dust Phase Angles","No Image"]
             drawopts_ans = easygui.choicebox(dmsg, dtitle, dchoices)
             if drawopts_ans != None:
                 drawopts = drawopts_ans

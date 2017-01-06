@@ -4,6 +4,8 @@
 #***************************************************
 import numpy as np
 import math as m
+import matplotlib.pyplot as plt
+
 
 #%%
 #***********************
@@ -154,8 +156,27 @@ def draw_data_reg(drfill,d,simres,bmax,bmin,bidx_list,tmax,tmin,tidx_list,border
                       , fill = drfill , width = lwidth)
         d.line( [ ( simres[ta,bmin[ta],12]  , simres[ta,bmin[ta],13] ) ,
                       ( simres[ta+1,bmin[ta+1],12] , simres[ta+1,bmin[ta+1],13] ) ]
-
                       , fill = drfill , width = lwidth)
+                      
+def draw_phase_points(d,simres,xsiz = 2):
+
+    all_points = np.where(simres[:,:,14]==1)
+    colormap = (plt.cm.winter(np.linspace(0,1,101))*255).astype(int)
+    smin = np.min(simres[:,:,17][np.nonzero(simres[:,:,17])])
+    smax = np.max(simres[:,:,17])
+    grad = smax - smin
+    
+    for pidx in xrange(0,np.size(all_points[0])):
+        ta = all_points[0][pidx]; ba = all_points[1][pidx]
+        cval = int((simres[ta,ba,17]-smin)/grad*100)
+        d.line( [ ( simres[ta,ba,12] - xsiz , simres[ta,ba,13] - xsiz ) ,
+                  ( simres[ta,ba,12] + xsiz , simres[ta,ba,13] + xsiz ) ] ,
+                  fill = tuple(colormap[cval]) )  
+        d.line( [ ( simres[ta,ba,12] - xsiz , simres[ta,ba,13] + xsiz ) ,
+                  ( simres[ta,ba,12] + xsiz , simres[ta,ba,13] - xsiz ) ] ,
+                  fill = tuple(colormap[cval]) )
+    
+    return (smax, smin, grad, colormap)
 #%%
 #****************************
 #FP Grid Annotation Functions
@@ -219,3 +240,29 @@ def annotate_plotting(d,drawopts,border,pixwidth,fnt,featur_fill,dynfill,chrfill
 
     else: bt_anno_idx = 0
     return bt_anno_idx
+
+def annotate_dustphase(d,border,pixwidth,featur_fill,fnt,smax,smin,grad,colormap):
+   
+    d.text((2*border + pixwidth + 30,border + 370), "Phase Angle:",font=fnt, fill= featur_fill)   
+   
+    for i in range(0,101):
+        d.line([(2*border + pixwidth + 30,border + 405 + 2*i),
+                (2*border + pixwidth + 100,border + 405 + 2*i)],
+                fill = tuple(colormap[i]))
+        d.line([(2*border + pixwidth + 30,border + 405 + 2*i + 1),
+                (2*border + pixwidth + 100,border + 405 + 2*i + 1)],
+                fill = tuple(colormap[i])) 
+                
+    for l in range(0,101,25):
+        d.text((2*border + pixwidth + 110,border + 395 + 2*l), \
+                ("%.0f" % (smin+grad*l/100)), font=fnt, fill= featur_fill)
+
+    return 4
+#%%
+    
+def getdustphase(sundusvec,sunobsvec):
+    obsdusvec = sundusvec - sunobsvec
+    dprod = obsdusvec[0]*sundusvec[0] + obsdusvec[1]*sundusvec[1] + obsdusvec[2]*sundusvec[2]
+    obsdusmag = m.sqrt(obsdusvec[0]*obsdusvec[0] + obsdusvec[1]*obsdusvec[1] + obsdusvec[2]*obsdusvec[2])
+    sundusmag = m.sqrt(sundusvec[0]*sundusvec[0] + sundusvec[1]*sundusvec[1] + sundusvec[2]*sundusvec[2])
+    return m.acos(dprod/obsdusmag/sundusmag)*180/m.pi

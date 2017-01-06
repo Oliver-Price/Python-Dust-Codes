@@ -91,3 +91,19 @@ def image_time_stereo(filebase):
                                                 chour , cmin, csec))
     uncertainty_range_exists = False                                          
     return ctime,uncertainty_range_exists
+
+#%% Image time from Earth filename   
+    
+def image_time_filename(filebase):
+    
+    csec = 0
+    cmin = int(filebase[21:23])
+    chour = int(filebase[19:21])
+    cday = int(filebase[16:18])
+    cmonth = int(filebase[13:15])
+    cyear = int(filebase[8:12])
+    ctime = astropy.time.Time(datetime.datetime(cyear, cmonth, cday,
+                                                chour , cmin, csec))
+    
+    uncertainty_range_exists = False
+    return ctime,uncertainty_range_exists

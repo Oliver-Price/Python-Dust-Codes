@@ -19,16 +19,18 @@ import pickle
 import matplotlib.path as mplPath
 from PIL import Image, ImageDraw, ImageFont
 import webbrowser
+import matplotlib.pyplot as plt
 
 sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")
 
 from orbitdata_loading_functions import orb_vector, orb_obs
-from FP_plot_functions import ra2xpix, dec2ypix, setaxisup, plotpixel
+from FP_plot_functions import ra2xpix, dec2ypix, setaxisup, plotpixel, getdustphase
 from FP_plot_functions import draw_syndynes, draw_synchrones, draw_datap
 from FP_plot_functions import draw_data_reg, annotate_plotting
+from FP_plot_functions import draw_phase_points, annotate_dustphase
 from FP_diagnostics import plot_orbit, plot_orbit_points, plot_sunearth_vec
 from FP_diagnostics import write_bt_ranges, write_properties, plot_compos_unc
-from imagetime_methods import image_time_yudish, image_time_user, image_time_stereo
+from imagetime_methods import image_time_yudish, image_time_user, image_time_stereo, image_time_filename
 from conversion_routines import pos2radec, fixwraps, find_largest_nonzero_block 
 from io_methods import get_obs_loc, correct_for_imagetype
 from io_methods import get_stereo_instrument, get_soho_instrument
@@ -307,9 +309,10 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     if obsloc == 'Earth':
         
         timemsg = "Choose image time method"
-        timechoices = ["User Entry","Yudish Imagetimeheader"]
+        timechoices = ["Filename","User Entry","Yudish Imagetimeheader"]
         reply = easygui.buttonbox(timemsg, choices=timechoices)
         
+        if reply == "Filename": [ctime,uncertainty_range_exists] = image_time_filename(filebase)
         if reply == "Yudish Imagetimeheader": [idls,ctime,uncertainty_range_exists] = image_time_yudish(comdenom,fitsinfile,idlsav)
         if reply == "User Entry": [ctime,uncertainty_range_exists] = image_time_user()
                                           
@@ -489,7 +492,7 @@ while test_mode == True:
         elif (np.sum(sync_intersects) == 0): image_case = 3        
     
     #prep for simulation loop
-    simres = np.zeros((tno,bno,17),dtype = float)
+    simres = np.zeros((tno,bno,18),dtype = float)
     bmax = np.zeros((tno),dtype = int)
     bmin = np.zeros((tno),dtype = int)
     tmax = np.zeros((bno),dtype = int)
@@ -521,6 +524,7 @@ while test_mode == True:
                 simres[tidx,bidx,12] = ra2xpix(simres[tidx,bidx,10],border,pixwidth,rafmin,scale)
                 simres[tidx,bidx,13] = dec2ypix(simres[tidx,bidx,11],border,pixheight,decmin,scale)                 
                 simres[tidx,bidx,14] = point_in_image
+                simres[tidx,bidx,17] = getdustphase(sim[1][0:3],obsveceq[int(simres[tidx,bidx,3]),6:9])
                 bidx += 1
             try:simres[tidx,bidx - 1 + point_in_image,15] = 0
             except: pass
@@ -566,6 +570,7 @@ while test_mode == True:
                 simres[tidx,bidx,14] = point_in_image
                 syn_exited_image = syn_exit_tt[point_in_image,prev_stat]
                 prev_stat = point_in_image
+                simres[tidx,bidx,17] = getdustphase(sim[1][0:3],obsveceq[int(simres[tidx,bidx,3]),6:9])
                 bidx -= 1
             print float(tidx)*100/tno
             bprev = bidx
@@ -655,12 +660,17 @@ while test_mode == True:
     if "Syndynes" in drawopts: draw_syndynes(dynfill,d,simres,bno,rapixl,decpixl,tmin,tmax,bidx_list,bspacing)
     if "Synchrones" in drawopts: draw_synchrones(chrfill,d,simres,tno,rapixl,decpixl,bmin,bmax,tidx_list,tspacing)
     if "Data Points" in drawopts: draw_datap(drfill,d,simres)
-    elif "Data Region Enclosed" in drawopts:  draw_data_reg(drfill,d,simres,bmax,bmin,bidx_list,tmax,tmin,tidx_list,border,pixwidth)
-    bt_anno_idx = annotate_plotting(d,drawopts,border,pixwidth,fnt,featur_fill,dynfill,chrfill,drfill)
-    
+    if "Dust Phase Angles" in drawopts: [smax, smin, grad, colormap] = draw_phase_points(d,simres)
+    if "Data Region Enclosed" in drawopts: draw_data_reg(drfill,d,simres,bmax,bmin,bidx_list,tmax,tmin,tidx_list,border,pixwidth)
+
+    if not "Dust Phase Angles" in drawopts:
+        bt_anno_idx = annotate_plotting(d,drawopts,border,pixwidth,fnt,featur_fill,dynfill,chrfill,drfill)        
+    else:
+        bt_anno_idx = annotate_dustphase(d,border,pixwidth,featur_fill,fnt,smax,smin,grad,colormap)
+        
     write_bt_ranges(d,border, pixwidth, fnt, featur_fill,
                     betau, betal, simtu, simtl, bt_anno_idx)
-    
+                    
     if (drawopts != "No Image"):
         cimgdir = os.path.join(imagedir, 'FPplots')
         if not os.path.exists(cimgdir): os.makedirs(cimgdir)
