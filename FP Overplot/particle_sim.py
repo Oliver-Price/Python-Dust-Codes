@@ -67,5 +67,25 @@ def rk4(pstate, beta, dt):
     k3 = diff(pstate+k2*0.5, beta)*dt
     k4 = diff(pstate+k3, beta)*dt
     return pstate + (k1+k2*2+k3*2+k4)*0.16666666666666666
-    
+
+def frag_sim(beta, bfac, simt, ftime, ndt, ltdt, pstart, efinp, cor): 
+    simt = simt*10 + cor #simt in minutes
+    ftime = ftime*24*60
+    t = 0
+    dt = (4320)/ndt
+    traj = pstart
+    while (t <= ftime) and (t < simt-30):#go to up to 30 minutes before current
+        traj = rk4(traj, beta, dt) #traj updated
+        t += dt
+    while (t > ftime) and (t < simt-30):
+        traj = rk4(traj, beta*bfac, dt) #traj updated
+        t += dt
+    dr = np.linalg.norm(traj[0:3] - efinp)
+    tret = t + 8.316746397269274*dr    
+    while (tret < simt):
+        traj = rk4(traj, beta*bfac, ltdt) #traj updated b the minute
+        t += ltdt
+        dr = np.linalg.norm(traj[0:3] - efinp)
+        tret = t + 8.316746397269274*dr
+    return (t,traj)
     

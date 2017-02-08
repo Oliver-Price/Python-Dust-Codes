@@ -8,8 +8,8 @@ sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")
 
 from conversion_routines import fixwraps
 
-fitsdir = r'C:\PhD\Comet_data\Comet_PanSTARRS_C2011L4\Gallery\Stereo_B'
-rdcsav = r'C:\PhD\Comet_data\Comet_PanSTARRS_C2011L4\Gallery\rdc.npy'
+fitsdir = r'C:\PhD\Comet_data\Comet_NEAT_C2002V1\Gallery\Soho\C3_Clear_MGN'
+rdcsav = r'C:\PhD\Comet_data\Comet_NEAT_C2002V1\Gallery\Soho\rdc.npy'
 
 dir_list = sorted(os.listdir(fitsdir))
 fits_list = [s for s in dir_list if ".fits" in s]
@@ -43,8 +43,9 @@ for fits_no in xrange(0, fits_total):
     decmin = np.amin(dec)
     decmax = np.amax(dec)
     
-    [ra_m, rafmin, rafmax] = fixwraps(ra, ramax, ramin)
-    
+    [ra_m, rafmin, rafmax, bool_val] = fixwraps(ra, ramax, ramin)
+    print rafmax, rafmin
+        
     try:
         if rafmax > trafmax:
             trafmax = rafmax

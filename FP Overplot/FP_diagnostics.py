@@ -12,7 +12,7 @@ from FP_plot_functions import ra2xpix, dec2ypix
 #*******************************
 def plot_orbit(comobs,comveceq,obsveceq,axisdata,d,comcel,trajfill,ra_img_lower,
                ra_img_higher,border,pixwidth,rafmin,scale,pixheight,decmin,fnt,
-               featur_fill, con_in_image):
+               featur_fill, con_in_image,fixwrapsbool):
     
     #find rough cell range of traj from observer data
     obsraloc = np.where((comobs[:,5] > ra_img_lower) \
@@ -29,7 +29,7 @@ def plot_orbit(comobs,comveceq,obsveceq,axisdata,d,comcel,trajfill,ra_img_lower,
         tcellmax = min(trajrough[-1] + vext, np.shape(comveceq)[0])
         for tcell in xrange(trajrough[0] - vext,tcellmax):
             vtemp = comveceq[tcell,6:9] - obsveceq[comcel,6:9]    
-            ptemp = pos2radec(vtemp)
+            ptemp = pos2radec(vtemp,fixwrapsbool)
             vtraj[vno,0] = ptemp[0]
             vtraj[vno,1] = ptemp[1]
             vtraj[vno,4] = tcell
@@ -114,7 +114,7 @@ def plot_orbit_points(d,vtraj,smallfnt,featur_fill,pixheight,pixwidth,border):
 #*********************
 def plot_sunearth_vec(d,comveceq,obsveceq,ltcomcel,axisdata,ra_img_higher,
                       ra_img_lower,border,pixwidth,pixheight,rafmin,decmin,
-                      scale,comsunfill,featur_fill,fnt):
+                      scale,comsunfill,featur_fill,fnt,fixwrapsbool):
     
     #creates an array of ra/dec values along sun-comet line
     cmsam = 10001
@@ -122,7 +122,7 @@ def plot_sunearth_vec(d,comveceq,obsveceq,ltcomcel,axisdata,ra_img_higher,
     comsun = np.empty((cmsam,4),dtype = float)
     for cs in xrange(0,cmsam):
         ctemp = pos2radec(offsets[cs]*comveceq[ltcomcel,6:9] - 
-                            obsveceq[ltcomcel,6:9])
+                            obsveceq[ltcomcel,6:9],fixwrapsbool)
         comsun[cs,0] = ctemp[0]
         comsun[cs,1] = ctemp[1]
     

@@ -3,8 +3,8 @@ from astropy.io import fits
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-fitsdir = r'C:\PhD\Comet_data\Comet_PanSTARRS_C2011L4\Gallery\Stereo_B\HI-1-diff'
-pngdir = r'C:\PhD\Comet_data\Comet_PanSTARRS_C2011L4\Gallery\Stereo_B\HI-1-diff\pngs'
+fitsdir = r'C:\PhD\Comet_data\Comet_NEAT_C2002V1\Gallery\Soho\C3_Clear_MGN'
+pngdir = r'C:\PhD\Comet_data\Comet_NEAT_C2002V1\Gallery\Soho\C3_Clear_MGN\pngs'
 
 #mloc = r'C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Soho\processing\filter_MASK.png'
 #maskimg = Image.open(mloc)
@@ -14,14 +14,14 @@ dir_list = sorted(os.listdir(fitsdir))
 fits_list = [s for s in dir_list if ".fits" in s]
 fits_total = len(fits_list)
 
-low = -180
-hih = 240
+low = 0.06
+hih = 1.2
 
 fontloc = r'C:\Windows\winsxs\amd64_microsoft-windows-f..etype-lucidaconsole_31bf3856ad364e35_6.1.7600.16385_none_5b3be3e0926bd543\lucon.ttf'
 fnt = ImageFont.truetype(fontloc, 50)
 featur_fill = (255,255,255,255)
 
-for fits_id in range(200,fits_total):
+for fits_id in range(0,fits_total):
         fitstemp = os.path.join(fitsdir, fits_list[fits_id])
         pngtemp = os.path.join(pngdir, (fits_list[fits_id].split(".")[0] +
         "_" + str(low) + "_" + str(hih) + ".png"))

@@ -12,7 +12,7 @@ def simulation_setup(savefile):
         betau = 1; betal = 0.1; bno = 50
         simtu = 10; simtl = 1; tno = 50
         threshold = None #formerly used for phase space reduction, now defunct
-        drawopts = "Synchrones Only"
+        drawopts = "Data Region Enclosed"
         sav_bool = False
         test_mode = True
     elif (saveexists == True):

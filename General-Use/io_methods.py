@@ -94,3 +94,44 @@ def get_soho_instrument(imagedir):
     imagedir = os.path.join(imagedir, sohoinst)
 
     return sohoinst, imagedir
+    
+def get_hih_low(comdenom,obsloc,inst):
+    
+    if comdenom == 'c2011l4':
+        if obsloc == 'Stereo_B':
+            low = 30000; hih = 800000
+            if 'MGN' in inst:
+                low = -0.15; hih = 0.45
+            if 'diff' in inst:
+                low = -180; hih = 240
+        elif obsloc == 'Stereo_A':
+            low = 3000; hih = 70000
+        elif obsloc == 'Earth':
+            low = 0; hih = 255
+            
+    elif comdenom == 'c2006p1':
+        if "Stereo" in obsloc:
+            low = 10000; hih = 1500000
+            if 'diff' in inst: 
+                low = -1000; hih = 1000
+            elif 'MGN' in inst:  
+                low = -0.7; hih = 1.25
+        elif obsloc == 'Earth':
+            low = 0; hih = 255
+        elif obsloc == 'Soho':
+            low = 4.8e-10; hih = 1.4e-9
+            if 'MGN' in inst:  
+                low = -0.6; hih = 0.8  
+    
+    elif comdenom == 'c2002v1':
+        if obsloc == 'Earth':
+            low = 0; hih = 255
+        elif obsloc == 'Soho':
+            low = 1e-13; hih = 1e-11
+            if 'MGN' in inst:  
+                low = 0; hih = 1
+            elif 'diff' in inst:
+                low = -2.5e-13; hih = 8.5e-13
+                
+                
+    return hih, low

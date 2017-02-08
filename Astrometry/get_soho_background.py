@@ -2,9 +2,9 @@ import os
 import numpy as np
 from astropy.io import fits
 
-backsave = r'C:\PhD\Comet_data\Comet_PanSTARRS_C2011L4\Gallery\ster_b_background.fits'
-sohosav = r'C:\PhD\Comet_data\Comet_PanSTARRS_C2011L4\Gallery\Stereo_B\Badastrometry'
-subsav = r'C:\PhD\Comet_data\Comet_PanSTARRS_C2011L4\Gallery\Stereo_B\backgroundsubtracted'
+backsave = r'C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\ster_a_hi_1_background.fits'
+sohosav = r'C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\HI-1'
+subsav = r'C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\HI-1\background subtracted'
 
 img_list = sorted(os.listdir(sohosav))
 img_list = [s for s in img_list if ".fts" in s]
@@ -29,8 +29,6 @@ hdulist.writeto(backsave)
 
 for i in xrange(0,img_total):
     fitsimage = os.path.join(sohosav,img_list[i])
-    onedimg = fits.open(fitsimage)
-    values = onedimg[0].data
-    header = onedimg[0].header
+    values, header_cur = fits.getdata(fitsimage, header=True)
     subimage = os.path.join(subsav,img_list[i])
-    fits.writeto(subimage,(values-background),clobber=True)
+    fits.writeto(subimage,(values-background),header_cur,clobber=True)

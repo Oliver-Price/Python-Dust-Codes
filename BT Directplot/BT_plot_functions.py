@@ -2,6 +2,7 @@
 #Various PIL methods for the BT module 
 #*************************************
 import numpy as np
+from conversion_routines import round_to_base
 
 #%%
 #*************************
@@ -41,7 +42,50 @@ def logplotpixel(d,ta,ba,simres,dec,border,pixwt,pixhi,betal,simtl,wscle,hscle,
     t4 = simt2xpix(simres[ta+1,ba,0], border, pixwt, simtl, wscle)
     d.polygon([(t1,b1),(t2,b2),(t3,b3),(t4,b4)],fill=(fillco1,fillco2,fillco3,255))
 
+def bt_setaxisup(simtu,simtl,betau,betal,logaxis,border,pixhi,hscle,pixwt,wscle):
+    
+    #Major divs in time
+    tdivmajors = np.array([1.,2.,3.,4.,5.])
+    tdivnos = (1/tdivmajors) * (simtu - simtl)
+    tnodivs = 6
+    tdividx = np.where((tdivnos <= tnodivs)==True)[0][0]
+    tmajticks = np.arange(simtu, simtl-0.0001, -tdivmajors[tdividx])
+    
+    #Minor divs in time
+    tdivminors = np.array([0.5,1,1,1,1])
+    tminticks = np.arange(simtu, simtl-0.0001, -tdivminors[tdividx])
+    tminticks = np.setdiff1d(tminticks,tmajticks)
+      
+    #Major divs in beta     
+    bdivmajors = np.array([0.1,0.2,0.5,1,2,5,10,20,50])
+    bdivnos = (1/bdivmajors) * (betau - betal)
+    bnodivs = 10
+    bdividx = np.where((bdivnos <= bnodivs)==True)[0][0]
+    bu2majdv = round_to_base(betau, bdivmajors[bdividx])
+    bl2majdv = round_to_base(betal, bdivmajors[bdividx])   
+    bmajticks = np.arange(bu2majdv, bl2majdv-0.0001, -bdivmajors[bdividx])
+    if (0 in bmajticks) and (logaxis == True):
+        bmajticks[bmajticks == 0] = float('%.1g' % betal)
+    
+    #Minor divs in beta  
+    bdivminors = np.array([0.02,0.05,0.1,0.2,0.5,1,2,5,10])
+    bu2mindv = round_to_base(betau, bdivminors[bdividx])
+    bl2mindv = round_to_base(betal, bdivminors[bdividx])   
+    bminticks = np.arange(bu2mindv, bl2mindv-0.0001, -bdivminors[bdividx])
+    bminticks = np.setdiff1d(bminticks,bmajticks)
+    
+    if logaxis == True:
+            bminlocs = logbeta2ypix(bminticks, border, pixhi, betal, hscle)
+            bmajlocs = logbeta2ypix(bmajticks, border, pixhi, betal, hscle)
+    else:
+            bminlocs = beta2ypix(bminticks, border, pixhi, betal, hscle)
+            bmajlocs = beta2ypix(bmajticks, border, pixhi, betal, hscle)
+    
+    tminlocs = simt2xpix(tminticks, border, pixwt, simtl, wscle)
+    tmajlocs = simt2xpix(tmajticks, border, pixwt, simtl, wscle)
 
+    return (bminlocs,bmajlocs,tminlocs,tmajlocs,tmajticks,bmajticks,tminticks,bminticks)
+    
 #%% Antiquated
     
 #scaling function to increase contrast

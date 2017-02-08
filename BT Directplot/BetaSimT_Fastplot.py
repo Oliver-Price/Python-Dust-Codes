@@ -17,8 +17,8 @@ import webbrowser
 sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")  
 
 from orbitdata_loading_functions import orb_vector, orb_obs
-from BT_plot_functions import beta2ypix, simt2xpix, plotpixel, logbeta2ypix, logplotpixel
-from io_methods import get_obs_loc, get_stereo_instrument, get_soho_instrument
+from BT_plot_functions import beta2ypix, simt2xpix, plotpixel, logbeta2ypix, logplotpixel, bt_setaxisup
+from io_methods import get_obs_loc, get_stereo_instrument, get_soho_instrument, get_hih_low
 from conversion_routines import fixwraps, round_to_base
 
 #%%**********************
@@ -43,8 +43,9 @@ with open(inputfile, "r") as c:
 
 #choose observer locations
 [obsloc, imagedir] = get_obs_loc(obslocstr, imagedir)
-if "Stereo" in obsloc: [sterinst, imagedir] = get_stereo_instrument(imagedir)
-if obsloc == "Soho": [sohoinst, imagedir] = get_soho_instrument(imagedir)
+if "Stereo" in obsloc: [inst, imagedir] = get_stereo_instrument(imagedir)
+elif obsloc == "Soho": [inst, imagedir] = get_soho_instrument(imagedir)
+else: inst = ''
     
 #import the orbit data
 obsveceq = orb_vector(comdenom, obsloc, pysav, orbitdir,
@@ -66,8 +67,7 @@ if 'inverted' in infile:
 #parameter savefile location
 picklesavefile = os.path.join(pysav, 'imgsavs')
 picklesavefile = os.path.join(picklesavefile, obsloc)
-if "Stereo" in obsloc: picklesavefile = os.path.join(picklesavefile, sterinst)
-if "Soho" in obsloc: picklesavefile = os.path.join(picklesavefile, sohoinst)
+if "S" in obsloc: picklesavefile = os.path.join(picklesavefile, inst)
 picklesavefile = os.path.join(picklesavefile, filebase + '_plot_param.pickle')
 
 greyscale = True
@@ -129,15 +129,15 @@ elif 'Soho' in obsloc:
     w = wcs.WCS(onedimg[0].header)
 
 #putting ra into sensible values
-[ra_m, rafmin, rafmax] = fixwraps(ra, ramax, ramin)
+[ra_m, rafmin, rafmax, fixwrapsbool] = fixwraps(ra, ramax, ramin)
     
 #imagemask for HI-2
 if "Stereo" in obsloc:
-    if '2' in sterinst:
+    if '2' in inst:
         maskedimg = fits.open('C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\hi2A_mask.fts')
         imagemask  = maskedimg[0].data[::2,::2]
         
-    elif '1' in sterinst:
+    elif '1' in inst:
         direndindx = os.path.dirname(fitscoords).find("HI-1") + 4
         fits_dir = os.path.dirname(fitscoords)[:direndindx]
         fits_list = os.listdir(fits_dir)
@@ -211,10 +211,10 @@ if not os.path.exists(dustplotfits):
 with open(dustplotvals, "w") as text_file:
     text_file.write('Ejection Times from ' + str(tvals[0]) + ' to ' +
     str(tvals[-1]) + ' days')
-    text_file.write('\nBeta from ' + str(simres[0,0,1]) + ' to ' +
-    str(simres[-1,0,0]))  
-    text_file.write('\nEjection Time Values:\n ' +  str(simres[:,0,0])[1:-1] +
-                    '\nBeta Values:\n ' + str(simres[0,:,1])[1:-1] )
+    text_file.write('\nBeta from ' + str(bvals[0]) + ' to ' +
+    str(bvals[-1]))  
+    text_file.write('\nEjection Time Values:\n ' +  str(tvals)[1:-1] +
+                    '\nBeta Values:\n ' + str(bvals)[1:-1] )
 
 #%%**************************************
 #FOURTH CELL - SAVE TIME FILTERED TO FITS
@@ -235,13 +235,13 @@ if reply == True:
                 errmsg += ("Time must be a number")
         if errmsg == "": break
         hreply = easygui.enterbox(errmsg)
-    tshift = int(float(hreply)/(simres[1,0,0] - simres[0,0,0])/24)
+    tshift = int(float(hreply)/(tvals[1]-tvals[0])/24)
     
     dustplotmodifits = (dustplotsave + '_tfilter_' +
                         string.replace(str(float(hreply)),'.','\'') + '.fits') 
     
     if not os.path.exists(dustplotmodifits):
-        ref_vals = np.copy(simres[:,:,15].T)
+        ref_vals = np.copy(simres[:,:,14].T)
         
         fits_t_minus = np.copy(fits_arr[:,tshift:])
         fits_t_plus = np.copy(fits_arr[:,:-tshift])
@@ -316,15 +316,15 @@ if reply == True:
                   
 #%%******************************
 #SIXTH CELL - PLOT DATA ONTO IMAGE
-#*********************************          
- 
+#********************************
 #choose img type
 colormsg = "Preview dustplot output?"
-reply = easygui.ynbox(msg=colormsg)
+plotchoices=('Base Image','T Filter Enhanced')
+reply = easygui.buttonbox(msg=colormsg,choices=plotchoices)
 
 logaxis = True
 
-if reply == True:    
+if (reply == 'Base Image' or reply == 'T Filter Enhanced'):    
     simtl = tvals[0]; simtu = tvals[-1]; betal = bvals[0]; betau = bvals[-1]
     
     pixhi = 1000
@@ -346,41 +346,11 @@ if reply == True:
 
     if 'Earth' in obsloc:
         plotmethodlog = False
-    elif 'Stereo' in obsloc:
-        if 'diff' or 'MGN' in sterinst: plotmethodlog = False
-        else: plotmethodlog = True
-    elif 'Soho' in obsloc:
-        if 'diff' or 'MGN' in sohoinst: plotmethodlog = False
+    elif 'S' in obsloc:
+        if 'diff' or 'MGN' in inst: plotmethodlog = False
         else: plotmethodlog = True
         
-    if comdenom == 'c2011l4':
-        if obsloc == 'Stereo_B':
-            low = 30000; hih = 800000
-            if 'MGN' in sterinst:
-                low = -0.15; hih = 0.45
-            if 'diff' in sterinst:
-                low = -180; hih = 240
-        elif obsloc == 'Stereo_A': low = 3000; hih = 70000
-            
-    elif comdenom == 'c2006p1':
-        if "Stereo" in obsloc:
-            low = 10000
-            hih = 1500000
-            if 'diff' in sterinst: 
-                low = -1000
-                hih = 1000
-            elif 'MGN' in sterinst:  
-                low = -0.7
-                hih = 1.25
-        elif obsloc == 'Earth':
-            low = 0
-            hih = 255
-        elif obsloc == 'Soho':
-            low = 4.8e-10
-            hih = 1.4e-9
-            if 'MGN' in sohoinst:  
-                low = -0.6
-                hih = 0.8
+    [hih,low] = get_hih_low(comdenom,obsloc,inst)
         
     good_bool = srcolors[1:,1:,0] + srcolors[:-1,:-1,0] + srcolors[1:,:-1,0] + srcolors[:-1,1:,0]
     good_locs = np.where(good_bool==4)
@@ -434,42 +404,8 @@ if reply == True:
     a = d.polygon([(border,border),(border*2+pixwt,border), \
         (border*2+pixwt,border*2+pixhi),(border,border*2+pixhi)], \
         outline = (255,255,255,128))
-        
-    tdivmajors = np.array([1.,2.,3.])
-    tdivnos = (1/tdivmajors) * (simtu - simtl)
-    tnodivs = 6
-    tdividx = np.where((tdivnos <= tnodivs)==True)[0][0]
-    tmajticks = np.arange(simtu, simtl-0.0001, -tdivmajors[tdividx])
     
-    tdivminors = np.array([0.5,1,1])
-    tminticks = np.arange(simtu, simtl-0.0001, -tdivminors[tdividx])
-    tminticks = np.setdiff1d(tminticks,tmajticks)
-            
-    bdivmajors = np.array([0.1,0.2,0.5,1,2,5,10,20,50])
-    bdivnos = (1/bdivmajors) * (betau - betal)
-    bnodivs = 10
-    bdividx = np.where((bdivnos <= bnodivs)==True)[0][0]
-    bu2majdv = round_to_base(betau, bdivmajors[bdividx])
-    bl2majdv = round_to_base(betal, bdivmajors[bdividx])   
-    bmajticks = np.arange(bu2majdv, bl2majdv-0.0001, -bdivmajors[bdividx])
-    if (0 in bmajticks) and (logaxis == True):
-        bmajticks[bmajticks == 0] = float('%.1g' % betal)
-    
-    bdivminors = np.array([0.02,0.05,0.1,0.2,0.5,1,2,5,10])
-    bu2mindv = round_to_base(betau, bdivminors[bdividx])
-    bl2mindv = round_to_base(betal, bdivminors[bdividx])   
-    bminticks = np.arange(bu2mindv, bl2mindv-0.0001, -bdivminors[bdividx])
-    bminticks = np.setdiff1d(bminticks,bmajticks)
-    
-    if logaxis == True:
-            bminlocs = logbeta2ypix(bminticks, border, pixhi, betal, hscle)
-            bmajlocs = logbeta2ypix(bmajticks, border, pixhi, betal, hscle)
-    else:
-            bminlocs = beta2ypix(bminticks, border, pixhi, betal, hscle)
-            bmajlocs = beta2ypix(bmajticks, border, pixhi, betal, hscle)
-    
-    tminlocs = simt2xpix(tminticks, border, pixwt, simtl, wscle)
-    tmajlocs = simt2xpix(tmajticks, border, pixwt, simtl, wscle)
+    [bminlocs,bmajlocs,tminlocs,tmajlocs,tmajticks,bmajticks,tminticks,bminticks] = bt_setaxisup(simtu,simtl,betau,betal,logaxis,border,pixhi,hscle,pixwt,wscle)  
     
     majt = 20  #major tick length
     mint = 10  #minor tick length
