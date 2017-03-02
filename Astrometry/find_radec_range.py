@@ -3,13 +3,49 @@ import numpy as np
 import sys
 from astropy.io import fits
 from astropy import wcs
+import easygui
 
 sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")
+sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\FP Overplot")
 
+from io_methods import get_obs_loc, get_stereo_instrument, get_soho_instrument
+from orbitdata_loading_functions import orb_vector, orb_obs
 from conversion_routines import fixwraps
 
-fitsdir = r'C:\PhD\Comet_data\Comet_NEAT_C2002V1\Gallery\Soho\C3_Clear_MGN'
-rdcsav = r'C:\PhD\Comet_data\Comet_NEAT_C2002V1\Gallery\Soho\rdc.npy'
+rdcsav = r'C:\PhD\Comet_data\Comet_Lovejoy_C2011W3\Gallery\Soho\rdc.npy'
+
+#choosing comet data to use
+inputfilefolder = "C:\PhD\Comet_data\Input_files\*pt1.txt"
+inputfile = easygui.fileopenbox(default = inputfilefolder)
+
+#reading main comet parameters
+with open(inputfile, "r") as c:
+    cdata = c.readlines()
+    comname = cdata[30][12:]
+    comdenom = cdata[31][13:-2]
+    imagedir = cdata[24][18:-2]
+    orbitdir = cdata[25][23:-2]
+    idlsav = cdata[26][25:-2]
+    pysav = cdata[27][24:-2]
+    obslocstr = cdata[34][19:]
+    horiztag = cdata[40][10:]
+
+#choose observer locations
+[obsloc, imagedir] = get_obs_loc(obslocstr, imagedir)
+if "Stereo" in obsloc: [inst, imagedir] = get_stereo_instrument(imagedir)
+elif obsloc == "Soho": [inst, imagedir] = get_soho_instrument(imagedir)
+else: inst = ''
+ 
+#import the orbit data
+obsveceq = orb_vector(comdenom, obsloc, pysav, orbitdir,
+                      horiztag, opts = 'obs,eq')
+comveceq = orb_vector(comdenom, obsloc, pysav, orbitdir,
+                      horiztag, opts = 'eq')
+comveceq10 = orb_vector(comdenom, obsloc, pysav, orbitdir,
+                        horiztag, opts = 'eq,d10')
+comobs = orb_obs(comdenom, obsloc, pysav, orbitdir, horiztag)
+
+fitsdir=imagedir
 
 dir_list = sorted(os.listdir(fitsdir))
 fits_list = [s for s in dir_list if ".fits" in s]
@@ -44,7 +80,6 @@ for fits_no in xrange(0, fits_total):
     decmax = np.amax(dec)
     
     [ra_m, rafmin, rafmax, bool_val] = fixwraps(ra, ramax, ramin)
-    print rafmax, rafmin
         
     try:
         if rafmax > trafmax:

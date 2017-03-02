@@ -22,6 +22,7 @@ import webbrowser
 import matplotlib.pyplot as plt
 
 sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")
+sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\FP Overplot")
 
 from orbitdata_loading_functions import orb_vector, orb_obs
 from FP_plot_functions import ra2xpix, dec2ypix, setaxisup, plotpixel, getdustphase
@@ -488,7 +489,7 @@ while test_mode == True:
             while (bidx < bno and point_in_image == 1):
                 simt10min = int(round(144*tvals[tidx]))
                 pstart = comveceq10[comcel10-simt10min,6:12]
-                sim = part_sim(bvals[bidx],simt10min,30,3,pstart,efinp,dtmin)
+                sim = part_sim(bvals[bidx],simt10min,3000,3,pstart,efinp,dtmin)
                 simres[tidx,bidx,0] = float(simt10min)/144
                 simres[tidx,bidx,1] = bvals[bidx]
                 simres[tidx,bidx,2] = sim[0] #length of simulation in minutes

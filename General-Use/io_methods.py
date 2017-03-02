@@ -133,5 +133,16 @@ def get_hih_low(comdenom,obsloc,inst):
             elif 'diff' in inst:
                 low = -2.5e-13; hih = 8.5e-13
                 
+    elif comdenom == 'c2011w3':
+        if obsloc == 'Earth':
+            low = 0; hih = 255
+        elif obsloc == 'Soho':
+            low = 1000; hih = 10000
+            if 'MGN' in inst:  
+                low = -0.2; hih = 1
+            elif 'diff' in inst:
+                low = -1000; hih = 1000
+            
+                
                 
     return hih, low
