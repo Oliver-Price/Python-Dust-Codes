@@ -73,11 +73,30 @@ comveceq10 = orb_vector(comdenom, obsloc, pysav, orbitdir,
                         horiztag, opts = 'eq,d10')
 comobs = orb_obs(comdenom, obsloc, pysav, orbitdir, horiztag)
 
-#choosing fits file to display and getting pathnames
-fitsin = easygui.fileopenbox(default = os.path.join(imagedir,'*'))
-if fitsin == '.': sys.exit("No file selected")
+#choosing whether to use last used file
+last_savename = 'last_image.pickle'
+last_savefile = os.path.join(pysav,last_savename)
+last_saveexists = os.path.isfile(last_savefile)
+getnewfile = True
+if last_saveexists == True:
+    with open(last_savefile) as f:
+        fitsin = pickle.load(f)
+    fitsinfile = os.path.basename(fitsin)
+    filebase = fitsinfile[:string.find(fitsinfile,'.')]
+    getnewfile = not easygui.ynbox('Use this file: ' + filebase + ' ?')
+
+#choosing fits file to display
+if getnewfile == True:
+    fitsin = easygui.fileopenbox(default = os.path.join(imagedir,'*'))
+    if fitsin == '.': sys.exit("No file selected")
+
+#getting pathnames
 fitsinfile = os.path.basename(fitsin)
 filebase = fitsinfile[:string.find(fitsinfile,'.')]
+
+#saving name of last used file
+with open(last_savefile , 'w') as f:
+    pickle.dump(fitsin, f)
 
 inv = False
 pngdir = os.path.join(imagedir, 'cometplots')
@@ -475,7 +494,7 @@ while test_mode == True:
     bmin = np.zeros((tno),dtype = int)
     tmax = np.zeros((bno),dtype = int)
     tmin = np.zeros((bno),dtype = int)
-    tidx = 0    
+    tidx = 0
 
 #%%*********************************
 #EIGHT CELL - Simulating Dust Motion
@@ -486,10 +505,10 @@ while test_mode == True:
         while (tidx < tno):
             bidx = 0
             point_in_image = 1
+            simt10min = int(round(144*tvals[tidx]))
+            pstart = comveceq10[comcel10-simt10min,6:12]
             while (bidx < bno and point_in_image == 1):
-                simt10min = int(round(144*tvals[tidx]))
-                pstart = comveceq10[comcel10-simt10min,6:12]
-                sim = part_sim(bvals[bidx],simt10min,3000,3,pstart,efinp,dtmin)
+                sim = part_sim(bvals[bidx],simt10min,200,3,pstart,efinp,dtmin)
                 simres[tidx,bidx,0] = float(simt10min)/144
                 simres[tidx,bidx,1] = bvals[bidx]
                 simres[tidx,bidx,2] = sim[0] #length of simulation in minutes
@@ -546,7 +565,7 @@ while test_mode == True:
             while (bidx >= 0 and (syn_exited_image == 0 or bidx >= bprev)):
                 simt10min = int(round(144*tvals[tidx]))
                 pstart = comveceq10[comcel10-simt10min,6:12]
-                sim = part_sim(bvals[bidx],simt10min,30,3,pstart,efinp,dtmin)
+                sim = part_sim(bvals[bidx],simt10min,200,3,pstart,efinp,dtmin)
                 simres[tidx,bidx,0] = float(simt10min)/144
                 simres[tidx,bidx,1] = bvals[bidx]
                 simres[tidx,bidx,2] = sim[0] #length of simulation in minutes

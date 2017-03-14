@@ -161,7 +161,7 @@ elif "Soho" in obsloc:
         colours = (hdulist2[0].data)
         
         imagemask = np.ones_like(colr)
-        imagemask[np.where(colours > 1.35e-9)] = 0
+        #imagemask[np.where(colours > 1.35e-9)] = 0
         
 else: imagemask = np.ones_like(colr)
 

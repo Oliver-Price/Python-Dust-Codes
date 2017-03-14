@@ -32,14 +32,16 @@ OUTPUTS: Final location and finishing time
 import numpy as np
 import math as m
 
-def part_sim(beta, simt, ndt, ltdt, pstart, efinp, cor): 
+def part_sim(beta, simt, nperday, ltdt, pstart, efinp, cor): 
     simt = simt*10 + cor #simt in minutes
+    dt1=float(simt-30)*86400/simt/nperday
+    dt2=float(simt-30)/nperday
+    dt = min(dt1,dt2)
     t = 0
-    dt = (simt-30)/ndt
     traj = pstart
-    for n in xrange(0,ndt,1): #go to up to 30 minutes before current
+    while (t + dt + 30 < simt): #go to up to 30 minutes before current
         traj = rk4(traj, beta, dt) #traj updated
-        t += dt    
+        t += dt
     dr = np.linalg.norm(traj[0:3] - efinp)
     tret = t + 8.316746397269274*dr    
     while (tret < simt):
