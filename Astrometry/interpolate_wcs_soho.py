@@ -5,6 +5,8 @@ from astropy import wcs
 import datetime
 import astropy.time
 
+#THIS DOESN'T WORK DON'T USE IT
+
 uncalsav = r'C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Soho\C3_Blue\processing'
 solarxsav = r'C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Soho\C3_Clear\processing\Renamed Data'
 radecsav = r'C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Soho\C3_Clear'
@@ -19,7 +21,7 @@ cal_total = len(cal_list)
 
 uncal_matches = [];uncal_tds = []
 
-for i in xrange(0,cal_total):
+for i in range(0,cal_total):
     csec = int(cal_list[i][13:15])
     cmin = int(cal_list[i][11:13])
     chour = int(cal_list[i][9:11])
@@ -28,7 +30,7 @@ for i in xrange(0,cal_total):
     cyear = int(cal_list[i][0:4])
     ctime = astropy.time.Time(datetime.datetime(cyear,cmonth,cday,chour,cmin,csec))
     td = 1000
-    for j in xrange(0,uncal_total):
+    for j in range(0,uncal_total):
         usec = int(uncal_list[j][11:13])
         umin = int(uncal_list[j][9:11])
         uhour = int(uncal_list[j][7:9])
@@ -44,6 +46,10 @@ for i in xrange(0,cal_total):
 
 #%%
 
+
+
+
+'''
 sx_fits = os.path.join(solarxsav,cal_list[0])
 rd_fits = os.path.join(radecsav,cal_list[0])
 uc_fits = os.path.join(uncalsav,uncal_list[0])
@@ -109,3 +115,4 @@ u_dec = np.reshape(u_radecs[:,1], (uya,uxa))
 
 pix_x = np.reshape(pixlocs[:,0], (uya,uxa))
 pix_y = np.reshape(pixlocs[:,1], (uya,uxa))
+'''

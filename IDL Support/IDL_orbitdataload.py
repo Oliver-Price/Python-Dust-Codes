@@ -1,10 +1,10 @@
 #EASY PREP FOR LOADING ORBIT DATA FOR IMAGETIMEHEADERS
-sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")  
-from orbitdata_loading_functions import orb_vector, orb_obs
 import easygui
 import numpy as np
 import os
 import sys
+sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")  
+from orbitdata_loading_functions import orb_vector, orb_obs
 
 #choosing comet data to use
 inputfilefolder = "C:\PhD\Comet_data\Input_files\*pt1.txt"
@@ -23,14 +23,15 @@ with open(inputfile, "r") as c:
     horiztag = cdata[40][10:]
 
 #choose observer locations
-bool_locs = np.array([(('EARTH' in obslocstr) or ('Earth' in obslocstr)),
+    bool_locs = np.array([(('EARTH' in obslocstr) or ('Earth' in obslocstr)),
                  (('STEREO-A' in obslocstr) or ('Stereo-A' in obslocstr)
                  or ('STEREO_A' in obslocstr) or ('Stereo_A' in obslocstr)),
                  (('STEREO-B' in obslocstr) or ('Stereo-B' in obslocstr)
                  or ('STEREO_B' in obslocstr) or ('Stereo_B' in obslocstr)),
-                 (('SOHO' in obslocstr) or ('Soho' in obslocstr))])
-name_locs = np.array(['Earth', 'Stereo_A', 'Stereo_B', 'Soho'])
-case_locs = np.size(np.nonzero(bool_locs))
+                 (('SOHO' in obslocstr) or ('Soho' in obslocstr)),
+                 (('ISS' in obslocstr) or ('iss' in obslocstr))])
+    name_locs = np.array(['Earth', 'Stereo_A', 'Stereo_B', 'Soho', 'ISS'])
+    case_locs = np.size(np.nonzero(bool_locs))
 if case_locs > 1:
     obsmsg = "Please select observer location"
     obschoices = name_locs[bool_locs].tolist()

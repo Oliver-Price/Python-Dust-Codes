@@ -80,7 +80,7 @@ def find_largest_nonzero_block(array_in):
     
     no_blocs = np.size(stop_locs[0])
     sizes = np.empty((no_blocs),dtype = int)
-    for x in xrange(0,no_blocs):
+    for x in range(0,no_blocs):
         sizes[x] = stop_locs[0][x] - start_locs[0][x]
     
     if sizes.size > 0:

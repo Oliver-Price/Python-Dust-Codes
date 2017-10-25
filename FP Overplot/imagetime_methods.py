@@ -92,9 +92,8 @@ def image_time_stereo(filebase):
     uncertainty_range_exists = False                                          
     return ctime,uncertainty_range_exists
 
-#%% Image time from Earth filename   
-    
-def image_time_filename(filebase):
+#%%Image time from yudish/earth
+def image_time_filename_yuds(filebase):
     
     csec = 0
     cmin = int(filebase[21:23])

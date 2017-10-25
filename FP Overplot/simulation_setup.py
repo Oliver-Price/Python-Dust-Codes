@@ -16,7 +16,7 @@ def simulation_setup(savefile):
         sav_bool = False
         test_mode = True
     elif (saveexists == True):
-        with open(savefile) as f:
+        with open(savefile, 'rb') as f:
             sparameters = pickle.load(f)
             betau = sparameters[0]
             betal = sparameters[1]
@@ -112,7 +112,7 @@ def simulation_setup(savefile):
         if reply == 'Toggle Test Mode': test_mode = not test_mode
         if reply == 'OK All': break  
             
-    with open(savefile, 'w') as f:
+    with open(savefile, 'wb') as f:
         pickle.dump([betau, betal, bno, simtu, simtl, tno, threshold,
                      drawopts, sav_bool, test_mode], f)
     

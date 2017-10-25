@@ -1,13 +1,13 @@
 from astropy.io import fits
 import os
 
-fits_folder = r"C:\PhD\Comet_data\Comet_NEAT_C2002V1\Gallery\Soho\C3_Clear"
-fits_out_folder = r"C:\PhD\Comet_data\Comet_NEAT_C2002V1\Gallery\Soho\C3_Clear_diff"
+fits_folder = r'C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\HI-1'
+fits_out_folder = r'C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\HI-1-diff'
 
 fits_list = os.listdir(fits_folder)
-fits_list = [s for s in fits_list if 'fits' in s]
+fits_list = [s for s in fits_list if 's4' in s]
 
-for fits_no in xrange(1,len(fits_list)):
+for fits_no in range(1,len(fits_list)):
     
     fits_string = fits_list[fits_no].split(".")[0]
     

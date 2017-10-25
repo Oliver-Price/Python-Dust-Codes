@@ -27,7 +27,7 @@ def plot_orbit(comobs,comveceq,obsveceq,axisdata,d,comcel,trajfill,ra_img_lower,
         vno = 0; vext = int(np.size(trajrough))
         vtraj = np.empty((np.size(trajrough)+2*vext-1,11),dtype = float)
         tcellmax = min(trajrough[-1] + vext, np.shape(comveceq)[0])
-        for tcell in xrange(trajrough[0] - vext,tcellmax):
+        for tcell in range(trajrough[0] - vext,tcellmax):
             vtemp = comveceq[tcell,6:9] - obsveceq[comcel,6:9]    
             ptemp = pos2radec(vtemp,fixwrapsbool)
             vtraj[vno,0] = ptemp[0]
@@ -54,7 +54,7 @@ def plot_orbit(comobs,comveceq,obsveceq,axisdata,d,comcel,trajfill,ra_img_lower,
         #convert to ra and dec, and plot
         vtraj[:,2] = ra2xpix(vtraj[:,0],border,pixwidth,rafmin,scale)
         vtraj[:,3] = dec2ypix(vtraj[:,1],border,pixheight,decmin,scale)
-        for ta in xrange(0, (np.shape(vtraj)[0]-1)):
+        for ta in range(0, (np.shape(vtraj)[0]-1)):
             d.line([(vtraj[ta,2],vtraj[ta,3]),(vtraj[ta+1,2],vtraj[ta+1,3])],\
             fill = trajfill)
         
@@ -120,7 +120,7 @@ def plot_sunearth_vec(d,comveceq,obsveceq,ltcomcel,axisdata,ra_img_higher,
     cmsam = 10001
     offsets = np.ones(cmsam) + np.linspace(-1,1,cmsam)
     comsun = np.empty((cmsam,4),dtype = float)
-    for cs in xrange(0,cmsam):
+    for cs in range(0,cmsam):
         ctemp = pos2radec(offsets[cs]*comveceq[ltcomcel,6:9] - 
                             obsveceq[ltcomcel,6:9],fixwrapsbool)
         comsun[cs,0] = ctemp[0]
@@ -137,7 +137,7 @@ def plot_sunearth_vec(d,comveceq,obsveceq,ltcomcel,axisdata,ra_img_higher,
     #convert to ra and dec, and plot
     comsun[:,2] = ra2xpix(comsun[:,0],border,pixwidth,rafmin,scale)
     comsun[:,3] = dec2ypix(comsun[:,1],border,pixheight,decmin,scale)
-    for ca in xrange(0, (np.shape(comsun)[0]-1)):
+    for ca in range(0, (np.shape(comsun)[0]-1)):
         d.line([(comsun[ca,2],comsun[ca,3]),
                     (comsun[ca+1,2],comsun[ca+1,3])],
                     fill = comsunfill)
@@ -155,7 +155,7 @@ def plot_compos_unc(d,idls,vtraj,vtrajcel,border,pixwidth,fnt,trajucfill,featur_
         sig_t = int(float(idls.sig_t))
         ura = vtraj [ (vtrajcel - sig_t) : (vtrajcel + sig_t) , 2 ]
         udec = vtraj [ (vtrajcel - sig_t) : (vtrajcel + sig_t) , 3 ]
-        for ua in xrange(0, np.size(ura)-2):
+        for ua in range(0, np.size(ura)-2):
             d.line([(ura[ua],udec[ua]),(ura[ua+1],udec[ua+1])],  
             fill = trajucfill)
             

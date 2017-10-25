@@ -105,26 +105,29 @@ def setaxisup(ramax,ramin,decmax,decmin,border,pixheight,pixwidth,scale):
 #FP Grid Plot Functions
 #**********************
     
-def draw_syndynes(dynfill,d,simres,bno,rapixl,decpixl,tmin,tmax,bidx_list,spacing):
-    
+def draw_syndynes(dynfill,d,simres,bno,rapixl,decpixl,tmin,tmax,bidx_list,spacing,bvals):
+   
+    print('Syndynes')
     for ba in np.append(bidx_list[:-1][::spacing],bidx_list[-1]).tolist():
-        for ta in xrange(tmin[ba], tmax[ba]):
+        for ta in range(tmin[ba], tmax[ba]):
             d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
             (simres[ta+1,ba,12],simres[ta+1,ba,13])],\
             fill = dynfill)
+        #print (bvals[bidx_list[ba]])
             
 #        d.line([(rapixl,decpixl), \
 #        (simres[0,ba,12],simres[0,ba,13])],\
 #        fill = dynfill)
 
-def draw_synchrones(chrfill,d,simres,tno,rapixl,decpixl,bmin,bmax,tidx_list,spacing):
+def draw_synchrones(chrfill,d,simres,tno,rapixl,decpixl,bmin,bmax,tidx_list,spacing,tvals):
 
+    print('Synchrones')
     for ta in np.append(tidx_list[:-1][::spacing],tidx_list[-1]).tolist():
-        for ba in xrange(bmin[ta], bmax[ta]):
+        for ba in range(bmin[ta], bmax[ta]):
             d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
             (simres[ta,ba+1,12],simres[ta,ba+1,13])],\
             fill = chrfill)
-            
+        #print (tvals[tidx_list[ta]])      
 #        d.line([(rapixl,decpixl), \
 #        (simres[ta,0,12],simres[ta,0,13])],\
 #        fill = chrfill)            
@@ -132,7 +135,7 @@ def draw_synchrones(chrfill,d,simres,tno,rapixl,decpixl,bmin,bmax,tidx_list,spac
 def draw_datap(drfill,d,simres,xsiz = 2):
 
     all_points = np.where(simres[:,:,14]==1)
-    for pidx in xrange(0,np.size(all_points[0])):
+    for pidx in range(0,np.size(all_points[0])):
         ta = all_points[0][pidx]; ba = all_points[1][pidx]
         d.line( [ ( simres[ta,ba,12] - xsiz , simres[ta,ba,13] - xsiz ) ,
                   ( simres[ta,ba,12] + xsiz , simres[ta,ba,13] + xsiz ) ] ,
@@ -166,7 +169,7 @@ def draw_phase_points(d,simres,xsiz = 2):
     smax = np.max(simres[:,:,17])
     grad = smax - smin
     
-    for pidx in xrange(0,np.size(all_points[0])):
+    for pidx in range(0,np.size(all_points[0])):
         ta = all_points[0][pidx]; ba = all_points[1][pidx]
         cval = int((simres[ta,ba,17]-smin)/grad*100)
         d.line( [ ( simres[ta,ba,12] - xsiz , simres[ta,ba,13] - xsiz ) ,

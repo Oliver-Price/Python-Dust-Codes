@@ -1,5 +1,6 @@
 #auxiliary functions for easy IO
 import easygui
+import datetime
 from astropy.io import fits
 import os
 import numpy as np
@@ -46,8 +47,9 @@ def get_obs_loc(obslocstr, imagedir):
                  or ('STEREO_A' in obslocstr) or ('Stereo_A' in obslocstr)),
                  (('STEREO-B' in obslocstr) or ('Stereo-B' in obslocstr)
                  or ('STEREO_B' in obslocstr) or ('Stereo_B' in obslocstr)),
-                 (('SOHO' in obslocstr) or ('Soho' in obslocstr))])
-    name_locs = np.array(['Earth', 'Stereo_A', 'Stereo_B', 'Soho'])
+                 (('SOHO' in obslocstr) or ('Soho' in obslocstr)),
+                 (('ISS' in obslocstr) or ('iss' in obslocstr))])
+    name_locs = np.array(['Earth', 'Stereo_A', 'Stereo_B', 'Soho', 'ISS'])
     case_locs = np.size(np.nonzero(bool_locs))
     if case_locs > 1:
         obsmsg = "Please select observer location"
@@ -56,8 +58,8 @@ def get_obs_loc(obslocstr, imagedir):
         imagedir = os.path.join(imagedir, obsloc)
     elif case_locs == 1:
         obsloc = name_locs[bool_locs][0]
+        imagedir = os.path.join(imagedir, obsloc)
     else: sys.exit("No Good Observer Location")
-    
     return obsloc, imagedir
     
 #%% load in correct observer location
@@ -82,7 +84,11 @@ def get_stereo_instrument(imagedir):
     
 def get_soho_instrument(imagedir):
 
-    sohoinst = 'C3_Clear'
+    sname_locs = np.array(['Clear', 'Blue'])
+    sohomsg = "Please select SOHO Filter"
+    sohochoices = sname_locs.tolist()
+    sohoinst = easygui.buttonbox(sohomsg, choices=sohochoices)
+    sohoinst = 'C3_' + sohoinst
     
     mname_locs = np.array(['Base', 'Difference', 'Multiscale Gaussian Normalised'])
     modemsg = "Please select image type"
@@ -113,15 +119,21 @@ def get_hih_low(comdenom,obsloc,inst):
         if "Stereo" in obsloc:
             low = 10000; hih = 1500000
             if 'diff' in inst: 
-                low = -1000; hih = 1000
+                low = -100; hih = 100
             elif 'MGN' in inst:  
                 low = -0.7; hih = 1.25
         elif obsloc == 'Earth':
             low = 0; hih = 255
         elif obsloc == 'Soho':
-            low = 4.8e-10; hih = 1.4e-9
-            if 'MGN' in inst:  
-                low = -0.6; hih = 0.8  
+            if 'Clear' in inst:
+                low = 4.8e-10; hih = 1.4e-9
+                if 'MGN' in inst:  
+                    low = -0.6; hih = 0.8
+            if  'Blue' in inst:
+                low = 200; hih =  3500
+                #low = 350; hih = 1200
+                if 'MGN' in inst:  
+                    low = -0.5; hih = 1.2
     
     elif comdenom == 'c2002v1':
         if obsloc == 'Earth':
@@ -134,7 +146,7 @@ def get_hih_low(comdenom,obsloc,inst):
                 low = -2.5e-13; hih = 8.5e-13
                 
     elif comdenom == 'c2011w3':
-        if obsloc == 'Earth':
+        if obsloc == 'Earth' or 'ISS':
             low = 0; hih = 255
         elif obsloc == 'Soho':
             low = 1000; hih = 10000
@@ -143,6 +155,12 @@ def get_hih_low(comdenom,obsloc,inst):
             elif 'diff' in inst:
                 low = -1000; hih = 1000
             
-                
+    elif comdenom == 'c1965s1':   
+        low = 0; hih = 255
+    
+    else:
+        low = 0; hih = 255    
                 
     return hih, low
+
+

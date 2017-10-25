@@ -12,8 +12,7 @@ from io_methods import get_obs_loc, get_stereo_instrument, get_soho_instrument
 from orbitdata_loading_functions import orb_vector, orb_obs
 from conversion_routines import fixwraps
 
-rdcsav = r'C:\PhD\Comet_data\Comet_Lovejoy_C2011W3\Gallery\Soho\rdc.npy'
-
+rdcsav = r'C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\rdc-HI-1.npy'
 #choosing comet data to use
 inputfilefolder = "C:\PhD\Comet_data\Input_files\*pt1.txt"
 inputfile = easygui.fileopenbox(default = inputfilefolder)
@@ -48,16 +47,19 @@ comobs = orb_obs(comdenom, obsloc, pysav, orbitdir, horiztag)
 fitsdir=imagedir
 
 dir_list = sorted(os.listdir(fitsdir))
-fits_list = [s for s in dir_list if ".fits" in s]
+fits_list = [s for s in dir_list if ".f" in s]
 fits_total = len(fits_list)
 radecorners = np.zeros((fits_total,8),dtype=float)
 
-for fits_no in xrange(0, fits_total):
+for fits_no in range(0, fits_total):
 
     fitsin = os.path.join(fitsdir, fits_list[fits_no])
     onedimg = fits.open(fitsin)
-    w = wcs.WCS(onedimg[0].header)
-    
+    try:
+        w = wcs.WCS(onedimg[0].header, key = 'A')
+    except:
+        w = wcs.WCS(onedimg[0].header)
+
     #make a 2xN array of all pixel locations
     ya = onedimg[0].data.shape[0]
     xa = onedimg[0].data.shape[1]
@@ -106,6 +108,6 @@ for fits_no in xrange(0, fits_total):
     radecorners[fits_no,4] = dec[0,0]; radecorners[fits_no,5] = dec[-1,0]
     radecorners[fits_no,6] = dec[0,-1]; radecorners[fits_no,7] = dec[-1,-1]
     
-    print fits_no
+    print(fits_no)
 
 np.save(rdcsav,radecorners)

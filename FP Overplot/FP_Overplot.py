@@ -3,18 +3,13 @@
 #finson-probstein diagram according to it's orbital parameters
 #*************************************************************
 
-import urllib2
-import string
 import easygui
 import os
 import numpy as np
-import math as m
-from scipy.io.idl import readsav
 import sys
 from astropy.io import fits
 from astropy import wcs
 import astropy.time
-import datetime
 import pickle
 import matplotlib.path as mplPath
 from PIL import Image, ImageDraw, ImageFont
@@ -31,7 +26,7 @@ from FP_plot_functions import draw_data_reg, annotate_plotting
 from FP_plot_functions import draw_phase_points, annotate_dustphase
 from FP_diagnostics import plot_orbit, plot_orbit_points, plot_sunearth_vec
 from FP_diagnostics import write_bt_ranges, write_properties, plot_compos_unc
-from imagetime_methods import image_time_yudish, image_time_user, image_time_stereo, image_time_filename
+from imagetime_methods import image_time_yudish, image_time_user, image_time_stereo, image_time_filename_yuds
 from conversion_routines import pos2radec, fixwraps, find_largest_nonzero_block 
 from io_methods import get_obs_loc, correct_for_imagetype, get_hih_low
 from io_methods import get_stereo_instrument, get_soho_instrument
@@ -79,10 +74,10 @@ last_savefile = os.path.join(pysav,last_savename)
 last_saveexists = os.path.isfile(last_savefile)
 getnewfile = True
 if last_saveexists == True:
-    with open(last_savefile) as f:
+    with open(last_savefile,'rb') as f:
         fitsin = pickle.load(f)
     fitsinfile = os.path.basename(fitsin)
-    filebase = fitsinfile[:string.find(fitsinfile,'.')]
+    filebase = fitsinfile[:fitsinfile.find('.')]
     getnewfile = not easygui.ynbox('Use this file: ' + filebase + ' ?')
 
 #choosing fits file to display
@@ -92,10 +87,10 @@ if getnewfile == True:
 
 #getting pathnames
 fitsinfile = os.path.basename(fitsin)
-filebase = fitsinfile[:string.find(fitsinfile,'.')]
+filebase = fitsinfile[:fitsinfile.find('.')]
 
 #saving name of last used file
-with open(last_savefile , 'w') as f:
+with open(last_savefile , 'wb') as f:
     pickle.dump(fitsin, f)
 
 inv = False
@@ -123,7 +118,7 @@ picklexists = os.path.exists(picklesavefile)
 
 forceredraw = False
 if (imgexists == False) or (picklexists == False) or (forceredraw == True):
-    print "preparing image"
+    print ("preparing image")
     
     #ensures image inputted correctly depending on size of data cube
     [colr, colg, colb, fitscoords] = correct_for_imagetype(imagedir, fitsin, fitsinfile)
@@ -151,14 +146,20 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         if comdenom == 'c2011l4':
             w = wcs.WCS(onedimg[0].header)
         elif comdenom == 'c2006p1':
-            w = wcs.WCS(onedimg[0].header, key = 'A')
+            if 'A' in obsloc:
+                try:
+                    w = wcs.WCS(onedimg[0].header, key = 'A')
+                except:
+                    w = wcs.WCS(onedimg[0].header)
+            if 'B' in obsloc:
+                w = wcs.WCS(onedimg[0].header)
         if 'diff' in inst or 'MGN' in inst: plotmethodlog = False
         else: plotmethodlog = True
     elif 'Soho' in obsloc:
         w = wcs.WCS(onedimg[0].header)
         if 'diff' in inst or 'MGN' in inst: plotmethodlog = False
         else: plotmethodlog = True
-    elif 'Earth' in obsloc:
+    elif 'Earth' or 'ISS' in obsloc:
         plotmethodlog = False
         w = wcs.WCS(onedimg[0].header)
     
@@ -190,7 +191,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     pixwidth = int(pixheight*(rafmax - rafmin)/(decmax - decmin))
     border = 100
     scale = pixheight/(decmax - decmin)
-    imgwidth = pixwidth+int(4*border)
+    imgwidth = pixwidth+int(5*border)
     imgheight = pixheight+int(3*border)
     comimg = Image.new('RGBA', ( imgwidth , imgheight ) ,backgr_fill)
     d = ImageDraw.Draw(comimg)
@@ -215,7 +216,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         if inv == True:
             colcr = 255-colcb; colcb = 255-colcb; colcg = 255-colcg
         
-        for xp in xrange(0,no_points):
+        for xp in range(0,no_points):
             x = non_zeros_0[xp]
             y = non_zeros_1[xp]
             plotpixel(d,x,y,ra_m,dec,border,pixwidth,pixheight,decmin,rafmin,
@@ -234,7 +235,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         if inv == True:
             colcr = 255-colcb; colcb = 255-colcb; colcg = 255-colcg
         
-        for xp in xrange(0,no_points):
+        for xp in range(0,no_points):
             x = non_zeros_0[xp]
             y = non_zeros_1[xp]
             plotpixel(d,x,y,ra_m,dec,border,pixwidth,pixheight,decmin,rafmin,
@@ -261,25 +262,25 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     smallfnt = ImageFont.truetype(fontloc, 20)
     largefnt = ImageFont.truetype(fontloc, 30)
     
-    for div in xrange(0, (np.size(axisdata[1]))): #RA axis major ticks
+    for div in range(0, (np.size(axisdata[1]))): #RA axis major ticks
         b = d.line([(axisdata[1][div],rdaxis-majt),(axisdata[1][div],rdaxis)],\
         fill = featur_fill)
         tick = str(axisdata[0][div]%360)
         d.text((axisdata[1][div] - len(tick)*5,rdaxis + 10), \
         tick, font=fnt, fill= featur_fill)
         
-    for div in xrange(0, (np.size(axisdata[2]))): #RA axis minor ticks
+    for div in range(0, (np.size(axisdata[2]))): #RA axis minor ticks
         b = d.line([(axisdata[2][div],rdaxis-mint),(axisdata[2][div],rdaxis)],\
         fill= featur_fill)
     
-    for div in xrange(0, (np.size(axisdata[4]))): #DEC axis major ticks
+    for div in range(0, (np.size(axisdata[4]))): #DEC axis major ticks
         b = d.line([(border+majt,axisdata[4][div]),(border,axisdata[4][div])],\
         fill= featur_fill)
         tick = str(axisdata[3][div])
         d.text((border - 8 - 15*len(tick),axisdata[4][div] - 10 ), \
         tick, font=fnt, fill=featur_fill)
         
-    for div in xrange(0, (np.size(axisdata[5]))): #DEC axis minor ticks
+    for div in range(0, (np.size(axisdata[5]))): #DEC axis minor ticks
         b = d.line([(border+mint,axisdata[5][div]),(border,axisdata[5][div])],\
         fill= featur_fill)
     
@@ -304,10 +305,11 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     if obsloc == 'Earth':
         
         timemsg = "Choose image time method"
-        timechoices = ["Filename","User Entry","Yudish Imagetimeheader"]
+        timechoices = ["Stereo/Soho Filename","Yudish/Earth Filename","User Entry","Yudish Imagetimeheader"]
         reply = easygui.buttonbox(timemsg, choices=timechoices)
         
-        if reply == "Filename": [ctime,uncertainty_range_exists] = image_time_filename(filebase)
+        if reply == "Stereo/Soho Filename": [ctime,uncertainty_range_exists] = image_time_stereo(filebase)
+        if reply == "Yudish/Earth Filename": [ctime,uncertainty_range_exists] = image_time_filename_yuds(filebase)
         if reply == "Yudish Imagetimeheader": [idls,ctime,uncertainty_range_exists] = image_time_yudish(comdenom,fitsinfile,idlsav)
         if reply == "User Entry": [ctime,uncertainty_range_exists] = image_time_user()
                                           
@@ -399,7 +401,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     comimg.save(imgsav,'png')
     webbrowser.open(imgsav)
     
-    with open(picklesavefile, 'w') as f:
+    with open(picklesavefile, 'wb') as f:
         pickle.dump([comcel, comcel10, ramax, decmax, ramin, decmin, border,
                      pixheight, pixwidth, scale, ctime, dtmin, ra, dec, colr,
                      colb, colg, trajfill, trajucfill, comsunfill, backgr_fill,
@@ -407,9 +409,9 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
                      com_ra_dec, com_Path, com_in_image, featur_fill, fitscoords], f)
                     
 else:
-    print "Loading parameter data"
+    print ("Loading parameter data")
     
-    with open(picklesavefile) as f:
+    with open(picklesavefile,'rb') as f:
         parameters = pickle.load(f)
         comcel = parameters[0]; comcel10 = parameters[1]; ramax = parameters[2]
         decmax = parameters[3]; ramin = parameters[4]; decmin = parameters[5]
@@ -449,7 +451,7 @@ while test_mode == True:
     simtmax = np.round(ctime.jd - comveceq10[0,0])
     if (simtu > simtmax):
         simtu = simtmax
-        print "Simulation time exceeds orbit data range, setting to max"
+        print ("Simulation time exceeds orbit data range, setting to max")
     else:
         simtu = simtu
         
@@ -459,7 +461,7 @@ while test_mode == True:
     if (betal == 0):
         bvals = np.logspace(np.log10(0.001), np.log10(betau), num=(bno-1))
         bvals = np.concatenate((np.array([0]), bvals))
-        print "Beta = 0, logarithmic spacing from Beta = 0.001"
+        print ("Beta = 0, logarithmic spacing from Beta = 0.001")
     else:
         bvals = np.logspace(np.log10(betal), np.log10(betau), num=(bno))
 
@@ -508,7 +510,7 @@ while test_mode == True:
             simt10min = int(round(144*tvals[tidx]))
             pstart = comveceq10[comcel10-simt10min,6:12]
             while (bidx < bno and point_in_image == 1):
-                sim = part_sim(bvals[bidx],simt10min,200,3,pstart,efinp,dtmin)
+                sim = part_sim(bvals[bidx],simt10min,200,1,pstart,efinp,dtmin)
                 simres[tidx,bidx,0] = float(simt10min)/144
                 simres[tidx,bidx,1] = bvals[bidx]
                 simres[tidx,bidx,2] = sim[0] #length of simulation in minutes
@@ -528,12 +530,12 @@ while test_mode == True:
             try:bmax[tidx] = simres[tidx,:,14].nonzero()[0][-1]
             except: bmax[tidx] = 0            
             tidx += 1
-            print float(tidx)*100/tno
+            print (float(tidx)*100/tno)
             
         simres[np.where(simres[:,:,14]==0)] = 0
         bidx_list = np.arange(bno)
         deletions = 0
-        for bidx in xrange(0,bno):
+        for bidx in range(0,bno):
             [minblock,maxblock] = find_largest_nonzero_block(simres[:,bidx,14])
             if minblock == None:
                 bidx_list = np.delete(bidx_list,bidx - deletions)
@@ -557,7 +559,7 @@ while test_mode == True:
         syn_exit_tt[0,1] = 1
         bprev = bno-1
         
-        for tidx_list_val in xrange(0,np.size(tidx_list)):
+        for tidx_list_val in range(0,np.size(tidx_list)):
             bidx = bno-1
             tidx = tidx_list[tidx_list_val]
             syn_exited_image = 0
@@ -582,7 +584,7 @@ while test_mode == True:
                 prev_stat = point_in_image
                 simres[tidx,bidx,17] = getdustphase(sim[1][0:3],obsveceq[int(simres[tidx,bidx,3]),6:9])
                 bidx -= 1
-            print float(tidx)*100/tno
+            print (float(tidx)*100/tno)
             bprev = bidx
             try:simres[tidx,bidx+1-point_in_image,15] = 0
             except:pass
@@ -594,7 +596,7 @@ while test_mode == True:
         simres[np.where(simres[:,:,14]==0)] = 0
         bidx_list = np.arange(bno)
         deletions = 0
-        for bidx in xrange(0,bno):
+        for bidx in range(0,bno):
             [minblock,maxblock] = find_largest_nonzero_block(simres[:,bidx,14])
             if minblock == None:
                 bidx_list = np.delete(bidx_list,bidx - deletions)
@@ -609,8 +611,8 @@ while test_mode == True:
         bidx_tt[bidx_list] = 1         
                         
     if simres[:,:,12].max() == 0:
-		sys.exit("Image " + fitsinfile + " was no good.")
-		image_case = 3
+        sys.exit("Image " + fitsinfile + " was no good.")
+        image_case = 3
             
     if image_case == 3:
         sys.exit("Image " + fitsinfile + " was no good.")
@@ -620,7 +622,7 @@ while test_mode == True:
     no_points = non_zeros_0.size
     nu_radecs = np.zeros((no_points,2))
     
-    for x in xrange(0,no_points):
+    for x in range(0,no_points):
         nu_radecs[x,0] = simres[non_zeros_0[x],non_zeros_1[x],10]
         nu_radecs[x,1] = simres[non_zeros_0[x],non_zeros_1[x],11]
         
@@ -634,7 +636,7 @@ while test_mode == True:
         w = wcs.WCS(onedimg[0].header)
         pixlocs = w.wcs_world2pix(nu_radecs,0)
     
-    for x in xrange(0,no_points):
+    for x in range(0,no_points):
         simres[non_zeros_0[x],non_zeros_1[x],15] = pixlocs[x][0]
         simres[non_zeros_0[x],non_zeros_1[x],16] = pixlocs[x][1]
         
@@ -650,9 +652,9 @@ while test_mode == True:
         simressavefile = os.path.join(simressavefile, simsavbase + '_' + str(betal) + '_'
                          + str(betau) + '_' + str(bno)+ '_' + str(simtl) + '_'
                          + str(simtu) + '_' + str(tno))
-        simressavefile = string.replace(simressavefile,'.','\'')
+        simressavefile = simressavefile.replace('.','\'')
         np.save(simressavefile, simres)
-        with open(simressavefile + '_parameters.pickle' , 'w') as f:
+        with open(simressavefile + '_parameters.pickle' , 'wb') as f:
             pickle.dump([tmax, bmax, tvals, bvals], f)
     
 #%%***************************
@@ -671,8 +673,8 @@ while test_mode == True:
         tspacing = int(tno/5); bspacing = int(bno/5)
     else:
         tspacing = 1; bspacing = 1
-    if "Syndynes" in drawopts: draw_syndynes(dynfill,d,simres,bno,rapixl,decpixl,tmin,tmax,bidx_list,bspacing)
-    if "Synchrones" in drawopts: draw_synchrones(chrfill,d,simres,tno,rapixl,decpixl,bmin,bmax,tidx_list,tspacing)
+    if "Syndynes" in drawopts: draw_syndynes(dynfill,d,simres,bno,rapixl,decpixl,tmin,tmax,bidx_list,bspacing,bvals)
+    if "Synchrones" in drawopts: draw_synchrones(chrfill,d,simres,tno,rapixl,decpixl,bmin,bmax,tidx_list,tspacing,tvals)
     if "Data Points" in drawopts: draw_datap(drfill,d,simres)
     if "Dust Phase Angles" in drawopts: [smax, smin, grad, colormap] = draw_phase_points(d,simres)
     if "Data Region Enclosed" in drawopts: draw_data_reg(drfill,d,simres,bmax,bmin,bidx_list,tmax,tmin,tidx_list,border,pixwidth)

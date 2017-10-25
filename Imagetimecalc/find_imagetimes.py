@@ -12,6 +12,7 @@ from astropy import wcs
 import datetime
 import matplotlib.path as mplPath
 from PIL import Image, ImageDraw, ImageFont
+import webbrowser
 
 sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\FP Overplot")
 sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")
@@ -214,21 +215,24 @@ if not os.path.exists(os.path.join(imagedir,'imgtime_test')): os.makedirs(os.pat
 imgsave = os.path.join(os.path.join(imagedir,'imgtime_test'),
                        filebase.split('_')[-1] + '_astrometrytest.png')
 comimg.save(imgsave,'png')
+webbrowser.open(imgsave)
 
-fmon = 11;fday = 8;fhou = 1;fmin = 0
-fcell = np.intersect1d(np.intersect1d(np.where(comobs[:,1]==fmon)[0], np.where(comobs[:,2]==fday)[0]),
-np.intersect1d(np.where(comobs[:,3]==fhou)[0], np.where(comobs[:,4]==fmin)[0]))[0]
 
-xsiz = 5
-com_ra_loc = ra2xpix(comobs[fcell,5], border, pixwidth, rafmin, scale)
-com_dec_loc = dec2ypix(comobs[fcell,6], border, pixheight, decmin, scale)
-d.line( [ ( com_ra_loc - xsiz , com_dec_loc - xsiz ) ,
-          ( com_ra_loc + xsiz , com_dec_loc + xsiz ) ] ,
-          fill = (255,0,255,255) )  
-d.line( [ ( com_ra_loc - xsiz , com_dec_loc + xsiz ) ,
-          ( com_ra_loc + xsiz , com_dec_loc - xsiz ) ] ,
-          fill = (255,0,255,255) )
-comimg.show()
+
+#fmon = 1;fday = 26;fhou = 5;fmin = 00
+#fcell = np.intersect1d(np.intersect1d(np.where(comobs[:,1]==fmon)[0], np.where(comobs[:,2]==fday)[0]),
+#np.intersect1d(np.where(comobs[:,3]==fhou)[0], np.where(comobs[:,4]==fmin)[0]))[0]
+#
+#xsiz = 5
+#com_ra_loc = ra2xpix(comobs[fcell,5], border, pixwidth, rafmin, scale)
+#com_dec_loc = dec2ypix(comobs[fcell,6], border, pixheight, decmin, scale)
+#d.line( [ ( com_ra_loc - xsiz , com_dec_loc - xsiz ) ,
+#          ( com_ra_loc + xsiz , com_dec_loc + xsiz ) ] ,
+#          fill = (255,0,255,255) )  
+#d.line( [ ( com_ra_loc - xsiz , com_dec_loc + xsiz ) ,
+#          ( com_ra_loc + xsiz , com_dec_loc - xsiz ) ] ,
+#          fill = (255,0,255,255) )
+#comimg.show()
 
 print ("Done!")
 

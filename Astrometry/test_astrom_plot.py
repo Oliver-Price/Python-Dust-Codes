@@ -48,19 +48,34 @@ comveceq10 = orb_vector(comdenom, obsloc, pysav, orbitdir,
                         horiztag, opts = 'eq,d10')
 comobs = orb_obs(comdenom, obsloc, pysav, orbitdir, horiztag)
 
-rdcsav = r'C:\PhD\Comet_data\Comet_Lovejoy_C2011W3\Gallery\Soho\rdc.npy'
+#rdcsav = r'C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\rdc.npy'
 
 outdir = os.path.join(imagedir,'aligned_pngs')
 if not os.path.exists(outdir): os.makedirs(outdir)
 
 dir_list = sorted(os.listdir(imagedir))
-fits_list = [s for s in dir_list if ".fits" in s]
+fits_list = [s for s in dir_list if ".f" in s]
 fits_total = len(fits_list)
-rc = np.load(rdcsav)
+#rc = np.load(rdcsav)
 
 if "C2006P1" in imagedir:
-    trafmin = 285.493251302; trafmax = 306.277182607
-    tdecmin = -29.4102183696; tdecmax = -12.1504198155
+    if obsloc == "Soho": 
+        trafmin = 285.493251302; trafmax = 306.277182607
+        tdecmin = -29.4102183696; tdecmax = -12.1504198155
+    if obsloc == "Stereo_A":
+        if inst == 'HI-1':
+            trafmax = 332.57662347125824; trafmin = 290.18476496395908
+            tdecmax = 2.5007098119796005; tdecmin = -28.041542198531385
+        if inst == "HI-2":
+            trafmax = 404.97809546316046; trafmin = 289.36252667052929
+            tdecmax = 58.864096027413353; tdecmin = -37.364638404644303
+    if obsloc == "Stereo_B":
+        if inst == "HI-1":
+            trafmax = 404.97809546316046; trafmin = 282.46071535529717
+            tdecmax = 58.864096027413353; tdecmin = -37.364638404644303
+        if inst == "HI-2":
+            trafmax = 404.97809546316046; trafmin = 224.39349694174101
+            tdecmax = 69.369679615559832; tdecmin = -37.364638404644303
     
 elif "C2011L4" in imagedir:
     trafmin = 180.35639546709564; trafmax = 235.62536933813792
@@ -74,15 +89,19 @@ elif "C2011W3" in imagedir:
     trafmin = 252.62004219486914; trafmax = 273.42781500602257
     tdecmin = -31.034491925907702; tdecmax = -14.431726967874498
 
-for fits_no in xrange(0,fits_total):
+for fits_no in range(0,fits_total):
 
-    print fits_no
+    print (fits_no)
     image_basename = fits_list[fits_no]
     fitsin = os.path.join(imagedir, fits_list[fits_no])
     imgsav = os.path.join(outdir, image_basename.split('.')[0] + '.png')
     if not os.path.exists(imgsav):
+        
         onedimg = fits.open(fitsin)
-        w = wcs.WCS(onedimg[0].header, naxis=2)
+        try:
+            w = wcs.WCS(onedimg[0].header, key = 'A', naxis=2)
+        except:
+            w = wcs.WCS(onedimg[0].header, naxis=2)
         colours = np.nan_to_num(onedimg[0].data)
         
         #make a 2xN array of all pixel locations
@@ -149,14 +168,14 @@ for fits_no in xrange(0,fits_total):
         rp = ra2xpix(ra_m, border, pixwidth, trafmin, scale)
         dp = dec2ypix(dec, border, pixheight, tdecmin, scale)
         
-        for xp in xrange(0,no_points):
+        for xp in range(0,no_points):
             x = non_zeros_0[xp]
             y = non_zeros_1[xp]
             plotpixel2(d,x,y,rp,dp,colcr[x,y],colcg[x,y],colcb[x,y])
-
+        
         if 'S' in obsloc:
             [ctime,uncertainty_range_exists] = image_time_stereo(image_basename)
-    
+        
         comcel = np.where(abs(obsveceq[:,0] - ctime.jd)==abs(obsveceq[:,0] - ctime.jd).min())[0][0]
     
         #find rough cell range of traj from observer data
@@ -172,7 +191,7 @@ for fits_no in xrange(0,fits_total):
             vno = 0; vext = int(np.size(trajrough))
             vtraj = np.empty((np.size(trajrough)+2*vext-1,11),dtype = float)
             tcellmax = min(trajrough[-1] + vext, np.shape(comveceq)[0])
-            for tcell in xrange(trajrough[0] - vext,tcellmax):
+            for tcell in range(trajrough[0] - vext,tcellmax):
                 vtemp = comveceq[tcell,6:9] - obsveceq[comcel,6:9]    
                 ptemp = pos2radec(vtemp,bool_val)
                 vtraj[vno,0] = ptemp[0]
@@ -193,7 +212,7 @@ for fits_no in xrange(0,fits_total):
         #convert to ra and dec, and plot
         vtraj[:,2] = ra2xpix(vtraj[:,0],border,pixwidth,trafmin,scale)
         vtraj[:,3] = dec2ypix(vtraj[:,1],border,pixheight,tdecmin,scale)
-        for ta in xrange(0, (np.shape(vtraj)[0]-1)):
+        for ta in range(0, (np.shape(vtraj)[0]-1)):
             d.line([(vtraj[ta,2],vtraj[ta,3]),(vtraj[ta+1,2],vtraj[ta+1,3])],\
             fill = (0,255,255,255))
         
@@ -214,25 +233,25 @@ for fits_no in xrange(0,fits_total):
         smallfnt = ImageFont.truetype(fontloc, 10)
         largefnt = ImageFont.truetype(fontloc, 30)
         
-        for div in xrange(0, (np.size(axisdata[1]))): #RA axis major ticks
+        for div in range(0, (np.size(axisdata[1]))): #RA axis major ticks
             b = d.line([(axisdata[1][div],rdaxis-majt),(axisdata[1][div],rdaxis)],\
             fill = featur_fill)
             tick = str(axisdata[0][div]%360)
             d.text((axisdata[1][div] - len(tick)*5,rdaxis + 10), \
             tick, font=fnt, fill= featur_fill)
             
-        for div in xrange(0, (np.size(axisdata[2]))): #RA axis minor ticks
+        for div in range(0, (np.size(axisdata[2]))): #RA axis minor ticks
             b = d.line([(axisdata[2][div],rdaxis-mint),(axisdata[2][div],rdaxis)],\
             fill= featur_fill)
         
-        for div in xrange(0, (np.size(axisdata[4]))): #DEC axis major ticks
+        for div in range(0, (np.size(axisdata[4]))): #DEC axis major ticks
             b = d.line([(border+majt,axisdata[4][div]),(border,axisdata[4][div])],\
             fill= featur_fill)
             tick = str(axisdata[3][div])
             d.text((border - len(tick)*5 - 40,axisdata[4][div] - 10 ), \
             tick, font=fnt, fill=(255,255,255,128))
             
-        for div in xrange(0, (np.size(axisdata[5]))): #DEC axis minor ticks
+        for div in range(0, (np.size(axisdata[5]))): #DEC axis minor ticks
             b = d.line([(border+mint,axisdata[5][div]),(border,axisdata[5][div])],\
             fill= featur_fill)
             

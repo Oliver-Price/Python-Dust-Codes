@@ -5,11 +5,12 @@
 import os
 import numpy as np
 import easygui
-import urllib2
-import string
+import requests
 import datetime
 import astropy.time
 import pickle
+import sys
+from IPython import embed
 from conversion_routines import mon2num
 
 #%%
@@ -33,15 +34,18 @@ def orb_vector(denom, observer, savefolder, datafolder, horiz, opts = ''):
     if "eq" in opts:
         savename += '_EQ'
         msg += '_EQ'
+    if "lt" in opts:
         savename += '_LT'
         msg += '_LT'
     if "d10" in opts:
         savename += '_coarse'
-        msg += '_coarse'       
+        msg += '_coarse'
+    savename += '.npy'
                 
     #checks if save data exsits   
     savefile = os.path.join(savefolder, savename)
-    saveexists = os.path.isfile(savefile)
+    if not os.path.exists(savefolder): os.makedirs(savefolder)
+    saveexists = os.path.exists(savefile)
     
     if saveexists == False: #generate data if it doesn't
         
@@ -52,7 +56,7 @@ def orb_vector(denom, observer, savefolder, datafolder, horiz, opts = ''):
         if reply == "Import from Horizons":
             
             #saving the end date ensures all orbit files match up
-            datesavename = denom + '_enddate'
+            datesavename = denom + '_enddate.pickle'
             datesavefile = os.path.join(savefolder, datesavename)
             datesaveexists = os.path.isfile(datesavefile)
             
@@ -85,14 +89,16 @@ def orb_vector(denom, observer, savefolder, datafolder, horiz, opts = ''):
                     if errmsg == "": break #if no problems found
                     fieldValues = easygui.multenterbox(errmsg, title,
                                                        fieldNames, fieldValues)
-                                                       
-                with open(datesavefile, 'w') as f:
+                print (fieldValues)
+                
+                with open(datesavefile, 'wb') as f:
                     pickle.dump(fieldValues, f) #save date
                     
             else:
-                with open(datesavefile) as f:
+                with open(datesavefile,'rb') as f:
                     fieldValues = pickle.load(f) #otherwise, load date
-                
+            
+            print (fieldValues)
             #astropy date format makes it easier to find start date
             endtime =  astropy.time.Time(datetime.datetime(int(fieldValues[2]),
                        int(fieldValues[1]), int(fieldValues[0]), 0 , 0, 0))
@@ -105,6 +111,9 @@ def orb_vector(denom, observer, savefolder, datafolder, horiz, opts = ''):
                 if observer == 'Earth':
                     url += '\'399\'' #EARTH
                     textsavename = os.path.join(datafolder, 'Earth_orbit_')
+                if observer == 'Venus':
+                    url += '\'299\'' #EARTH
+                    textsavename = os.path.join(datafolder, 'Venus_orbit_')
                 if observer == 'Stereo_A':
                     url += '\'-234\'' #EARTH
                     textsavename = os.path.join(datafolder, 'Stereo_A_orbit_')
@@ -114,10 +123,14 @@ def orb_vector(denom, observer, savefolder, datafolder, horiz, opts = ''):
                 if observer == 'Soho':
                     url += '\'-21\'' #EARTH
                     textsavename = os.path.join(datafolder, 'Soho_orbit_')
+                if observer == 'ISS':
+                    url += '\'-125544\'' #EARTH
+                    textsavename = os.path.join(datafolder, 'ISS_orbit_')
+                        
             else:
                 if (horiz[0] != '\''): #this just ensures the formatting is all cleared up
                     url = url + '\''
-                url += string.replace(horiz, ' ', '%20') #COMET
+                url += horiz.replace(' ', '%20') #COMET
                 if (horiz[-1] != '\''):
                     url = url + '\''
                 textsavename = os.path.join(datafolder, denom + '_') 
@@ -137,8 +150,8 @@ def orb_vector(denom, observer, savefolder, datafolder, horiz, opts = ''):
             url += '&STEP_SIZE=' + stepsiz
             
             #clears up the format a little
-            textsavename += (string.replace(starttime.isot[:10],'-','_') + '_'
-                            + string.replace(endtime.isot[:10],'-','_')
+            textsavename += (starttime.isot[:10].replace('-','_') + '_'
+                            + endtime.isot[:10].replace('-','_')
                             + '_xyzvxvyvz')
                             
             if "eq" in opts:
@@ -155,11 +168,10 @@ def orb_vector(denom, observer, savefolder, datafolder, horiz, opts = ''):
                 textsavename += '_10'
             
             textsavename += '.txt'
-            print url
-            response = urllib2.urlopen(url) #loads url
-            html = response.read()
-            datastart = string.find(html, '$$SOE') + 6 #selects relevant data
-            dataend = string.find(html, '$$EOE') - 1
+            print (url)
+            html = requests.get(url).text
+            datastart = html.find('$$SOE') + 6 #selects relevant data
+            dataend = html.find('$$EOE') - 1
             
             with open(textsavename, "w") as text_file:
                 text_file.write(html[datastart:dataend]) #write to file         
@@ -176,29 +188,29 @@ def orb_vector(denom, observer, savefolder, datafolder, horiz, opts = ''):
                 
             #reads raw data as string 
             rawdata = dat.readlines()
-            datasize = len(rawdata)/3
+            datasize = int(len(rawdata)/3)
             data = np.empty((datasize,13),dtype = float)
             
             #converts string to numpy array
-            for hrow in xrange(0,datasize,1):
+            for hrow in range(0,datasize,1):
                 data[hrow,0] = rawdata[3*hrow][0:17]            #jd
                 data[hrow,1] = rawdata[3*hrow][25:29]           #year
                 data[hrow,2] = mon2num(rawdata[3*hrow][30:33])  #month
                 data[hrow,3] = rawdata[3*hrow][34:36]           #day
                 data[hrow,4] = rawdata[3*hrow][37:39]           #hour
                 data[hrow,5] = rawdata[3*hrow][40:42]           #minute
-                p = np.fromstring(rawdata[(hrow*3)+1],
-                                  dtype=float, count=3, sep='  ')
-                v = np.fromstring(rawdata[(hrow*3)+2],
-                                  dtype=float, count=3, sep='  ')
-                data[hrow,6:9] = p          #positions xyz
-                data[hrow,9:12] = v         #velocities vxvyvz
+                data[hrow,6] = rawdata[(hrow*3)+1][4:26]
+                data[hrow,7] = rawdata[(hrow*3)+1][30:52]
+                data[hrow,8] = rawdata[(hrow*3)+1][56:78]
+                data[hrow,9] = rawdata[(hrow*3)+2][4:26]
+                data[hrow,10] = rawdata[(hrow*3)+2][30:52]
+                data[hrow,11] = rawdata[(hrow*3)+2][56:78]
                 data[hrow,12] = np.linalg.norm(data[hrow,6:9])
-            data.dump(savefile)   #saves data for future loading
-            
+            np.save(savefile,data)   #saves data for future loading
+
     elif saveexists == True: #if save exists, load that
         data = np.load(savefile)
-        print 'Loading saved data'
+        print ('Loading saved data')
     return data
     
 #%%
@@ -207,12 +219,17 @@ def orb_vector(denom, observer, savefolder, datafolder, horiz, opts = ''):
 #OBSERVER DATA
 #*************
 
-def orb_obs(denom, observer, savefolder, datafolder, horiz, idlmode = False):
+def orb_obs(denom, observer, savefolder, datafolder, horiz, idlmode = False, venusmode = False):
 
     #checks if save data exsits
-    savename = 'data_' + denom + '_' + observer + '_celestialcoords'
+    if venusmode == False:
+        savename = 'data_' + denom + '_' + observer + '_celestialcoords'
+    elif venusmode == True:
+        savename = 'data_' + denom + '_' + observer + '_venuscoords'
     if idlmode == True:
         savename += '_idl'
+    savename += '.npy'
+    
     savefile = os.path.join(savefolder, savename)
     saveexists = os.path.isfile(savefile)
 
@@ -224,7 +241,7 @@ def orb_obs(denom, observer, savefolder, datafolder, horiz, idlmode = False):
 
         if reply == "Import from Horizons":
             
-            datesavename = denom + '_enddate'
+            datesavename = denom + '_enddate.pickle'
             datesavefile = os.path.join(savefolder, datesavename)
             datesaveexists = os.path.isfile(datesavefile)
 
@@ -258,11 +275,11 @@ def orb_obs(denom, observer, savefolder, datafolder, horiz, idlmode = False):
                     fieldValues = easygui.multenterbox(errmsg, title,
                                                        fieldNames, fieldValues)
                                                        
-                with open(datesavefile, 'w') as f:
+                with open(datesavefile, 'wb') as f:
                     pickle.dump(fieldValues, f)
                     
             else:
-                with open(datesavefile) as f:
+                with open(datesavefile, 'rb') as f:
                     fieldValues = pickle.load(f)
     
             endtime =  astropy.time.Time(datetime.datetime(int(fieldValues[2]),
@@ -270,16 +287,21 @@ def orb_obs(denom, observer, savefolder, datafolder, horiz, idlmode = False):
             
             url = 'http://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=1&COMMAND='                         
             
-            if (horiz[0] != '\''): #this just ensures the formatting is all cleared up
-                url += '\''
-            
-            url +=  string.replace(horiz, ' ', '%20')
-            
-            if (horiz[-1] != '\''):
-                url +=  '\''
+            if venusmode == False:
+                if (horiz[0] != '\''): #this just ensures the formatting is all cleared up
+                    url += '\''
                 
-            textsavename = os.path.join(datafolder, denom + '_') 
-            
+                url +=  horiz.replace(' ', '%20')
+                
+                if (horiz[-1] != '\''):
+                    url +=  '\''
+           
+                textsavename = os.path.join(datafolder, denom + '_') 
+            else:
+                url += '\'299\''
+                textsavename = os.path.join(datafolder, 'Venus_') 
+                
+                
             url += '&MAKE_EPHEM=\'YES\'&TABLE_TYPE=\'OBS\'&CENTER='
             
             if observer == 'Earth':
@@ -294,6 +316,10 @@ def orb_obs(denom, observer, savefolder, datafolder, horiz, idlmode = False):
             if observer == 'Soho':
                 url += '\'500@-21\'' #EARTH
                 textsavename += 'from_Soho_'
+            if observer == 'ISS':
+                    url += '\'500@-125544\'' #EARTH
+                    textsavename = os.path.join(datafolder, 'ISS_orbit_')
+                        
     
             starttime = endtime - astropy.time.TimeDelta(60, format = 'jd')
             url += '&START_TIME=\'' + starttime.isot[:10] + '\''
@@ -303,24 +329,23 @@ def orb_obs(denom, observer, savefolder, datafolder, horiz, idlmode = False):
                 url += '&STEP_SIZE=\'1%20min\'&QUANTITIES=\'1,28\''
                 url +=  '&ANG_FORMAT=\'DEG\'&CSV_FORMAT=\'YES\''
                 
-                textsavename += (string.replace(starttime.isot[:10],'-','_')
-                             + '_' + string.replace(endtime.isot[:10],'-','_')
+                textsavename += (starttime.isot[:10].replace('-','_')
+                             + '_' + endtime.isot[:10].replace('-','_')
                              + '_OBSERVER_PY.txt' )
             elif (idlmode == True):
                 url += '&STEP_SIZE=\'1%20min\'&QUANTITIES=\'1,19,20,27\''
                 url +=  '&CSV_FORMAT=\'YES\''
                 
-                textsavename += (string.replace(starttime.isot[:10],'-','_')
-                             + '_' + string.replace(endtime.isot[:10],'-','_')
+                textsavename += (starttime.isot[:10].replace('-','_')
+                             + '_' + endtime.isot[:10].replace('-','_')
                              + '_OBSERVER_IDL.txt' )
                              
-            print url
-            print textsavename
+            print (url)
+            print (textsavename)
             
-            response = urllib2.urlopen(url)
-            html = response.read()
-            datastart = string.find(html, '$$SOE') + 6
-            dataend = string.find(html, '$$EOE') - 1
+            html = requests.get(url).text
+            datastart = html.find('$$SOE') + 6 #selects relevant data
+            dataend = html.find('$$EOE') - 1
             
             with open(textsavename, "w") as text_file:
                 text_file.write(html[datastart:dataend])            
@@ -338,7 +363,7 @@ def orb_obs(denom, observer, savefolder, datafolder, horiz, idlmode = False):
             with open(datapath, "r") as dat:
                 rawdata = dat.readlines()
                 data = np.empty((len(rawdata),8),dtype = float)
-                for row in xrange(0,len(rawdata),1):
+                for row in range(0,len(rawdata),1):
                     data[row,0] = rawdata[row][1:5]             #year
                     data[row,1] = mon2num(rawdata[row][6:9])    #month
                     data[row,2] = rawdata[row][10:12]           #day
@@ -347,7 +372,7 @@ def orb_obs(denom, observer, savefolder, datafolder, horiz, idlmode = False):
                     data[row,5] = rawdata[row][23:32]           #ra
                     data[row,6] = rawdata[row][33:42]           #dec
                     data[row,7] = rawdata[row][44:53]           #orbit plane angle
-                data.dump(savefile)   #saves data for future loading
+                np.save(savefile,data)    #saves data for future loading
                 
         if (idlmode == True):
             
@@ -355,5 +380,49 @@ def orb_obs(denom, observer, savefolder, datafolder, horiz, idlmode = False):
             
     elif saveexists == True: #if save exists, load that
         data = np.load(savefile)
-        print 'Loading saved data'
+        print ('Loading saved data')
+    return data
+
+#%%
+
+#*************
+#OBSERVER DATA
+#*************
+
+def orb_obs_extra(denom, observer, savefolder, datafolder):
+
+    #checks if save data exsits
+    savename = 'data_' + denom + '_' + observer + '_celestialapparents'
+    savename += '.npy'
+    
+    savefile = os.path.join(savefolder, savename)
+    saveexists = os.path.isfile(savefile)
+
+    if saveexists == False:
+         
+        title = 'Select observer orbit data file'
+        msg = 'Format: <denom>_<dates>_OBSERVER_PY_APP'
+        datalook = os.path.join(datafolder, '*.txt')
+        datapath = easygui.fileopenbox(msg=msg, title=title,default = datalook)
+
+        with open(datapath, "r") as dat:
+            rawdata = dat.readlines()
+            data = np.empty((len(rawdata),11),dtype = float)
+            for row in range(0,len(rawdata),1):
+                data[row,0] = rawdata[row][1:5]             #year
+                data[row,1] = mon2num(rawdata[row][6:9])    #month
+                data[row,2] = rawdata[row][10:12]           #day
+                data[row,3] = rawdata[row][13:15]           #hour
+                data[row,4] = rawdata[row][16:18]           #minute
+                data[row,5] = rawdata[row][23:32]           #ra
+                data[row,6] = rawdata[row][33:42]           #dec
+                data[row,7] = rawdata[row][44:53]           #ra_app
+                data[row,8] = rawdata[row][54:63]           #dec_app
+                data[row,9] = rawdata[row][64:73]
+                data[row,10] = rawdata[row][74:82]
+            np.save(savefile,data)    #saves data for future loading
+            
+    elif saveexists == True: #if save exists, load that
+        data = np.load(savefile)
+        print ('Loading saved data')
     return data

@@ -64,6 +64,7 @@ def bt_setaxisup(simtu,simtl,betau,betal,logaxis,border,pixhi,hscle,pixwt,wscle)
     bu2majdv = round_to_base(betau, bdivmajors[bdividx])
     bl2majdv = round_to_base(betal, bdivmajors[bdividx])   
     bmajticks = np.arange(bu2majdv, bl2majdv-0.0001, -bdivmajors[bdividx])
+    bmajticks = np.clip(bmajticks,betal,betau)
     if (0 in bmajticks) and (logaxis == True):
         bmajticks[bmajticks == 0] = float('%.1g' % betal)
     
@@ -92,18 +93,18 @@ def bt_setaxisup(simtu,simtl,betau,betal,logaxis,border,pixhi,hscle,pixwt,wscle)
 def greyscale_remap(upper_saturation,lower_saturation, mode = 'lin'):
     
     newmap = np.zeros((256),dtype=int)
-    for col in xrange(upper_saturation, 256):
+    for col in range(upper_saturation, 256):
         newmap[col] = 255
-    for col in xrange(0, lower_saturation):
+    for col in range(0, lower_saturation):
         newmap[col] = 0
       
     if mode == 'lin':
         grad = 255/(upper_saturation - lower_saturation)   
-        for col in xrange(lower_saturation, upper_saturation):
+        for col in range(lower_saturation, upper_saturation):
             newmap[col] = int(round((col - lower_saturation)*grad))
             
     if mode == 'log':
-        print 'Using Log Scale'
+        print ('Using Log Scale')
         newmap[lower_saturation:upper_saturation+1] = np.rint(np.logspace( 
         np.log10(1), np.log10(255),
         num = (upper_saturation - lower_saturation + 1) ))

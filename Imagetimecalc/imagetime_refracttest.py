@@ -7,6 +7,9 @@ import easygui
 import os
 import numpy as np
 import sys
+import astropy.units as u
+from astropy.time import Time, TimeDelta
+from astropy.coordinates import SkyCoord, EarthLocation, AltAz, Longitude
 from astropy.io import fits
 from astropy import wcs
 import datetime
@@ -16,68 +19,80 @@ from PIL import Image, ImageDraw, ImageFont
 sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\FP Overplot")
 sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")
 
-from orbitdata_loading_functions import orb_vector, orb_obs
+from orbitdata_loading_functions import orb_vector, orb_obs, orb_obs_extra
 from FP_plot_functions import ra2xpix, dec2ypix, setaxisup, plotpixel
 from conversion_routines import pos2radec, fixwraps, find_largest_nonzero_block 
-from io_methods import correct_for_imagetype, get_obs_loc, get_hih_low 
-from io_methods import get_stereo_instrument, get_soho_instrument
+from io_methods import correct_for_imagetype
 
 #%%**********************
 #FIRST CELL - GET DATA IN
 #************************
-#choosing comet data to use
-inputfilefolder = "C:\PhD\Comet_data\Input_files\*pt1.txt"
-inputfile = easygui.fileopenbox(default = inputfilefolder)
 
-#reading main comet parameters
-with open(inputfile, "r") as c:
-    cdata = c.readlines()
-    comname = cdata[30][12:]
-    comdenom = cdata[31][13:-2]
-    imagedir = cdata[24][18:-2]
-    orbitdir = cdata[25][23:-2]
-    timedir = cdata[28][26:-2]
-    pysav = cdata[27][24:-2]
-    horiztag = cdata[40][10:]
-    obslocstr = cdata[34][19:]
-#choose observer locations
-[obsloc, imagedir] = get_obs_loc(obslocstr, imagedir)
-if "Stereo" in obsloc: [inst, imagedir] = get_stereo_instrument(imagedir)
-elif obsloc == "Soho": [inst, imagedir] = get_soho_instrument(imagedir)
-else: inst = ''  
-#import the orbit data
-comobs = orb_obs(comdenom, obsloc, pysav, orbitdir, horiztag)
+if True:
+    #choosing comet data to use
+    inputfilefolder = "C:\PhD\Comet_data\Input_files\*pt1.txt"
+    inputfile = easygui.fileopenbox(default = inputfilefolder)
+    
+    #reading main comet parameters
+    with open(inputfile, "r") as c:
+        cdata = c.readlines()
+        comname = cdata[30][12:]
+        comdenom = cdata[31][13:-2]
+        orbitdir = cdata[25][23:-2]
+        timedir = cdata[28][26:-2]
+        pysav = cdata[27][24:-2]
+        horiztag = cdata[40][10:]
+    
+    obsloc = 'Earth'    
+    #import the orbit data
+    comobs = orb_obs(comdenom, obsloc, pysav, orbitdir, horiztag)
+    comappobs = orb_obs_extra(comdenom, obsloc, pysav, orbitdir)    
 
 #choosing fits file to display and getting pathnames
-fitsin = easygui.fileopenbox(default = os.path.join(imagedir,'*'))
+fitsin = easygui.fileopenbox(default = os.path.join(timedir,'*'))
 if fitsin == '.': sys.exit("No file selected")
 fitsinfile = os.path.basename(fitsin)
 filebase = fitsinfile[:fitsinfile.find('.')]
 
 #ensures image inputted correctly depending on size of data cube
-[colr, colg, colb, fitscoords] = correct_for_imagetype(imagedir, fitsin, fitsinfile)
+[colr, colg, colb, fitscoords] = correct_for_imagetype(timedir, fitsin, fitsinfile)
 
-        
+#%%**********************
+#INTERMISSION
+#************************
+
+azibits = np.empty((comappobs.shape[0],6),dtype = float)
+paranal = EarthLocation(lat=-24.627493*u.deg, lon=-70.404384*u.deg, height=0*u.m)
+radecpos = SkyCoord(Longitude(comappobs[:,5]*u.degree,unit=u.deg),
+                              comappobs[:,6]*u.degree)
+
+firsttime = Time(datetime.datetime(int(comappobs[0,0]),int(comappobs[0,1]),
+        int(comappobs[0,2]), int(comappobs[0,3]), int(comappobs[0,4]), 0))
+endtime = Time(datetime.datetime(int(comappobs[-1,0]),int(comappobs[-1,1]),
+        int(comappobs[-1,2]), int(comappobs[-1,3]), int(comappobs[-1,4]), 0))
+dt  = TimeDelta(60,format='sec')
+times = Time(np.arange(firsttime.jd,(endtime.jd+dt.jd),dt.jd),format='jd')
+
+base_altaz = radecpos.transform_to(AltAz(obstime=times,location=paranal))
+azibits[:,0] = base_altaz.alt.degree
+azibits[:,1] = base_altaz.az.degree
+       
+par_pres = 0.75*u.bar; par_humi = 0.5; par_wav = 800*u.nm; par_temp = 20*u.deg_C
+mod_altaz = radecpos.transform_to(AltAz(obstime=times,location=paranal,pressure=par_pres,
+                                        temperature=par_temp,obswl=par_wav,relative_humidity=par_humi))
+azibits[:,2] = mod_altaz.alt.degree
+azibits[:,3] = mod_altaz.az.degree
+      
+azibits[:,4] = mod_altaz.fk5.ra.degree
+azibits[:,5] = mod_altaz.fk5.dec.degree     
+
 #%%**********************
 #SECOND CELL - Plot Image
 #************************
 
 #get RA/DEC data    
 onedimg = fits.open(fitscoords)
-if 'Stereo' in obsloc:
-    if comdenom == 'c2011l4':
-        w = wcs.WCS(onedimg[0].header)
-    elif comdenom == 'c2006p1':
-        w = wcs.WCS(onedimg[0].header)#, key = 'A')
-    if 'diff' in inst or 'MGN' in inst: plotmethodlog = False
-    else: plotmethodlog = True
-elif 'Soho' in obsloc:
-    w = wcs.WCS(onedimg[0].header)
-    if 'diff' in inst or 'MGN' in inst: plotmethodlog = False
-    else: plotmethodlog = True
-elif 'Earth' or 'ISS' in obsloc:
-    plotmethodlog = False
-    w = wcs.WCS(onedimg[0].header)
+w = wcs.WCS(onedimg[0].header)
 
 #make a 2xN array of all pixel locations
 ya = onedimg[0].data.shape[0]
@@ -106,23 +121,15 @@ decmax = np.amax(dec)
 pixheight = 800
 pixwidth = int(pixheight*(rafmax - rafmin)/(decmax - decmin))
 border = 100
-
-[hih,low] = get_hih_low(comdenom,obsloc,inst)
-
 scale = pixheight/(decmax - decmin)
 imgwidth = pixwidth+int(4*border)
 imgheight = pixheight+int(3*border)
 comimg = Image.new('RGBA', ( imgwidth , imgheight ) ,(0,0,0,255))
 d = ImageDraw.Draw(comimg)
-
-colcr = np.clip(255.0/(hih-low)*(colr-low),0,255).astype(int)
-colcg = np.clip(255.0/(hih-low)*(colg-low),0,255).astype(int)
-colcb = np.clip(255.0/(hih-low)*(colb-low),0,255).astype(int)         
-
 for x in range(0,np.shape(colr)[0]-1):
     for y in range (0,np.shape(colr)[1]-1):
         plotpixel(d,x,y,ra_m,dec,border,pixwidth,pixheight,decmin,rafmin,
-                  scale,colcr[x,y],colcg[x,y],colcb[x,y])
+                  scale,colr[x,y],colg[x,y],colb[x,y])
             
 #%%********************
 #THIRD CELL - Draw Axis
@@ -202,33 +209,41 @@ decgoodlocs = np.where((comlocdec < (imgheight-border*1.5)) & (comlocdec > borde
 ragoodlocs = np.where((comlocra < (imgwidth-border*2.5)) & (comlocra > border*1.5))[0]
 goodlocs = np.intersect1d(decgoodlocs,ragoodlocs)
 
+comlocra_app = ra2xpix(comappobs[:,5], border, pixwidth, rafmin, scale)
+comlocdec_app = dec2ypix(comappobs[:,6], border, pixheight, decmin, scale)
+
+decgoodlocs_app = np.where((comlocdec_app < (imgheight-border*1.5)) & (comlocdec_app > border*1.5))[0]
+ragoodlocs_app = np.where((comlocra_app < (imgwidth-border*2.5)) & (comlocra_app > border*1.5))[0]
+goodlocs_app = np.intersect1d(decgoodlocs_app,ragoodlocs_app)
+
 for o in range(0,np.size(goodlocs)-1):
     ocel = goodlocs[o]
     d.line( [ (comlocra[ocel] ,comlocdec[ocel]), 
     (comlocra[ocel+1] ,comlocdec[ocel+1]) ],
     fill = (255,0,0,255))
-
-
-if not os.path.exists(os.path.join(imagedir,'imgtime_test')): os.makedirs(os.path.join(imagedir,'imgtime_test'))
     
-imgsave = os.path.join(os.path.join(imagedir,'imgtime_test'),
+for o in range(0,np.size(goodlocs_app)-1):
+    ocel = goodlocs_app[o]
+    d.line( [ (comlocra_app[ocel] ,comlocdec_app[ocel]), 
+    (comlocra_app[ocel+1] ,comlocdec_app[ocel+1]) ],
+    fill = (255,255,0,255))
+   
+imgsave = os.path.join(os.path.join(timedir,'images'),
                        filebase.split('_')[-1] + '_astrometrytest.png')
 comimg.save(imgsave,'png')
 
-fmon = 11;fday = 8;fhou = 1;fmin = 0
-fcell = np.intersect1d(np.intersect1d(np.where(comobs[:,1]==fmon)[0], np.where(comobs[:,2]==fday)[0]),
-np.intersect1d(np.where(comobs[:,3]==fhou)[0], np.where(comobs[:,4]==fmin)[0]))[0]
-
+'''
 xsiz = 5
-com_ra_loc = ra2xpix(comobs[fcell,5], border, pixwidth, rafmin, scale)
-com_dec_loc = dec2ypix(comobs[fcell,6], border, pixheight, decmin, scale)
+com_ra_loc = ra2xpix(comobs[77034,5], border, pixwidth, rafmin, scale)
+com_dec_loc = dec2ypix(comobs[77034,6], border, pixheight, decmin, scale)
 d.line( [ ( com_ra_loc - xsiz , com_dec_loc - xsiz ) ,
           ( com_ra_loc + xsiz , com_dec_loc + xsiz ) ] ,
           fill = (255,0,255,255) )  
 d.line( [ ( com_ra_loc - xsiz , com_dec_loc + xsiz ) ,
           ( com_ra_loc + xsiz , com_dec_loc - xsiz ) ] ,
           fill = (255,0,255,255) )
-comimg.show()
+'''
+#comimg.show()
 
 print ("Done!")
 

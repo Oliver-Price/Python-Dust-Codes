@@ -19,43 +19,39 @@ sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")
 from orbitdata_loading_functions import orb_vector, orb_obs
 from FP_plot_functions import ra2xpix, dec2ypix, setaxisup, plotpixel
 from conversion_routines import pos2radec, fixwraps, find_largest_nonzero_block 
-from io_methods import correct_for_imagetype, get_obs_loc, get_hih_low 
-from io_methods import get_stereo_instrument, get_soho_instrument
+from io_methods import correct_for_imagetype
 
 #%%**********************
 #FIRST CELL - GET DATA IN
 #************************
-#choosing comet data to use
-inputfilefolder = "C:\PhD\Comet_data\Input_files\*pt1.txt"
-inputfile = easygui.fileopenbox(default = inputfilefolder)
 
-#reading main comet parameters
-with open(inputfile, "r") as c:
-    cdata = c.readlines()
-    comname = cdata[30][12:]
-    comdenom = cdata[31][13:-2]
-    imagedir = cdata[24][18:-2]
-    orbitdir = cdata[25][23:-2]
-    timedir = cdata[28][26:-2]
-    pysav = cdata[27][24:-2]
-    horiztag = cdata[40][10:]
-    obslocstr = cdata[34][19:]
-#choose observer locations
-[obsloc, imagedir] = get_obs_loc(obslocstr, imagedir)
-if "Stereo" in obsloc: [inst, imagedir] = get_stereo_instrument(imagedir)
-elif obsloc == "Soho": [inst, imagedir] = get_soho_instrument(imagedir)
-else: inst = ''  
-#import the orbit data
-comobs = orb_obs(comdenom, obsloc, pysav, orbitdir, horiztag)
+if True:
+    #choosing comet data to use
+    inputfilefolder = "C:\PhD\Comet_data\Input_files\*pt1.txt"
+    inputfile = easygui.fileopenbox(default = inputfilefolder)
+    
+    #reading main comet parameters
+    with open(inputfile, "r") as c:
+        cdata = c.readlines()
+        comname = cdata[30][12:]
+        comdenom = cdata[31][13:-2]
+        orbitdir = cdata[25][23:-2]
+        timedir = cdata[28][26:-2]
+        pysav = cdata[27][24:-2]
+        horiztag = cdata[40][10:]
+    
+    obsloc = 'Earth'    
+    #import the orbit data
+    comobs = orb_obs(comdenom, obsloc, pysav, orbitdir, horiztag)
 
 #choosing fits file to display and getting pathnames
-fitsin = easygui.fileopenbox(default = os.path.join(imagedir,'*'))
+fitsin = easygui.fileopenbox(default = os.path.join(timedir,'*'))
 if fitsin == '.': sys.exit("No file selected")
 fitsinfile = os.path.basename(fitsin)
 filebase = fitsinfile[:fitsinfile.find('.')]
 
 #ensures image inputted correctly depending on size of data cube
-[colr, colg, colb, fitscoords] = correct_for_imagetype(imagedir, fitsin, fitsinfile)
+[colr, colg, colb, fitscoords] = correct_for_imagetype(timedir, fitsin, fitsinfile)
 
         
 #%%**********************
@@ -64,20 +60,7 @@ filebase = fitsinfile[:fitsinfile.find('.')]
 
 #get RA/DEC data    
 onedimg = fits.open(fitscoords)
-if 'Stereo' in obsloc:
-    if comdenom == 'c2011l4':
-        w = wcs.WCS(onedimg[0].header)
-    elif comdenom == 'c2006p1':
-        w = wcs.WCS(onedimg[0].header)#, key = 'A')
-    if 'diff' in inst or 'MGN' in inst: plotmethodlog = False
-    else: plotmethodlog = True
-elif 'Soho' in obsloc:
-    w = wcs.WCS(onedimg[0].header)
-    if 'diff' in inst or 'MGN' in inst: plotmethodlog = False
-    else: plotmethodlog = True
-elif 'Earth' or 'ISS' in obsloc:
-    plotmethodlog = False
-    w = wcs.WCS(onedimg[0].header)
+w = wcs.WCS(onedimg[0].header)
 
 #make a 2xN array of all pixel locations
 ya = onedimg[0].data.shape[0]
@@ -106,23 +89,15 @@ decmax = np.amax(dec)
 pixheight = 800
 pixwidth = int(pixheight*(rafmax - rafmin)/(decmax - decmin))
 border = 100
-
-[hih,low] = get_hih_low(comdenom,obsloc,inst)
-
 scale = pixheight/(decmax - decmin)
 imgwidth = pixwidth+int(4*border)
 imgheight = pixheight+int(3*border)
 comimg = Image.new('RGBA', ( imgwidth , imgheight ) ,(0,0,0,255))
 d = ImageDraw.Draw(comimg)
-
-colcr = np.clip(255.0/(hih-low)*(colr-low),0,255).astype(int)
-colcg = np.clip(255.0/(hih-low)*(colg-low),0,255).astype(int)
-colcb = np.clip(255.0/(hih-low)*(colb-low),0,255).astype(int)         
-
 for x in range(0,np.shape(colr)[0]-1):
     for y in range (0,np.shape(colr)[1]-1):
         plotpixel(d,x,y,ra_m,dec,border,pixwidth,pixheight,decmin,rafmin,
-                  scale,colcr[x,y],colcg[x,y],colcb[x,y])
+                  scale,colr[x,y],colg[x,y],colb[x,y])
             
 #%%********************
 #THIRD CELL - Draw Axis
@@ -207,15 +182,12 @@ for o in range(0,np.size(goodlocs)-1):
     d.line( [ (comlocra[ocel] ,comlocdec[ocel]), 
     (comlocra[ocel+1] ,comlocdec[ocel+1]) ],
     fill = (255,0,0,255))
-
-
-if not os.path.exists(os.path.join(imagedir,'imgtime_test')): os.makedirs(os.path.join(imagedir,'imgtime_test'))
     
-imgsave = os.path.join(os.path.join(imagedir,'imgtime_test'),
+imgsave = os.path.join(os.path.join(timedir,'images'),
                        filebase.split('_')[-1] + '_astrometrytest.png')
 comimg.save(imgsave,'png')
 
-fmon = 11;fday = 8;fhou = 1;fmin = 0
+fmon = 1;fday = 26;fhou = 5;fmin = 00
 fcell = np.intersect1d(np.intersect1d(np.where(comobs[:,1]==fmon)[0], np.where(comobs[:,2]==fday)[0]),
 np.intersect1d(np.where(comobs[:,3]==fhou)[0], np.where(comobs[:,4]==fmin)[0]))[0]
 
