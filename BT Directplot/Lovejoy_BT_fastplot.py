@@ -13,11 +13,13 @@ from astropy import wcs
 from PIL import Image, ImageDraw, ImageFont
 import webbrowser
 import datetime
+import sys
 
 sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")  
 
 from BT_io_functions import fixed_image_times,dategetter
-from BT_plot_functions import plotpixel, logplotpixel, bt_setaxisup
+from BT_plot_functions import plotpixel, logplotpixel, bt_setaxisup, rbr_setaxisup
+from BT_plot_functions import logbeta2ypix, simt2xpix, logplotpixelr, plotpixelr
 from io_methods import get_obs_loc, get_stereo_instrument, get_soho_instrument, get_hih_low
 from conversion_routines import fixwraps
 
@@ -236,117 +238,44 @@ with open(dustplotvals, "w") as text_file:
     text_file.write('\nEjection Time Values:\n ' +  str(tvals)[1:-1] +
                     '\nBeta Values:\n ' + str(bvals)[1:-1] )
 
-#%%**************************************
-#FOURTH CELL - SAVE TIME FILTERED TO FITS
-#****************************************      
-filtermsg = "Create ejection time filtered fits?"
-reply = False#easygui.ynbox(msg=filtermsg)
-
-if reply == True:
-    
-    hmsg = "Choose time filter shift in hours"
-    hreply = easygui.enterbox(hmsg)
-    while 1:
-        if hreply == None: break #exit if cancel pressed                 
-        errmsg = ""
-        try:
-            tshift = float(hreply)
-        except ValueError:
-                errmsg += ("Time must be a number")
-        if errmsg == "": break
-        hreply = easygui.enterbox(errmsg)
-    tshift = int(float(hreply)/(tvals[1]-tvals[0])/24)
-    
-    dustplotmodifits = (dustplotsave + '_tfilter_' +
-                        str(float(hreply)).replace('.','\'') + '.fits') 
-    
-    if not os.path.exists(dustplotmodifits):
-        ref_vals = np.copy(simres[:,:,14].T)
-        
-        fits_t_minus = np.copy(fits_arr[:,tshift:])
-        fits_t_plus = np.copy(fits_arr[:,:-tshift])
-        ref_t_minus = np.copy(ref_vals[:,tshift:])
-        ref_t_plus = np.copy(ref_vals[:,:-tshift])        
-        
-        fits_t_modified = np.copy(2*fits_arr)
-        ref_t_modified = np.copy(ref_vals)
-        fits_t_modified[:,:-tshift] = fits_t_modified[:,:-tshift] - fits_t_minus
-        fits_t_modified[:,tshift:] = fits_t_modified[:,tshift:] - fits_t_plus
-        ref_t_modified[:,:-tshift] = ref_t_modified[:,:-tshift] + ref_t_minus
-        ref_t_modified[:,tshift:] = ref_t_modified[:,tshift:] + ref_t_plus
-        
-        fits_t_modified[:,0:tshift+1] = 0
-        fits_t_modified[:,-tshift-1:] = 0 
-        fits_t_modified[np.where(ref_t_modified!=3)] = 0
-        fits_t_modified[np.where(fits_t_modified<0)] = 0
-        #fits_t_modified[np.where(fits_t_modified>255)] = 0
-        
-        #fits_t_modified[np.where(fits_t_modified>50)] = 0 #EXPERIMENTAL
-        
-        hdu = fits.PrimaryHDU(fits_t_modified)    
-        fitshdr = fits.Header()
-        fitshdr['COMMENT'] = "Beta / Ejection time in file"
-        fitshdr['COMMENT'] = "Modified with a Larson-Sekanina(esque) filter"
-        hduhdr = fits.PrimaryHDU(header=fitshdr)
-        hdulist = fits.HDUList([hdu])
-        hdulist.writeto(dustplotmodifits)
-        
-#%%*************************************
-#FIFTH CELL - SAVE BETA FILTERED TO FITS
-#***************************************
-filtermsg = "Create beta filtered fits?"
-reply = False#easygui.ynbox(msg=filtermsg)
-
-if reply == True:
-    
-    hmsg = "Choose beta filter shift (cell no)"
-    hreply = easygui.enterbox(hmsg)
-    while 1:
-        if hreply == None: break #exit if cancel pressed                 
-        errmsg = ""
-        try:
-            bshift = int(hreply)
-        except ValueError:
-                errmsg += ("Beta must be a number")
-        if errmsg == "": break
-        hreply = easygui.enterbox(errmsg)
-    bshift = int(hreply)
-    
-    fits_b_minus = fits_arr[bshift:,:]
-    fits_b_plus = fits_arr[:-bshift,:]
-    
-    fits_b_modified = 2*fits_arr
-    fits_b_modified[:-bshift,:] = fits_b_modified[:-bshift,:] - fits_b_minus
-    fits_b_modified[bshift:,:] = fits_b_modified[bshift:,:] - fits_b_plus
-    
-    fits_b_modified[np.where(fits_b_modified<0)] = 0
-    #fits_b_modified[np.where(fits_b_modified>255)] = 255
-    
-    dustplotmodifits = (dustplotsave + '_bfilter_' +
-                        str(float(hreply)).replace('.','\'') + '.fits')
-    
-    if not os.path.exists(dustplotmodifits):
-        hdu = fits.PrimaryHDU(fits_b_modified)    
-        fitshdr = fits.Header()
-        fitshdr['COMMENT'] = "Beta / Ejection time in file"
-        fitshdr['COMMENT'] = "Modified with a Larson-Sekanina(esque) filter"
-        hduhdr = fits.PrimaryHDU(header=fitshdr)
-        hdulist = fits.HDUList([hdu])
-        hdulist.writeto(dustplotmodifits)
-                  
-#%%******************************
-#SIXTH CELL - PLOT DATA ONTO IMAGE
-#********************************
+#%%********************************
+#FOURTH CELL - PLOT DATA ONTO IMAGE
+#**********************************
 #choose img type
+sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\FP Overplot")  
+from orbitdata_loading_functions import orb_vector
+from particle_sim import get_betadict
+
+tvals10mins = np.round(144*tvals).astype(int)
+comveceq10 = orb_vector(comdenom, obsloc, pysav, orbitdir,
+                    horiztag, opts = 'eq,d10')
+
+pstarts = np.empty((len(tvals10mins),6),dtype=float)
+rvals = np.empty((len(tvals10mins)),dtype=float)
+beffvals = np.empty((len(tvals10mins),len(bvals)),dtype=float)
+bstartvals = np.empty((len(tvals10mins),len(bvals)),dtype=float)
+
+bdict = get_betadict()
+
+for tv in range (0,len(tvals10mins)):
+    pstarts[tv,:] = comveceq10[comcel10-tvals10mins[tv],6:12]
+    rvals[tv] = np.linalg.norm(pstarts[tv,0:3])
+    beffvals[tv,:] = bvals/bdict.get(round(rvals[tv],4),1)
+    bstartvals[tv,:] = bvals*bdict.get(round(rvals[tv],4),1)
+
 colormsg = "Preview dustplot output?"
-plotchoices=('Base Image','Fixed Image')
+plotchoices=('Eff. Beta Isolines','Orig. Beta vs R','Eff. Beta vs T','Eff. Beta vs R')
 reply = easygui.buttonbox(msg=colormsg,choices=plotchoices)
 
 backgr_fill = (255,255,255,255)
 featur_fill = (0,0,0,255)
 
+#%%*************************
+#FIFTH CELL - effective beta
+#***************************
 logaxis = True
-if (reply == 'Base Image'):    
+if (reply == 'Eff. Beta Isolines'):
+        
     simtl = tvals[0]; simtu = tvals[-1]; betal = bvals[0]; betau = bvals[-1]
     
     pixhi = 1000
@@ -393,7 +322,7 @@ if (reply == 'Base Image'):
             
             for x in range(0, np.size(good_locs[0])):
                 ta = good_locs[0][x]; ba = good_locs[1][x]
-                logplotpixel(d,ta,ba,simres,dec,border,pixwt,pixhi,betal,simtl,
+                logplotpixel(d,ta,ba,simres,rvals,dec,border,pixwt,pixhi,betal,simtl,
                           wscle,hscle,filcols[ta,ba],filcols[ta,ba],filcols[ta,ba])
         else:
             fillco1 = np.clip(255.0/(hih-low)*(srcolors[:,:,1]-low),0,255).astype(int)
@@ -401,7 +330,7 @@ if (reply == 'Base Image'):
             fillco3 = np.clip(255.0/(hih-low)*(srcolors[:,:,3]-low),0,255).astype(int)
             for x in range(0, np.size(good_locs[0])):
                 ta = good_locs[0][x]; ba = good_locs[1][x]
-                logplotpixel(d,ta,ba,simres,dec,border,pixwt,pixhi,betal,simtl,
+                logplotpixel(d,ta,ba,simres,rvals,dec,border,pixwt,pixhi,betal,simtl,
                               wscle,hscle,fillco1[ta,ba],fillco2[ta,ba],fillco3[ta,ba])
     
     else:
@@ -414,7 +343,7 @@ if (reply == 'Base Image'):
             
             for x in range(0, np.size(good_locs[0])):
                 ta = good_locs[0][x]; ba = good_locs[1][x]
-                plotpixel(d,ta,ba,simres,dec,border,pixwt,pixhi,betal,simtl,
+                plotpixel(d,ta,ba,simres,rvals,dec,border,pixwt,pixhi,betal,simtl,
                           wscle,hscle,filcols[ta,ba],filcols[ta,ba],filcols[ta,ba])
         else:
             fillco1 = np.clip(255.0/(hih-low)*(srcolors[:,:,1]-low),0,255).astype(int)
@@ -422,12 +351,8 @@ if (reply == 'Base Image'):
             fillco3 = np.clip(255.0/(hih-low)*(srcolors[:,:,3]-low),0,255).astype(int)
             for x in range(0, np.size(good_locs[0])):
                 ta = good_locs[0][x]; ba = good_locs[1][x]
-                plotpixel(d,ta,ba,simres,dec,border,pixwt,pixhi,betal,simtl,
+                plotpixel(d,ta,ba,simres,rvals,dec,border,pixwt,pixhi,betal,simtl,
                               wscle,hscle,fillco1[ta,ba],fillco2[ta,ba],fillco3[ta,ba])
-                
-#%%**********************
-#SEVENTH CELL - DRAW AXIS
-#************************
     
     a = d.polygon([(border,border),(border*2+pixwt,border), \
         (border*2+pixwt,border*2+pixhi),(border,border*2+pixhi)], \
@@ -441,6 +366,29 @@ if (reply == 'Base Image'):
     fontloc = r'C:\Windows\winsxs\amd64_microsoft-windows-f..etype-lucidaconsole_31bf3856ad364e35_6.1.7600.16385_none_5b3be3e0926bd543\lucon.ttf'
     fnt = ImageFont.truetype(fontloc, 20)
     dtime = astropy.time.TimeDelta(1, format='jd')
+    
+    befflocs = np.empty((len(tvals),len(bmajticks)),dtype = float)
+    for tv in range (0,len(tvals10mins)):
+        bidx = 0
+        for b in bmajticks.tolist():
+            effloc = np.abs(beffvals[tv,:]-b).argmin()
+            befflocs[tv,bidx] = bvals[effloc]
+            bidx += 1
+            
+    beffpos = logbeta2ypix(befflocs, border, pixhi, betal, hscle) 
+    teffpos = simt2xpix(tvals, border, pixwt , simtl, wscle)
+    
+    import matplotlib.pyplot as plt
+    colormap = (plt.cm.jet(np.linspace(0,1,len(bmajticks)))*255).astype(int)
+    
+    for bv in range (0,len(bmajticks)):
+        for tv in range(0,len(tvals)-1):
+            b = d.line([(teffpos[tv],beffpos[tv,bv]),(teffpos[tv+1],beffpos[tv+1,bv])],\
+                        fill = tuple(colormap[bv]))
+        tick = str(bmajticks[bv])   
+        d.text((border*2+pixwt - len(tick)*5 - 30,beffpos[0,bv]- 10 ), \
+        tick, font=fnt, fill=tuple(colormap[bv]))
+        
     
     for div in range(0, (np.size(bminlocs))): #beta axis minor ticks
         b = d.line([(border+mint,bminlocs[div]),(border,bminlocs[div])],\
@@ -481,40 +429,29 @@ if (reply == 'Base Image'):
     dustimgfol = os.path.join(imagedir, 'dustplots')
     if not os.path.exists(dustimgfol): os.makedirs(dustimgfol)
     simparstr = simin.split('\\')[-1][:-4]
-    dustimgsave = os.path.join(dustimgfol,simparstr + '.png')
+    dustimgsave = os.path.join(dustimgfol,simparstr + 'effective_beta_isolines.png')
     dustimg.save(dustimgsave,'png')
-    webbrowser.open(dustimgsave)
- 
-#%%**********************
-#EIGTH CELL - DRAW FIXED
-#************************
-
-if (reply == 'Fixed Image'):    
-    simtl = tvals[0]; simtu = tvals[-1];
     
-    simtime_last = astropy.time.Time(ctime.jd-simtl,format='jd')
-    simtime_first = astropy.time.Time(ctime.jd-simtu,format='jd')
+#%%
+if (reply == 'Orig. Beta vs R'):    
     
-    timesavefile = os.path.join(pysav, comdenom + '_fixedimgsave.pickle')
+    betal = bvals[0]; betau = bvals[-1]
+    rl = rvals.min(); ru = rvals.max()
+    rno = rvals.argmin() - rvals.argmax()
     
-    [img_start_time,img_end_time,beta_l,beta_u] = fixed_image_times(timesavefile, simtime_first, simtime_last)
-    
-    tuppr = ctime.jd - img_start_time.jd
-    tlowr = ctime.jd - img_end_time.jd
-    
-    pixhi = 600
-    pixwt = 1000
+    pixhi = 1000
+    pixwt = int(round(float(pixhi)/bno*rno))
     border = 100
-    wscle = pixwt/(img_end_time.jd - img_start_time.jd)
+    wscle = pixwt/(ru - rl)
     
     if logaxis == True:
-        hscle = pixhi/(np.log(beta_u) - np.log(beta_l))
+        hscle = pixhi/(np.log(betau) - np.log(betal))
     else:
-        hscle = pixhi/(beta_u - beta_l)        
+        hscle = pixhi/(betau - betal)        
         
-    fixed_img = Image.new('RGBA', (pixwt+int(2.5*border),
+    dustimg = Image.new('RGBA', (pixwt+int(2.5*border),
                                  pixhi+int(3*border)),backgr_fill)
-    d = ImageDraw.Draw(fixed_img)
+    d = ImageDraw.Draw(dustimg)
     
     imgmax = greyscale_arr.max()
     if imgmax < 255: imgmax = 255
@@ -526,13 +463,16 @@ if (reply == 'Fixed Image'):
         else: plotmethodlog = True
         
     [hih,low] = get_hih_low(comdenom,obsloc,inst)
+    if inst == 'HI-2-diff':
+        stime = astropy.time.Time(datetime.datetime(2007,1,20,2,1,0))
+        switchval = (ctime.jd - stime.jd)
+        if switchval > 0:
+            low = - 5000 + 900*sorted((0,switchval,999))[1]
+            hih = 5000 - 900*sorted((0,switchval,999))[1]
     
     srcolors_slim = np.copy(srcolors[:,:,0])
-    srcolors_slim[np.where(simres[:,:,0] >= tuppr)] = 0
-    srcolors_slim[np.where(simres[:,:,0] <= tlowr)] = 0 
-    srcolors_slim[np.where(simres[:,:,1] >= beta_u)] = 0
-    srcolors_slim[np.where(simres[:,:,1] <= beta_l)] = 0
-    
+    srcolors_slim[rvals.argmin():,...] = 0
+                 
     good_bool = srcolors_slim[1:,1:] + srcolors_slim[:-1,:-1] + srcolors_slim[1:,:-1] + srcolors_slim[:-1,1:]
     good_locs = np.where(good_bool==4)
 
@@ -546,7 +486,7 @@ if (reply == 'Fixed Image'):
             
             for x in range(0, np.size(good_locs[0])):
                 ta = good_locs[0][x]; ba = good_locs[1][x]
-                logplotpixel(d,ta,ba,simres,dec,border,pixwt,pixhi,beta_l,tlowr,
+                logplotpixelr(d,ta,ba,simres,rvals,dec,border,pixwt,pixhi,betal,rl,
                           wscle,hscle,filcols[ta,ba],filcols[ta,ba],filcols[ta,ba])
         else:
             fillco1 = np.clip(255.0/(hih-low)*(srcolors[:,:,1]-low),0,255).astype(int)
@@ -554,7 +494,7 @@ if (reply == 'Fixed Image'):
             fillco3 = np.clip(255.0/(hih-low)*(srcolors[:,:,3]-low),0,255).astype(int)
             for x in range(0, np.size(good_locs[0])):
                 ta = good_locs[0][x]; ba = good_locs[1][x]
-                logplotpixel(d,ta,ba,simres,dec,border,pixwt,pixhi,beta_l,tlowr,
+                logplotpixelr(d,ta,ba,simres,rvals,dec,border,pixwt,pixhi,betal,rl,
                               wscle,hscle,fillco1[ta,ba],fillco2[ta,ba],fillco3[ta,ba])
     
     else:
@@ -567,7 +507,7 @@ if (reply == 'Fixed Image'):
             
             for x in range(0, np.size(good_locs[0])):
                 ta = good_locs[0][x]; ba = good_locs[1][x]
-                plotpixel(d,ta,ba,simres,dec,border,pixwt,pixhi,beta_l,tlowr,
+                plotpixelr(d,ta,ba,simres,rvals,dec,border,pixwt,pixhi,betal,rl,
                           wscle,hscle,filcols[ta,ba],filcols[ta,ba],filcols[ta,ba])
         else:
             fillco1 = np.clip(255.0/(hih-low)*(srcolors[:,:,1]-low),0,255).astype(int)
@@ -575,18 +515,14 @@ if (reply == 'Fixed Image'):
             fillco3 = np.clip(255.0/(hih-low)*(srcolors[:,:,3]-low),0,255).astype(int)
             for x in range(0, np.size(good_locs[0])):
                 ta = good_locs[0][x]; ba = good_locs[1][x]
-                plotpixel(d,ta,ba,simres,dec,border,pixwt,pixhi,beta_l,tlowr,
+                plotpixelr(d,ta,ba,simres,rvals,dec,border,pixwt,pixhi,betal,rl,
                               wscle,hscle,fillco1[ta,ba],fillco2[ta,ba],fillco3[ta,ba])
-                
-#%%**********************
-#NINTH CELL - FIXED AXIS
-#************************
-    
+
     a = d.polygon([(border,border),(border*2+pixwt,border), \
         (border*2+pixwt,border*2+pixhi),(border,border*2+pixhi)], \
         outline = featur_fill)
-    
-    [bminlocs,bmajlocs,tminlocs,tmajlocs,tmajticks,bmajticks,tminticks,bminticks] = bt_setaxisup(tuppr,tlowr,beta_u,beta_l,logaxis,border,pixhi,hscle,pixwt,wscle)  
+
+    [bminlocs,bmajlocs,rminlocs,rmajlocs,rmajticks,bmajticks,rminticks,bminticks] = rbr_setaxisup(ru,rl,betau,betal,logaxis,border,pixhi,hscle,pixwt,wscle)
     
     majt = 20  #major tick length
     mint = 10  #minor tick length
@@ -599,23 +535,16 @@ if (reply == 'Fixed Image'):
         b = d.line([(border+mint,bminlocs[div]),(border,bminlocs[div])],\
         fill = featur_fill)
         
-    for div in range(0, (np.size(tminlocs))): #beta axis minor ticks
-        b = d.line([(tminlocs[div],xaxis-mint),(tminlocs[div],xaxis)],\
+    for div in range(0, (np.size(rminlocs))): #beta axis minor ticks
+        b = d.line([(rminlocs[div],xaxis-mint),(rminlocs[div],xaxis)],\
         fill = featur_fill)
-        b = d.line([(tminlocs[div],border+mint),(tminlocs[div],border)]
-        ,fill = featur_fill)
     
-    for div in range(0, (np.size(tmajlocs))): #simt axis major ticks
-        b = d.line([(tmajlocs[div],xaxis-majt),(tmajlocs[div],xaxis)],\
+    for div in range(0, (np.size(rmajlocs))): #simt axis major ticks
+        b = d.line([(rmajlocs[div],xaxis-majt),(rmajlocs[div],xaxis)],\
         fill = featur_fill)
-        ticktime = ctime - dtime*tmajticks[div]
-        tick = ticktime.isot.replace('T','\n')[0:16]
-        d.text((tmajlocs[div] - len(tick)*5,xaxis + 10), \
+        tick = str(rmajticks[div])
+        d.text((rmajlocs[div] - len(tick)*5,xaxis + 10), \
         tick, font=fnt, fill=featur_fill)
-        b = d.line([(tmajlocs[div],border+majt),(tmajlocs[div],border)],\
-        fill = featur_fill)
-        d.text((tmajlocs[div] - 15,border - 25), \
-			('{0:.2f}'.format(tmajticks[div])), font=fnt, fill=featur_fill)
     
     for div in range(0, (np.size(bmajlocs))): #beta axis major ticks
         b = d.line([(border+majt,bmajlocs[div]),(border,bmajlocs[div])],\
@@ -626,24 +555,23 @@ if (reply == 'Fixed Image'):
         
     #axis labels
     d.text((1.5*border + pixwt*0.5 - 150,pixhi + 2.7*border), \
-    "Date/Time of Ejection", font=fnt, fill=featur_fill)
+    "Distance from Sun at dust release (AU)", font=fnt, fill=featur_fill)
     d.text((0.25*border - 10,border-10), \
     "Beta", font=fnt, fill=featur_fill)
-    d.text((1.5*border+ pixwt*0.5 - 120,0.3*border), \
-    "Age of dust (days)", font=fnt, fill=featur_fill)
     
-    '''
     #plot title
     tfnt = ImageFont.truetype(fontloc, 30)
-    plttitle = (comdenom.upper() + ' ' + comname[:-1]+ ' from ' + obsloc
-    + ' on: ' + ctime.isot[0:16].replace('T',' at '))
-    d.text((1.2*border,.5*border), \
+    plttitle = (comdenom.upper() + ' ' + comname[:-1] + ' from ' + obsloc
+    + '\n'+ ctime.isot[0:16].replace('T',' at '))
+    d.text((1.2*border,.25*border), \
     plttitle, font=tfnt, fill=featur_fill)
-    '''
     
+    dustimg.show()
+    
+    '''
     dustimgfol = os.path.join(imagedir, 'dustplots')
     if not os.path.exists(dustimgfol): os.makedirs(dustimgfol)
     simparstr = simin.split('\\')[-1][:-4]
-    fiximgsave = os.path.join(dustimgfol,simparstr + '_fixed.png')
-    fixed_img.save(fiximgsave,'png')
-    webbrowser.open(fiximgsave)
+    dustimgsave = os.path.join(dustimgfol,simparstr + 'effective_beta_isolines.png')
+    dustimg.save(dustimgsave,'png')
+    '''

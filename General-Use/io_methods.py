@@ -146,7 +146,7 @@ def get_hih_low(comdenom,obsloc,inst):
                 low = -2.5e-13; hih = 8.5e-13
                 
     elif comdenom == 'c2011w3':
-        if obsloc == 'Earth' or 'ISS':
+        if obsloc == 'Earth' or obsloc == 'ISS':
             low = 0; hih = 255
         elif obsloc == 'Soho':
             low = 1000; hih = 10000

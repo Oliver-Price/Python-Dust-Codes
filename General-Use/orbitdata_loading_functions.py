@@ -219,13 +219,15 @@ def orb_vector(denom, observer, savefolder, datafolder, horiz, opts = ''):
 #OBSERVER DATA
 #*************
 
-def orb_obs(denom, observer, savefolder, datafolder, horiz, idlmode = False, venusmode = False):
+def orb_obs(denom, observer, savefolder, datafolder, horiz, idlmode = False, venusmode = False, mercurymode = False):
 
     #checks if save data exsits
-    if venusmode == False:
-        savename = 'data_' + denom + '_' + observer + '_celestialcoords'
-    elif venusmode == True:
+    if venusmode == True:
         savename = 'data_' + denom + '_' + observer + '_venuscoords'
+    elif mercurymode == True:
+        savename = 'data_' + denom + '_' + observer + '_mercurycoords'    
+    else:
+        savename = 'data_' + denom + '_' + observer + '_celestialcoords'
     if idlmode == True:
         savename += '_idl'
     savename += '.npy'
@@ -287,7 +289,14 @@ def orb_obs(denom, observer, savefolder, datafolder, horiz, idlmode = False, ven
             
             url = 'http://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=1&COMMAND='                         
             
-            if venusmode == False:
+            if venusmode == True:
+                url += '\'299\''
+                textsavename = os.path.join(datafolder, 'Venus_') 
+            elif mercurymode == True:
+                url += '\'199\''
+                textsavename = os.path.join(datafolder, 'Mercury_')     
+            
+            else:
                 if (horiz[0] != '\''): #this just ensures the formatting is all cleared up
                     url += '\''
                 
@@ -297,10 +306,7 @@ def orb_obs(denom, observer, savefolder, datafolder, horiz, idlmode = False, ven
                     url +=  '\''
            
                 textsavename = os.path.join(datafolder, denom + '_') 
-            else:
-                url += '\'299\''
-                textsavename = os.path.join(datafolder, 'Venus_') 
-                
+    
                 
             url += '&MAKE_EPHEM=\'YES\'&TABLE_TYPE=\'OBS\'&CENTER='
             

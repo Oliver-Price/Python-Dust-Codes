@@ -70,6 +70,67 @@ def rk4(pstate, beta, dt):
     k4 = diff(pstate+k3, beta)*dt
     return pstate + (k1+k2*2+k3*2+k4)*0.16666666666666666
 
+'''
+NEAR SUN BETA BREAKDOWN SIM
+'''
+
+def part_sim_nearsun(beta, simt, nperday, ltdt, pstart, efinp, cor): 
+    simt = simt*10 + cor #simt in minutes
+    bdict = get_betadict()
+    dt1=float(simt-30)*86400/simt/nperday
+    dt2=float(simt-30)/nperday
+    dt = min(dt1,dt2)
+    t = 0
+    traj = pstart
+    while (t + dt + 30 < simt): #go to up to 30 minutes before current
+        traj = rk4_nearsun(traj, beta, bdict, dt) #traj updated
+        t += dt
+    dr = np.linalg.norm(traj[0:3] - efinp)
+    tret = t + 8.316746397269274*dr    
+    while (tret < simt):
+        traj = rk4_nearsun(traj, beta, bdict, ltdt) #traj updated b the minute
+        t += ltdt
+        dr = np.linalg.norm(traj[0:3] - efinp)
+        tret = t + 8.316746397269274*dr
+    return (t,traj)
+
+def diff_nearsun(pstate, beta, bdict):
+    diff0 = 1.1574074074074073e-05*pstate[3]
+    diff1 = 1.1574074074074073e-05*pstate[4]
+    diff2 = 1.1574074074074073e-05*pstate[5]
+    r = m.sqrt(pstate[0]**2 + pstate[1]**2 + pstate[2]**2)
+    invr = r**-1
+    acc = (-3.4249098175024633e-09)*(1-beta*bdict.get(round(r,4),1))*invr*invr*invr
+    diff3 = acc*pstate[0] #3rd invr normalises the position vector
+    diff4 = acc*pstate[1]
+    diff5 = acc*pstate[2] 
+    return np.array([diff0,diff1,diff2,diff3,diff4,diff5])
+    
+def rk4_nearsun(pstate, beta, bdict, dt): 
+    dt = dt*60 #DT INPUT IN MINUTES
+    k1 = diff_nearsun(pstate, beta, bdict)*dt
+    k2 = diff_nearsun(pstate+k1*0.5, beta, bdict)*dt
+    k3 = diff_nearsun(pstate+k2*0.5, beta, bdict)*dt
+    k4 = diff_nearsun(pstate+k3, beta, bdict)*dt
+    return pstate + (k1+k2*2+k3*2+k4)*0.16666666666666666
+
+def get_betadict():
+    filename = r'C:\PhD\Python\Save_Data\betafraction.dat'
+    with open(filename, "r") as text_file:
+        dat = text_file.readlines()
+        a = np.zeros((len(dat)),dtype=float)
+        b = np.zeros((len(dat)),dtype=float)
+        for x in range(0,len(dat)):
+            a[x] = float(dat[x][0:14].strip())
+            b[x] = float(dat[x][14:-2].strip())
+    return dict(zip(a,b))
+
+'''
+BASIC Sekanina-Farrell Striation Model
+
+This simulation incorporates a change in beta by a factor of bfac after
+a number of days equal to ftime
+'''
 def frag_sim(beta, bfac, simt, ftime, ndt, ltdt, pstart, efinp, cor): 
     simt = simt*10 + cor #simt in minutes
     ftime = ftime*24*60
@@ -90,4 +151,4 @@ def frag_sim(beta, bfac, simt, ftime, ndt, ltdt, pstart, efinp, cor):
         dr = np.linalg.norm(traj[0:3] - efinp)
         tret = t + 8.316746397269274*dr
     return (t,traj)
-    
+

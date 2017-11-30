@@ -47,7 +47,7 @@ stereo_b_data = loadorbit(sterbloc)
 
 plt.figure(figsize=(5,5))
 tes1 = plt.plot(earth_data[:,6], earth_data[:,7])
-#tes2 = plt.plot(mcnaught_data[:,6], mcnaught_data[:,7])
+tes2 = plt.plot(mcnaught_data[:,6], mcnaught_data[:,7])
 tes3 = plt.plot(soho_data[:,6], soho_data[:,7])
 tes4 = plt.plot(stereo_a_data[:,6], stereo_a_data[:,7])
 tes5 = plt.plot(stereo_b_data[:,6], stereo_b_data[:,7])

@@ -1,8 +1,8 @@
 from astropy.io import fits
 import os
 
-fits_folder = r'C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\HI-1'
-fits_out_folder = r'C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\HI-1-diff'
+fits_folder = r'C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\HI-1-MGN'
+fits_out_folder = r'C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\HI-1-MGN-diff'
 
 fits_list = os.listdir(fits_folder)
 fits_list = [s for s in fits_list if 's4' in s]
