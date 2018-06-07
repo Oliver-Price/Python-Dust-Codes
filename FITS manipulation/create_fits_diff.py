@@ -1,8 +1,8 @@
 from astropy.io import fits
 import os
 
-fits_folder = r'C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\HI-1-MGN'
-fits_out_folder = r'C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\HI-1-MGN-diff'
+fits_folder = r'C:\PhD\Comet_data\Comet_PanSTARRS_C2011L4\Gallery\Stereo_B\HI-2'
+fits_out_folder = r'C:\PhD\Comet_data\Comet_PanSTARRS_C2011L4\Gallery\Stereo_B\HI-2-diff'
 
 fits_list = os.listdir(fits_folder)
 fits_list = [s for s in fits_list if 's4' in s]
@@ -20,4 +20,5 @@ for fits_no in range(1,len(fits_list)):
     data_out = data_cur - data_pre
        
     fits_outfile = os.path.join(fits_out_folder, fits_string + "_diff.fits")    
-    fits.writeto(fits_outfile, data_out, header_cur, clobber=True)
+    if not os.path.exists(fits_outfile):
+        fits.writeto(fits_outfile, data_out, header_cur, clobber=True)

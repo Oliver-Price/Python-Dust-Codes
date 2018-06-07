@@ -119,14 +119,14 @@ def draw_syndynes(dynfill,d,simres,bno,rapixl,decpixl,tmin,tmax,bidx_list,spacin
 #        (simres[0,ba,12],simres[0,ba,13])],\
 #        fill = dynfill)
 
-def draw_synchrones(chrfill,d,simres,tno,rapixl,decpixl,bmin,bmax,tidx_list,spacing,tvals):
+def draw_synchrones(chrfill,d,simres,tno,rapixl,decpixl,bmin,bmax,tidx_list,spacing,tvals,w = 1):
 
     print('Synchrones')
     for ta in np.append(tidx_list[:-1][::spacing],tidx_list[-1]).tolist():
         for ba in range(bmin[ta], bmax[ta]):
             d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
             (simres[ta,ba+1,12],simres[ta,ba+1,13])],\
-            fill = chrfill)
+            fill = chrfill,width = w)
         #print (tvals[tidx_list[ta]])      
 #        d.line([(rapixl,decpixl), \
 #        (simres[ta,0,12],simres[ta,0,13])],\

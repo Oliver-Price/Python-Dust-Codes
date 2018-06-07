@@ -3,18 +3,13 @@
 #finson-probstein diagram according to it's orbital parameters
 #*************************************************************
 
-import urllib2
-import string
 import easygui
 import os
 import numpy as np
-import math as m
-from scipy.io.idl import readsav
 import sys
 from astropy.io import fits
 from astropy import wcs
 import astropy.time
-import datetime
 import pickle
 import matplotlib.path as mplPath
 from PIL import Image, ImageDraw, ImageFont
@@ -22,27 +17,24 @@ import webbrowser
 import matplotlib.pyplot as plt
 
 sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")
+sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\FP Overplot")
 
-from orbitdata_loading_functions import orb_vector, orb_obs
-from FP_plot_functions import ra2xpix, dec2ypix, setaxisup, plotpixel, getdustphase
-from FP_plot_functions import draw_syndynes, draw_synchrones, draw_datap
-from FP_plot_functions import draw_data_reg, annotate_plotting
-from FP_plot_functions import draw_phase_points, annotate_dustphase
-from FP_diagnostics import plot_orbit, plot_orbit_points, plot_sunearth_vec
-from FP_diagnostics import write_bt_ranges, write_properties, plot_compos_unc
-from imagetime_methods import image_time_yudish, image_time_user, image_time_stereo, image_time_filename
-from conversion_routines import pos2radec, fixwraps, find_largest_nonzero_block 
-from io_methods import get_obs_loc, correct_for_imagetype, get_hih_low
-from io_methods import get_stereo_instrument, get_soho_instrument
-from simulation_setup import simulation_setup
-from particle_sim import part_sim, frag_sim
+
+from orbitdata_loading_functions import *
+from FP_plot_functions import *
+from FP_diagnostics import *
+from imagetime_methods import *
+from conversion_routines import *
+from io_methods import *
+from simulation_setup import *
+from particle_sim import *
 
 #%%**********************
 #FIRST CELL - GET DATA IN
 #************************
 
 #choosing comet data to use
-inputfilefolder = "C:\PhD\Comet_data\Input_files\*pt1.txt"
+inputfilefolder = r"C:\PhD\Comet_data\Input_files\*pt1.txt"
 inputfile = easygui.fileopenbox(default = inputfilefolder)
 
 #reading main comet parameters
@@ -65,21 +57,40 @@ else: inst = ''
  
 #import the orbit data
 obsveceq = orb_vector(comdenom, obsloc, pysav, orbitdir,
-                      horiztag, opts = 'obs,eq')
+                      horiztag, opts = 'obs')
 comveceq = orb_vector(comdenom, obsloc, pysav, orbitdir,
-                      horiztag, opts = 'eq')
+                      horiztag)
 comveceq10 = orb_vector(comdenom, obsloc, pysav, orbitdir,
-                        horiztag, opts = 'eq,d10')
+                        horiztag, opts = 'd10')
 comobs = orb_obs(comdenom, obsloc, pysav, orbitdir, horiztag)
 
-#choosing fits file to display and getting pathnames
-fitsin = easygui.fileopenbox(default = os.path.join(imagedir,'*'))
-if fitsin == '.': sys.exit("No file selected")
+#choosing whether to use last used file
+last_savename = 'last_image.pickle'
+last_savefile = os.path.join(pysav,last_savename)
+last_saveexists = os.path.isfile(last_savefile)
+getnewfile = True
+if last_saveexists == True:
+    with open(last_savefile,'rb') as f:
+        fitsin = pickle.load(f)
+    fitsinfile = os.path.basename(fitsin)
+    filebase = fitsinfile[:fitsinfile.find('.')]
+    getnewfile = not easygui.ynbox('Use this file: ' + filebase + ' ?')
+
+#choosing fits file to display
+if getnewfile == True:
+    fitsin = easygui.fileopenbox(default = os.path.join(imagedir,'*'))
+    if fitsin == '.': sys.exit("No file selected")
+
+#getting pathnames
 fitsinfile = os.path.basename(fitsin)
-filebase = fitsinfile[:string.find(fitsinfile,'.')]
+filebase = fitsinfile[:fitsinfile.find('.')]
+
+#saving name of last used file
+with open(last_savefile , 'wb') as f:
+    pickle.dump(fitsin, f)
 
 inv = False
-pngdir = os.path.join(imagedir, 'cometplots')
+pngdir = os.path.join(imagedir, 'nocometplots')
 if not os.path.exists(pngdir): os.makedirs(pngdir)
 #check if image exists already/invert it
 if inv == False:   
@@ -103,7 +114,7 @@ picklexists = os.path.exists(picklesavefile)
 
 forceredraw = False
 if (imgexists == False) or (picklexists == False) or (forceredraw == True):
-    print "preparing image"
+    print ("preparing image")
     
     #ensures image inputted correctly depending on size of data cube
     [colr, colg, colb, fitscoords] = correct_for_imagetype(imagedir, fitsin, fitsinfile)
@@ -131,14 +142,20 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         if comdenom == 'c2011l4':
             w = wcs.WCS(onedimg[0].header)
         elif comdenom == 'c2006p1':
-            w = wcs.WCS(onedimg[0].header, key = 'A')
+            if 'A' in obsloc:
+                try:
+                    w = wcs.WCS(onedimg[0].header, key = 'A')
+                except:
+                    w = wcs.WCS(onedimg[0].header)
+            if 'B' in obsloc:
+                w = wcs.WCS(onedimg[0].header)
         if 'diff' in inst or 'MGN' in inst: plotmethodlog = False
         else: plotmethodlog = True
     elif 'Soho' in obsloc:
         w = wcs.WCS(onedimg[0].header)
         if 'diff' in inst or 'MGN' in inst: plotmethodlog = False
         else: plotmethodlog = True
-    elif 'Earth' in obsloc:
+    elif 'Earth' or 'ISS' in obsloc:
         plotmethodlog = False
         w = wcs.WCS(onedimg[0].header)
     
@@ -170,10 +187,11 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     pixwidth = int(pixheight*(rafmax - rafmin)/(decmax - decmin))
     border = 100
     scale = pixheight/(decmax - decmin)
-    imgwidth = pixwidth+int(4*border)
+    imgwidth = pixwidth+int(5*border)
     imgheight = pixheight+int(3*border)
     comimg = Image.new('RGBA', ( imgwidth , imgheight ) ,backgr_fill)
     d = ImageDraw.Draw(comimg)
+    
     
     if ("Stereo" in obsloc) and ('2' in inst):
         maskedimg = fits.open('C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\hi2A_mask.fts')
@@ -185,9 +203,9 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     if plotmethodlog == True:
         
         grad = (255 / (np.log10(hih) - np.log10(low)))      
-        colcr = (np.clip(np.round((np.log10(np.clip(colr,1e-20,999999999))- np.log10(low))*grad),0,255)).astype(int)
-        colcg = (np.clip(np.round((np.log10(np.clip(colg,1e-20,999999999))- np.log10(low))*grad),0,255)).astype(int)
-        colcb = (np.clip(np.round((np.log10(np.clip(colb,1e-20,999999999))- np.log10(low))*grad),0,255)).astype(int)
+        colcr = (np.clip(np.round((np.log10(np.clip(colr,1e-20,999999999))- np.log10(low))*grad),0,150)).astype(int)
+        colcg = (np.clip(np.round((np.log10(np.clip(colg,1e-20,999999999))- np.log10(low))*grad),0,150)).astype(int)
+        colcb = (np.clip(np.round((np.log10(np.clip(colb,1e-20,999999999))- np.log10(low))*grad),0,150)).astype(int)
         non_zeros_0 = np.where(imagemask == 1)[0]
         non_zeros_1 = np.where(imagemask == 1)[1]
         no_points = non_zeros_0.size
@@ -195,7 +213,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         if inv == True:
             colcr = 255-colcb; colcb = 255-colcb; colcg = 255-colcg
         
-        for xp in xrange(0,no_points):
+        for xp in range(0,no_points):
             x = non_zeros_0[xp]
             y = non_zeros_1[xp]
             plotpixel(d,x,y,ra_m,dec,border,pixwidth,pixheight,decmin,rafmin,
@@ -203,9 +221,9 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
                 
     elif plotmethodlog == False:
 
-        colcr = np.clip(255.0/(hih-low)*(colr-low),0,255).astype(int)
-        colcg = np.clip(255.0/(hih-low)*(colg-low),0,255).astype(int)
-        colcb = np.clip(255.0/(hih-low)*(colb-low),0,255).astype(int)         
+        colcr = np.clip(255.0/(hih-low)*(colr-low),0,150).astype(int)
+        colcg = np.clip(255.0/(hih-low)*(colg-low),0,150).astype(int)
+        colcb = np.clip(255.0/(hih-low)*(colb-low),0,150).astype(int)         
             
         non_zeros_0 = np.where(imagemask == 1)[0]
         non_zeros_1 = np.where(imagemask == 1)[1]
@@ -214,12 +232,12 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         if inv == True:
             colcr = 255-colcb; colcb = 255-colcb; colcg = 255-colcg
         
-        for xp in xrange(0,no_points):
+        for xp in range(0,no_points):
             x = non_zeros_0[xp]
             y = non_zeros_1[xp]
             plotpixel(d,x,y,ra_m,dec,border,pixwidth,pixheight,decmin,rafmin,
                           scale,colcr[x,y],colcg[x,y],colcb[x,y])
-            
+                 
 #%%********************
 #THIRD CELL - Draw Axis
 #**********************
@@ -241,25 +259,25 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     smallfnt = ImageFont.truetype(fontloc, 20)
     largefnt = ImageFont.truetype(fontloc, 30)
     
-    for div in xrange(0, (np.size(axisdata[1]))): #RA axis major ticks
+    for div in range(0, (np.size(axisdata[1]))): #RA axis major ticks
         b = d.line([(axisdata[1][div],rdaxis-majt),(axisdata[1][div],rdaxis)],\
         fill = featur_fill)
         tick = str(axisdata[0][div]%360)
         d.text((axisdata[1][div] - len(tick)*5,rdaxis + 10), \
         tick, font=fnt, fill= featur_fill)
         
-    for div in xrange(0, (np.size(axisdata[2]))): #RA axis minor ticks
+    for div in range(0, (np.size(axisdata[2]))): #RA axis minor ticks
         b = d.line([(axisdata[2][div],rdaxis-mint),(axisdata[2][div],rdaxis)],\
         fill= featur_fill)
     
-    for div in xrange(0, (np.size(axisdata[4]))): #DEC axis major ticks
+    for div in range(0, (np.size(axisdata[4]))): #DEC axis major ticks
         b = d.line([(border+majt,axisdata[4][div]),(border,axisdata[4][div])],\
         fill= featur_fill)
         tick = str(axisdata[3][div])
         d.text((border - 8 - 15*len(tick),axisdata[4][div] - 10 ), \
         tick, font=fnt, fill=featur_fill)
         
-    for div in xrange(0, (np.size(axisdata[5]))): #DEC axis minor ticks
+    for div in range(0, (np.size(axisdata[5]))): #DEC axis minor ticks
         b = d.line([(border+mint,axisdata[5][div]),(border,axisdata[5][div])],\
         fill= featur_fill)
     
@@ -268,12 +286,12 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     "Right Ascension (Degrees)", font=fnt, fill= featur_fill)
     d.text((0.25*border - 10,0.75*border - 20), \
     "Declination (Degrees)", font=fnt, fill= featur_fill)
-    '''
+    
     #plot title
     plttitle = (comdenom.upper() + ' ' + comname)
     d.text((1.5*border + pixwidth*0.5 - len(plttitle)*5 - 60,.35*border), \
     plttitle, font=largefnt, fill= featur_fill)
-    '''
+    
     pix = comimg.load()
     
 #%%**************************
@@ -284,10 +302,11 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     if obsloc == 'Earth':
         
         timemsg = "Choose image time method"
-        timechoices = ["Filename","User Entry","Yudish Imagetimeheader"]
+        timechoices = ["Stereo/Soho Filename","Yudish/Earth Filename","User Entry","Yudish Imagetimeheader"]
         reply = easygui.buttonbox(timemsg, choices=timechoices)
         
-        if reply == "Filename": [ctime,uncertainty_range_exists] = image_time_filename(filebase)
+        if reply == "Stereo/Soho Filename": [ctime,uncertainty_range_exists] = image_time_stereo(filebase)
+        if reply == "Yudish/Earth Filename": [ctime,uncertainty_range_exists] = image_time_filename_yuds(filebase)
         if reply == "Yudish Imagetimeheader": [idls,ctime,uncertainty_range_exists] = image_time_yudish(comdenom,fitsinfile,idlsav)
         if reply == "User Entry": [ctime,uncertainty_range_exists] = image_time_user()
                                           
@@ -316,7 +335,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     #find ra and dec of comet
     LT_cor = int(np.round(np.linalg.norm(comveceq[comcel,6:9] - 
     obsveceq[comcel,6:9])*8.316746397269274))
-    com_ra_dec = pos2radec(comveceq[comcel - LT_cor,6:9] - obsveceq[comcel,6:9],fixwrapsbool)
+    com_ra_dec = ecliptic_pos2radec(comveceq[comcel - LT_cor,6:9] - obsveceq[comcel,6:9],fixwrapsbool)
     
     #check if comet is within image
     com_box_path = np.zeros((2*sum(np.shape(ra_m))-3,2),dtype =float)
@@ -342,7 +361,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         ra_img_higher = axisdata[7] + 360
     else: ra_img_higher = axisdata[7]
     
-    [ltcomcel, vtraj, vtrajcel] = plot_orbit(comobs,comveceq,obsveceq,axisdata,d,comcel,trajfill,ra_img_lower,
+    [ltcomcel, vtraj, vtrajcel] = plot_orbit_ecliptic(comobs,comveceq,obsveceq,axisdata,d,comcel,trajfill,ra_img_lower,
     ra_img_higher,border,pixwidth,rafmin,scale,pixheight,decmin,fnt,featur_fill, com_in_image,fixwrapsbool)      
     
     if vtraj is not None:
@@ -352,9 +371,13 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
      
         #setting RGBA colours of lines
         comsunfill = (0,255,0,255)
+        manysunfill = (100,255,200,255)
         
-        plot_sunearth_vec(d,comveceq,obsveceq,ltcomcel,axisdata,ra_img_higher,ra_img_lower,
+        plot_sunearth_vec_ecliptic(d,comveceq,obsveceq,ltcomcel,axisdata,ra_img_higher,ra_img_lower,
                         border,pixwidth,pixheight,rafmin,decmin,scale,comsunfill,featur_fill,fnt,fixwrapsbool)
+        
+        #plot_many_sunearth_vec(d,comveceq,obsveceq,ctime,ltcomcel,axisdata,ra_img_higher,ra_img_lower,
+        #                border,pixwidth,pixheight,rafmin,decmin,scale,manysunfill,featur_fill,fnt,fixwrapsbool)
         
         if obsloc == 'Earth' and uncertainty_range_exists == True:
             plot_compos_unc(d,idls,vtraj,vtrajcel,border,pixwidth,fnt,trajucfill,featur_fill)
@@ -363,7 +386,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         trajucfill = None;comsunfill = None   
     
     #draw the sun if it's in a good place
-    sun_pos = pos2radec(-obsveceq[comcel,6:9],fixwrapsbool)
+    sun_pos = ecliptic_pos2radec(-obsveceq[comcel,6:9],fixwrapsbool)
     if sun_pos[0] <= rafmax and sun_pos[0] >= rafmin:
         if sun_pos[1] <= decmax and sun_pos[1] >= decmin:
             sun_x = ra2xpix(sun_pos[0],border,pixwidth,rafmin,scale)
@@ -379,7 +402,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     comimg.save(imgsav,'png')
     webbrowser.open(imgsav)
     
-    with open(picklesavefile, 'w') as f:
+    with open(picklesavefile, 'wb') as f:
         pickle.dump([comcel, comcel10, ramax, decmax, ramin, decmin, border,
                      pixheight, pixwidth, scale, ctime, dtmin, ra, dec, colr,
                      colb, colg, trajfill, trajucfill, comsunfill, backgr_fill,
@@ -387,9 +410,9 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
                      com_ra_dec, com_Path, com_in_image, featur_fill, fitscoords], f)
                     
 else:
-    print "Loading parameter data"
+    print ("Loading parameter data")
     
-    with open(picklesavefile) as f:
+    with open(picklesavefile,'rb') as f:
         parameters = pickle.load(f)
         comcel = parameters[0]; comcel10 = parameters[1]; ramax = parameters[2]
         decmax = parameters[3]; ramin = parameters[4]; decmin = parameters[5]
@@ -402,111 +425,296 @@ else:
         com_in_image = parameters[29]; featur_fill = parameters[30]; fitscoords = parameters[31]
         
     comimg = Image.open(imgsav)
-    webbrowser.open(imgsav)
+    webbrowser.open(imgsav)  
    
 #%%**********************************************
 #SEVENTH CELL - Preparing to simulate dust motion
 #************************************************
-comimg = Image.open(imgsav)
-d = ImageDraw.Draw(comimg)
+test_mode = True
+while test_mode == True:
+    
+    edges_box_path = np.zeros((5,2),dtype =float)
+    edges_box_path[0,0] = rafmax
+    edges_box_path[0,1] = decmax
 
-[ra_m, rafmin, rafmax, fixwrapsbool] = fixwraps(ra, ramax, ramin)    
+    edges_box_path[1,0] = rafmax
+    edges_box_path[1,1] = decmin
+                
+    edges_box_path[2,0] = rafmin
+    edges_box_path[2,1] = decmin
+                
+    edges_box_path[3,0] = rafmin
+    edges_box_path[3,1] = decmax
+                
+    edges_box_path[4,0] = rafmax
+    edges_box_path[4,1] = decmax
 
-#finds maximum possible simulateable time and ensure simtu is bounded by this
-simt = 6
-betastart = 0.5
-n = 4
-m = 25
-bvals = np.logspace(np.log10(0.3), np.log10(3.0), num=(m))
+    box_Path = mplPath.Path(edges_box_path)  
+    
+    comimg = Image.open(imgsav)
+    d = ImageDraw.Draw(comimg)
+    
+    simsavefile = os.path.join(pysav, 'simsetupsavs')
+    if not os.path.exists(simsavefile ): os.makedirs(simsavefile)
+    simsavefile = os.path.join(simsavefile, obsloc)
+    if not os.path.exists(simsavefile ): os.makedirs(simsavefile)
+    if "Stereo" in obsloc: simsavefile = os.path.join(simsavefile, inst)
+    if "Soho" in obsloc: simsavefile = os.path.join(simsavefile, inst)
+    if not os.path.exists(simsavefile ): os.makedirs(simsavefile)
+    simsavefile  = os.path.join(simsavefile, filebase + '_simsetup_lorentz.pickle')
+    [betau, betal, bno, simtu, simtl, tno, drawopts, sav_bool, test_mode, bsta, ftime] = simulation_setup_lorfrag(simsavefile)
+    
+    [ra_m, rafmin, rafmax, fixwrapsbool] = fixwraps(ra, ramax, ramin)    
+    
+    #finds maximum possible simulateable time and ensure simtu is bounded by this
+    simtmax = np.round(ctime.jd - comveceq10[0,0])
+    if (simtu > simtmax):
+        simtu = simtmax
+        print ("Simulation time exceeds orbit data range, setting to max")
+    else:
+        simtu = simtu
+        
+    tvals = np.linspace(simtl, simtu, tno)
+    
+    #create log distributed beta values, accounting that log(0) is impossible
+    if (betal == 0):
+        bvals = np.logspace(np.log10(0.001), np.log10(betau), num=(bno-1))
+        bvals = np.concatenate((np.array([0]), bvals))
+        print ("Beta = 0, logarithmic spacing from Beta = 0.001")
+    else:
+        bvals = np.logspace(np.log10(betal), np.log10(betau), num=(bno))
 
-ftvals = np.linspace(1,3,n)
-bfvals = np.logspace(np.log10(1), np.log10(5), num=(n))
+    efinp = obsveceq[comcel,6:9]
 
-efinp = obsveceq[comcel,6:9]
+    if com_in_image == True: image_case = 1
+    elif com_in_image == False:
+        sync_intersects = np.zeros(tno,dtype = int)
+        
+        for tval_test in range(0, tno):	
+    
+                simt10min = int(round(144*tvals[tval_test]))
+                pstart = comveceq10[comcel10-simt10min,6:12]
+                sim_lo = part_sim(bvals[0],simt10min,30,3,pstart,efinp,dtmin)
+                sim_hi = part_sim(bvals[bno-1],simt10min,30,3,pstart,efinp,dtmin)
+                ra_dec_lo_test = ecliptic_pos2radec(sim_lo[1][0:3] -
+                obsveceq[int(comcel-10*simt10min+sim_lo[0]),6:9],fixwrapsbool)
+                ra_dec_hi_test = ecliptic_pos2radec(sim_hi[1][0:3] -
+                obsveceq[int(comcel-10*simt10min+sim_hi[0]),6:9],fixwrapsbool)
+                sync_box_path = np.array(
+                [[ra_dec_lo_test[0],ra_dec_lo_test[1]],
+                [ra_dec_hi_test[0],ra_dec_hi_test[1]]])
+                sync_Path = mplPath.Path(sync_box_path)
+                sync_intersects[tval_test] = box_Path.intersects_path(sync_Path)
 
-#prep for simulation loop
-simres = np.zeros((n,n,15),dtype = float)
-simt10min = int(round(144*simt))
+        if (np.sum(sync_intersects) > 0): image_case = 2
+        elif (np.sum(sync_intersects) == 0): image_case = 3        
+    
+    #prep for simulation loop
+    simres = np.zeros((tno,bno,19),dtype = float)
+    bmax = np.zeros((tno),dtype = int)
+    bmin = np.zeros((tno),dtype = int)
+    tmax = np.zeros((bno),dtype = int)
+    tmin = np.zeros((bno),dtype = int)
+    tidx = 0
+
 #%%*********************************
 #EIGHT CELL - Simulating Dust Motion
 #***********************************
-for ft in xrange(n):
-    for bf in xrange(n):
-        pstart = comveceq10[comcel10-simt10min,6:12]
-        sim = frag_sim(betastart,bfvals[bf],simt10min,ftvals[ft],30,3,pstart,efinp,dtmin)
-        simres[ft,bf,0] = ftvals[ft]
-        simres[ft,bf,1] = bfvals[bf]
-        simres[ft,bf,2] = sim[0] #length of simulation in minutes
-        simres[ft,bf,3] = comcel-10*simt10min+sim[0] #find relevant cell for end of traj
-        simres[ft,bf,4:10] = sim[1] #finishing pos/vel
-        simres[ft,bf,10:12] = pos2radec(sim[1][0:3] - 
-        obsveceq[int(simres[ft,bf,3]),6:9],fixwrapsbool)
-        point_in_image = int(com_Path.contains_point(
-        (simres[ft,bf,10],simres[ft,bf,11])))
-        simres[ft,bf,12] = ra2xpix(simres[ft,bf,10],border,pixwidth,rafmin,scale)
-        simres[ft,bf,13] = dec2ypix(simres[ft,bf,11],border,pixheight,decmin,scale)                 
-        simres[ft,bf,14] = point_in_image
-    print float(ft)*5
-simres[np.where(simres[:,:,14]==0)] = 0
+    
+    if image_case == 1:
+        
+        while (tidx < tno):
+            bidx = 0
+            point_in_image = 1
+            simt10min = int(round(144*tvals[tidx]))
+            pstart = comveceq10[comcel10-simt10min,6:12]
+            tswap = 2454112.6 - comveceq10[comcel10-simt10min,0]
+            while (bidx < bno and point_in_image == 1):
+                sim = frag_sim_exposure_lorentz(bvals[bidx],bsta,simt10min,ftime,50,1,pstart,efinp,dtmin,tswap,sign = -1)
+                simres[tidx,bidx,0] = float(simt10min)/144
+                simres[tidx,bidx,1] = bvals[bidx]
+                simres[tidx,bidx,2] = sim[0] #length of simulation in minutes
+                simres[tidx,bidx,3] = comcel-10*simt10min+sim[0] #find relevant cell for end of traj
+                simres[tidx,bidx,4:10] = sim[1] #finishing pos/vel
+                simres[tidx,bidx,10:12] = ecliptic_pos2radec(sim[1][0:3] - 
+                obsveceq[int(simres[tidx,bidx,3]),6:9],fixwrapsbool)
+                point_in_image = int(box_Path.contains_point(
+                (simres[tidx,bidx,10],simres[tidx,bidx,11])))
+                simres[tidx,bidx,12] = ra2xpix(simres[tidx,bidx,10],border,pixwidth,rafmin,scale)
+                simres[tidx,bidx,13] = dec2ypix(simres[tidx,bidx,11],border,pixheight,decmin,scale)                 
+                simres[tidx,bidx,14] = point_in_image
+                simres[tidx,bidx,17] = getdustphase(sim[1][0:3],obsveceq[int(simres[tidx,bidx,3]),6:9])
+                simres[tidx,bidx,18] = sim[2]
+                bidx += 1
+            try:simres[tidx,bidx - 1 + point_in_image,15] = 0
+            except: pass
+            try:bmax[tidx] = simres[tidx,:,14].nonzero()[0][-1]
+            except: bmax[tidx] = 0            
+            tidx += 1
+            print (float(tidx)*100/tno)
+            
+        simres[np.where(simres[:,:,14]==0)] = 0
+        bidx_list = np.arange(bno)
+        deletions = 0
+        for bidx in range(0,bno):
+            [minblock,maxblock] = find_largest_nonzero_block(simres[:,bidx,14])
+            if minblock == None:
+                bidx_list = np.delete(bidx_list,bidx - deletions)
+                deletions += 1
+            else:
+                tmin[bidx] = minblock
+                tmax[bidx] = maxblock        
+                
+        tidx_list = np.unique(np.nonzero(simres[:,:,14])[0])
+        
+        tidx_tt = np.zeros_like(tvals,dtype = int)        
+        bidx_tt = np.zeros_like(bvals,dtype = int) 
+        tidx_tt[tidx_list] = 1
+        bidx_tt[bidx_list] = 1
+        
+    if image_case == 2:
+        
+        tidx_list = np.arange(np.where(sync_intersects == 1)[0][0],
+                              np.where(sync_intersects == 1)[0][-1]+1)
+        syn_exit_tt = np.zeros((2,2),dtype = int)
+        syn_exit_tt[0,1] = 1
+        bprev = bno-1
+        
+        for tidx_list_val in range(0,np.size(tidx_list)):
+            bidx = bno-1
+            tidx = tidx_list[tidx_list_val]
+            syn_exited_image = 0
+            prev_stat = 0
+            simt10min = int(round(144*tvals[tidx]))
+            pstart = comveceq10[comcel10-simt10min,6:12]           
+            tswap = 2454112.6 - comveceq10[comcel10-simt10min,0]
+            while (bidx >= 0 and (syn_exited_image == 0 or bidx >= bprev)):
+                sim = frag_sim_exposure_lorentz(bvals[bidx],bsta,simt10min,ftime,50,3,pstart,efinp,dtmin,tswap,mag=0,sign = -1)
+                simres[tidx,bidx,0] = float(simt10min)/144
+                simres[tidx,bidx,1] = bvals[bidx]
+                simres[tidx,bidx,2] = sim[0] #length of simulation in minutes
+                simres[tidx,bidx,3] = comcel-10*simt10min+sim[0] #find relevant cell for end of traj
+                simres[tidx,bidx,4:10] = sim[1] #finishing pos/vel
+                simres[tidx,bidx,10:12] = ecliptic_pos2radec(sim[1][0:3] - 
+                obsveceq[int(simres[tidx,bidx,3]),6:9],fixwrapsbool)
+                point_in_image = int(box_Path.contains_point
+                ((simres[tidx,bidx,10],simres[tidx,bidx,11])))
+                simres[tidx,bidx,12] = ra2xpix(simres[tidx,bidx,10],border,pixwidth,rafmin,scale)
+                simres[tidx,bidx,13] = dec2ypix(simres[tidx,bidx,11],border,pixheight,decmin,scale)                 
+                simres[tidx,bidx,14] = point_in_image
+                syn_exited_image = syn_exit_tt[point_in_image,prev_stat]
+                prev_stat = point_in_image
+                simres[tidx,bidx,17] = getdustphase(sim[1][0:3],obsveceq[int(simres[tidx,bidx,3]),6:9])
+                simres[tidx,bidx,18] = sim[2]
+                bidx -= 1
+            print (float(tidx)*100/tno)
+            bprev = bidx
+            try:simres[tidx,bidx+1-point_in_image,15] = 0
+            except:pass
+            try:
+                bmin[tidx] = simres[tidx,:,14].nonzero()[0][0]
+                bmax[tidx] = simres[tidx,:,14].nonzero()[0][-1]
+            except: sync_intersects[tidx] = 0
+        
+        simres[np.where(simres[:,:,14]==0)] = 0
+        bidx_list = np.arange(bno)
+        deletions = 0
+        for bidx in range(0,bno):
+            [minblock,maxblock] = find_largest_nonzero_block(simres[:,bidx,14])
+            if minblock == None:
+                bidx_list = np.delete(bidx_list,bidx - deletions)
+                deletions += 1
+            else:
+                tmin[bidx] = minblock
+                tmax[bidx] = maxblock
 
-sync_orig = np.zeros((m,15),dtype = float)
-for b in xrange(m):
-    pstart = comveceq10[comcel10-simt10min,6:12]
-    sim = part_sim(bvals[b],simt10min,30,3,pstart,efinp,dtmin)
-    sync_orig[b,0] = float(simt10min)/144
-    sync_orig[b,1] = bvals[b]
-    sync_orig[b,2] = sim[0] #length of simulation in minutes
-    sync_orig[b,3] = comcel-10*simt10min+sim[0] #find relevant cell for end of traj
-    sync_orig[b,4:10] = sim[1] #finishing pos/vel
-    sync_orig[b,10:12] = pos2radec(sim[1][0:3] - 
-    obsveceq[int(simres[ft,bf,3]),6:9],fixwrapsbool)
-    point_in_image = int(com_Path.contains_point(
-    (sync_orig[b,10],sync_orig[b,11])))
-    sync_orig[b,12] = ra2xpix(sync_orig[b,10],border,pixwidth,rafmin,scale)
-    sync_orig[b,13] = dec2ypix(sync_orig[b,11],border,pixheight,decmin,scale)                 
-    sync_orig[b,14] = point_in_image
+        tidx_tt = np.zeros_like(tvals,dtype = int)        
+        bidx_tt = np.zeros_like(bvals,dtype = int) 
+        tidx_tt[tidx_list] = 1
+        bidx_tt[bidx_list] = 1         
+                        
+    if simres[:,:,12].max() == 0:
+        sys.exit("Image " + fitsinfile + " was no good.")
+        image_case = 3
+            
+    if image_case == 3:
+        sys.exit("Image " + fitsinfile + " was no good.")
+        
+    non_zeros_0 = simres[:,:,14].nonzero()[0]
+    non_zeros_1 = simres[:,:,14].nonzero()[1]
+    no_points = non_zeros_0.size
+    nu_radecs = np.zeros((no_points,2))
+    
+    for x in range(0,no_points):
+        nu_radecs[x,0] = simres[non_zeros_0[x],non_zeros_1[x],10]
+        nu_radecs[x,1] = simres[non_zeros_0[x],non_zeros_1[x],11]
+        
+    if np.mean(ra_m-ra) == 360:
+        nu_radecs[:,0] = nu_radecs[:,0] - 360
 
-point_orig = np.zeros((15),dtype = float)
-pstart = comveceq10[comcel10-simt10min,6:12]
-sim = part_sim(betastart,simt10min,30,3,pstart,efinp,dtmin)
-point_orig[0] = float(simt10min)/144
-point_orig[1] = betastart
-point_orig[2] = sim[0] #length of simulation in minutes
-point_orig[3] = comcel-10*simt10min+sim[0] #find relevant cell for end of traj
-point_orig[4:10] = sim[1] #finishing pos/vel
-point_orig[10:12] = pos2radec(sim[1][0:3] - 
-obsveceq[int(simres[ft,bf,3]),6:9],fixwrapsbool)
-point_in_image = int(com_Path.contains_point(
-(point_orig[10],point_orig[11])))
-point_orig[12] = ra2xpix(point_orig[10],border,pixwidth,rafmin,scale)
-point_orig[13] = dec2ypix(point_orig[11],border,pixheight,decmin,scale)                 
-point_orig[14] = point_in_image
-
+    try:
+        pixlocs = w.wcs_world2pix(nu_radecs,0)
+    except:
+        onedimg = fits.open(fitscoords)
+        w = wcs.WCS(onedimg[0].header)
+        pixlocs = w.wcs_world2pix(nu_radecs,0)
+    
+    for x in range(0,no_points):
+        simres[non_zeros_0[x],non_zeros_1[x],15] = pixlocs[x][0]
+        simres[non_zeros_0[x],non_zeros_1[x],16] = pixlocs[x][1]
+        
+    if (sav_bool == True):
+        simressavefile = os.path.join(pysav, 'simres')
+        if not os.path.exists(simressavefile): os.makedirs(simressavefile)
+        simressavefile = os.path.join(simressavefile, obsloc)
+        if not os.path.exists(simressavefile): os.makedirs(simressavefile)
+        if "Stereo_A" in obsloc: simsavbase = filebase[:filebase.find('A')+1]
+        elif "Stereo_B" in obsloc: simsavbase = filebase[:filebase.find('B')+1]
+        elif "Soho" in obsloc: simsavbase = filebase[:filebase.find('Clear')+5]
+        else: simsavbase = filebase
+        simressavefile = os.path.join(simressavefile, simsavbase + '_' + str(betal) + '_'
+                         + str(betau) + '_' + str(bno)+ '_' + str(simtl) + '_'
+                         + str(simtu) + '_' + str(tno))
+        simressavefile = simressavefile.replace('.','\'')
+        np.save(simressavefile, simres)
+        with open(simressavefile + '_parameters.pickle' , 'wb') as f:
+            pickle.dump([tmax, bmax, tvals, bvals], f)
+    
 #%%***************************
 #NINTH CELL - Plot dust motion
 #*****************************
 
-xsiz = 5
-d.line( [ ( point_orig[12] - xsiz , point_orig[13] - xsiz ) ,
-          ( point_orig[12] + xsiz , point_orig[13] + xsiz ) ] ,
-          fill = (255,150,50,255), width = 3 )  
-d.line( [ ( point_orig[12] - xsiz , point_orig[13] + xsiz ) ,
-          ( point_orig[12] + xsiz , point_orig[13] - xsiz ) ] ,
-          fill = (255,150,50,255), width = 3 )
-
-for ba in xrange(m-1):
-    d.line([(sync_orig[ba,12],sync_orig[ba,13]), \
-    (sync_orig[ba+1,12],sync_orig[ba+1,13])],\
-    fill = (255,150,50,255),width = 2)
+    dynfill = (255,0,0,255) #syndynes
+    chrfill = (255,192,0,255) #synchrones
+    drfill = (255,0,255,255) #data points and data
     
-for ta in xrange(n):
-    for ba in xrange(n-1):
-        d.line([(simres[ta,ba,12],simres[ta,ba,13]), \
-        (simres[ta,ba+1,12],simres[ta,ba+1,13])],\
-        fill = (int(255.*ta/(n-1)),255,0,255),width = 2)
+    fontloc = r'C:\Windows\winsxs\amd64_microsoft-windows-f..etype-lucidaconsole_31bf3856ad364e35_6.1.7600.16385_none_5b3be3e0926bd543\lucon.ttf'
+    fnt = ImageFont.truetype(fontloc, 20)  
+    bt_anno_idx = 0
+    
+    if "Wide" in drawopts:
+        tspacing = int(tno/5); bspacing = int(bno/5)
+    else:
+        tspacing = 1; bspacing = 1
+    if "Syndynes" in drawopts: draw_syndynes(dynfill,d,simres,bno,rapixl,decpixl,tmin,tmax,bidx_list,bspacing,bvals)
+    if "Synchrones" in drawopts: draw_synchrones(chrfill,d,simres,tno,rapixl,decpixl,bmin,bmax,tidx_list,tspacing,tvals,w = 3)
+    if "Data Points" in drawopts: draw_datap(drfill,d,simres)
+    if "Dust Phase Angles" in drawopts: [smax, smin, grad, colormap] = draw_phase_points(d,simres)
+    if "Data Region Enclosed" in drawopts: draw_data_reg(drfill,d,simres,bmax,bmin,bidx_list,tmax,tmin,tidx_list,border,pixwidth)
 
-fontloc = r'C:\Windows\winsxs\amd64_microsoft-windows-f..etype-lucidaconsole_31bf3856ad364e35_6.1.7600.16385_none_5b3be3e0926bd543\lucon.ttf'
-fnt = ImageFont.truetype(fontloc, 20)  
-bt_anno_idx = 0
+    if not "Dust Phase Angles" in drawopts:
+        bt_anno_idx = annotate_plotting(d,drawopts,border,pixwidth,fnt,featur_fill,dynfill,chrfill,drfill)        
+    else:
+        bt_anno_idx = annotate_dustphase(d,border,pixwidth,featur_fill,fnt,smax,smin,grad,colormap)
+        
+    write_bt_ranges(d,border, pixwidth, fnt, featur_fill,
+                    betau, betal, simtu, simtl, bt_anno_idx)
 
-comimg.show()
+    if (drawopts != "No Image"):
+        cimgdir = os.path.join(imagedir, 'Fragplots')
+        if not os.path.exists(cimgdir): os.makedirs(cimgdir)
+        cimgsav = os.path.join(cimgdir, 'FP_' + filebase + str(betal) + '_'
+                         + str(betau) + '_' + str(bno)+ '_' + str(simtl) + '_'
+                         + str(simtu) + '_' + str(tno) + '_' + str(bsta) + '_' + str(ftime) + '_.png')    
+        comimg.save(cimgsav,'png')
+        webbrowser.open(cimgsav)

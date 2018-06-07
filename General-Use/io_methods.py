@@ -84,7 +84,7 @@ def get_stereo_instrument(imagedir):
     
 def get_soho_instrument(imagedir):
 
-    sname_locs = np.array(['Clear', 'Blue'])
+    sname_locs = np.array(['Clear', 'Blue','Orange'])
     sohomsg = "Please select SOHO Filter"
     sohochoices = sname_locs.tolist()
     sohoinst = easygui.buttonbox(sohomsg, choices=sohochoices)
@@ -134,6 +134,8 @@ def get_hih_low(comdenom,obsloc,inst):
                 #low = 350; hih = 1200
                 if 'MGN' in inst:  
                     low = -0.5; hih = 1.2
+            if 'Orange' in inst:
+                low = 300; hih = 3000
     
     elif comdenom == 'c2002v1':
         if obsloc == 'Earth':
@@ -157,6 +159,9 @@ def get_hih_low(comdenom,obsloc,inst):
             
     elif comdenom == 'c1965s1':   
         low = 0; hih = 255
+    
+    elif comdenom == '96P':
+        low = -550; hih = 380
     
     else:
         low = 0; hih = 255    

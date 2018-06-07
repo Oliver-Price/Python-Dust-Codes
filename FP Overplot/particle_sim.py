@@ -34,12 +34,12 @@ import math as m
 
 def part_sim(beta, simt, nperday, ltdt, pstart, efinp, cor): 
     simt = simt*10 + cor #simt in minutes
-    dt1=float(simt-30)*86400/simt/nperday
-    dt2=float(simt-30)/nperday
+    dt1=float(simt-21)*86400/simt/nperday
+    dt2=float(simt-21)/nperday
     dt = min(dt1,dt2)
     t = 0
     traj = pstart
-    while (t + dt + 30 < simt): #go to up to 30 minutes before current
+    while (t + dt + 20 < simt): #go to up to 30 minutes before current
         traj = rk4(traj, beta, dt) #traj updated
         t += dt
     dr = np.linalg.norm(traj[0:3] - efinp)
@@ -69,6 +69,80 @@ def rk4(pstate, beta, dt):
     k3 = diff(pstate+k2*0.5, beta)*dt
     k4 = diff(pstate+k3, beta)*dt
     return pstate + (k1+k2*2+k3*2+k4)*0.16666666666666666
+
+#%%
+
+'''
+BASIC LORENTZ FORCE SIM
+
+Same as before with lorentz force
+
+Lorentz acc = (12*Eo/C^2)*(B*V*p*v/Q)*(Z*Ro/R^2)*Beta^2*(m/AU)*(day/s)
+
+Constant = (12*Eo/C^2)*(m/AU)*(day/s)
+With Ro as 1
+
+Parameters = (B*V*p*v/Q)
+
+Kramer:
+B = 3e-9; V = 5, p = 1000, v = 5e5, Q = 1
+parameters = 7.5
+
+Lorentz acc = Constant * Parameters * (Z/R/R) * Beta^2
+
+Constant of equation is 1.8495809331145113e-10
+from 8.854187817e-12*12*86400/149597870700/(5.76e-4**2)
+
+'''
+
+def part_sim_lorentz(beta, simt, nperday, ltdt, pstart, efinp, cor, tswap, mag = 3e-9,  voltage = 2, density = 1000, swspeed =  3e5, qpr = 1, sign = 1): 
+    pars = mag*voltage*density*swspeed/qpr
+    tswap = tswap*1440
+    simt = simt*10 + cor #simt in minutes
+    dt1=float(simt-21)*86400/simt/nperday
+    dt2=float(simt-21)/nperday
+    dt = min(dt1,dt2)
+    t = 0
+    traj = pstart
+    while (t + dt + 20 < simt) & (t < tswap): #go to up to 20 minutes before current
+        #times.append(t)
+        traj = rk4_lorentz(traj, beta, dt, pars,sign) #traj updated
+        t += dt
+    sign = -sign
+    while (t + dt + 20 < simt): #go to up to 20 minutes before current
+        traj = rk4_lorentz(traj, beta, dt, pars,sign) #traj updated
+        t += dt
+    dr = np.linalg.norm(traj[0:3] - efinp)
+    tret = t + 8.316746397269274*dr
+    while (tret < simt):
+        traj = rk4_lorentz(traj, beta, ltdt, pars,sign) #traj updated b the minute
+        t += ltdt
+        dr = np.linalg.norm(traj[0:3] - efinp)
+        tret = t + 8.316746397269274*dr
+    return (t,traj)
+    
+def diff_lorentz(pstate,beta,parameters,sign):
+    diff0 = 1.1574074074074073e-05*pstate[3]
+    diff1 = 1.1574074074074073e-05*pstate[4]
+    diff2 = 1.1574074074074073e-05*pstate[5]
+    invr = 1/(m.sqrt(pstate[0]**2 + pstate[1]**2 + pstate[2]**2))
+    rho = m.sqrt(pstate[0]**2 + pstate[1]**2)
+    gravrad = (-3.4249098175024633e-09)*(1-beta)*invr*invr*invr
+    lorentz = sign*1.8495809331145113e-10*parameters*pstate[2]*invr*invr*invr*beta*beta
+    diff3 = (gravrad + pstate[2]*lorentz/rho)*pstate[0]
+    diff4 = (gravrad + pstate[2]*lorentz/rho)*pstate[1]
+    diff5 = gravrad*pstate[2] - rho*lorentz
+    return np.array([diff0,diff1,diff2,diff3,diff4,diff5])
+    
+def rk4_lorentz(pstate, beta, dt, parameters,sign): 
+    dt = dt*60 #DT INPUT IN MINUTES
+    k1 = diff_lorentz(pstate, beta,parameters,sign)*dt
+    k2 = diff_lorentz(pstate+k1*0.5, beta,parameters,sign)*dt
+    k3 = diff_lorentz(pstate+k2*0.5, beta,parameters,sign)*dt
+    k4 = diff_lorentz(pstate+k3, beta,parameters,sign)*dt
+    return pstate + (k1+k2*2+k3*2+k4)*0.16666666666666666
+
+#%%
 
 '''
 NEAR SUN BETA BREAKDOWN SIM
@@ -115,7 +189,7 @@ def rk4_nearsun(pstate, beta, bdict, dt):
     return pstate + (k1+k2*2+k3*2+k4)*0.16666666666666666
 
 def get_betadict():
-    filename = r'C:\PhD\Python\Save_Data\betafraction.dat'
+    filename = r'C:\Users\Ollie\Documents\PhD\Comet_Data\Python Save Files\betafraction.dat'
     with open(filename, "r") as text_file:
         dat = text_file.readlines()
         a = np.zeros((len(dat)),dtype=float)
@@ -125,30 +199,245 @@ def get_betadict():
             b[x] = float(dat[x][14:-2].strip())
     return dict(zip(a,b))
 
+#%%
+
 '''
 BASIC Sekanina-Farrell Striation Model
 
 This simulation incorporates a change in beta by a factor of bfac after
 a number of days equal to ftime
 '''
-def frag_sim(beta, bfac, simt, ftime, ndt, ltdt, pstart, efinp, cor): 
+
+def frag_sim_basic(beta, bsta, simt, ftime, nperday, ltdt, pstart, efinp, cor): 
     simt = simt*10 + cor #simt in minutes
-    ftime = ftime*24*60
+    ftime = ftime*24*60 #frag time in days
+    dt1=float(simt-21)*86400/simt/nperday
+    dt2=float(simt-21)/nperday
+    dt = min(dt1,dt2)
     t = 0
-    dt = (4320)/ndt
     traj = pstart
-    while (t <= ftime) and (t < simt-30):#go to up to 30 minutes before current
+    while (t + dt + 20 < simt) and (t <= ftime):
+        traj = rk4(traj, bsta, dt) #traj updated
+        t += dt
+    while (t + dt + 20 < simt) and (t > ftime): 
         traj = rk4(traj, beta, dt) #traj updated
-        t += dt
-    while (t > ftime) and (t < simt-30):
-        traj = rk4(traj, beta*bfac, dt) #traj updated
-        t += dt
+        t += dt   
     dr = np.linalg.norm(traj[0:3] - efinp)
     tret = t + 8.316746397269274*dr    
     while (tret < simt):
-        traj = rk4(traj, beta*bfac, ltdt) #traj updated b the minute
+        traj = rk4(traj, beta, ltdt) #traj updated b the minute
         t += ltdt
         dr = np.linalg.norm(traj[0:3] - efinp)
         tret = t + 8.316746397269274*dr
     return (t,traj)
 
+'''
+Fragmentation after a given exposure time
+'''
+
+def frag_sim_exposure(beta, bsta, simt, max_expos, nperday, ltdt, pstart, efinp, cor, tswap):
+    simt = simt*10 + cor #simt in minutes
+    tswap = tswap*1440
+    dt1=float(simt-21)*86400/simt/nperday
+    dt2=float(simt-21)/nperday
+    dt = min(dt1,dt2)
+    t = 0
+    exposure_t = 0
+    traj = pstart
+    invr_old = 1/(m.sqrt(traj[0]**2 + traj[1]**2 + traj[2]**2))
+    while (t + dt + 20 < simt) and (exposure_t <= max_expos):
+        traj = rk4(traj, bsta, dt) #traj updated
+        t += dt
+        invr_new = 1/(m.sqrt(traj[0]**2 + traj[1]**2 + traj[2]**2))
+        exposure_t += 0.00034722222222222224*dt*(invr_old*invr_old + invr_new*invr_new)
+        invr_old = invr_new
+    while (t + dt + 20 < simt): 
+        traj = rk4(traj, beta, dt) #traj updated
+        t += dt
+    dr = np.linalg.norm(traj[0:3] - efinp)
+    tret = t + 8.316746397269274*dr    
+    while (tret < simt):
+        traj = rk4(traj, beta, ltdt) #traj updated by the ltdt
+        t += ltdt
+        dr = np.linalg.norm(traj[0:3] - efinp)
+        tret = t + 8.316746397269274*dr
+    return (t,traj,exposure_t)
+
+#%%
+
+'''
+Including exposure time and lorentz force
+'''
+
+def frag_sim_exposure_lorentz(beta, bsta, simt, max_expos, nperday, ltdt, pstart, efinp, cor, tswap, mag = 3e-9, voltage = 2, density = 800, swspeed =  3e5, qpr = 1, sign = 1): 
+    pars = mag*voltage*density*swspeed/qpr
+    simt = simt*10 + cor #simt in minutes
+    tswap = tswap*1440
+    dt1=float(simt-21)*86400/simt/nperday
+    dt2=float(simt-21)/nperday
+    dt = min(dt1,dt2)
+    t = 0
+    exposure_t = 0
+    traj = pstart
+    invr_old = 1/(m.sqrt(traj[0]**2 + traj[1]**2 + traj[2]**2))
+    while (t + dt + 20 < simt) and (exposure_t <= max_expos):
+        traj = rk4_lorentz(traj, bsta, dt, pars,sign) #traj updated
+        t += dt
+        invr_new = 1/(m.sqrt(traj[0]**2 + traj[1]**2 + traj[2]**2))
+        exposure_t += 0.00034722222222222224*dt*(invr_old*invr_old + invr_new*invr_new)
+        invr_old = invr_new
+        if t > tswap:
+            sign = -sign
+    while (t + dt + 20 < simt): 
+        traj = rk4_lorentz(traj, beta, dt, pars,sign) #traj updated
+        t += dt
+        if t > tswap:
+            sign = -sign
+    dr = np.linalg.norm(traj[0:3] - efinp)
+    tret = t + 8.316746397269274*dr    
+    while (tret < simt):
+        traj = rk4_lorentz(traj, beta, ltdt, pars,sign) #traj updated by the ltdt
+        t += ltdt
+        dr = np.linalg.norm(traj[0:3] - efinp)
+        tret = t + 8.316746397269274*dr
+        if t > tswap:
+            sign = -sign
+    return (t,traj,exposure_t)
+
+#%%
+
+'''
+FINITE LIFETIME MODEL SIM w/lorentz force
+'''
+
+def F_s(S):
+    return 0.48*10**(-1.3*(np.log10(S/0.24)**2))
+
+def FLM_sim(bfrag, simt, nperday, ltdt, pstart, efinp, cor, tswap, h, c, s0, sc, mag = 3e-9, voltage = 2, density = 800, swspeed =  3e5, qpr = 1, sign = 1): 
+   
+    #initialisations
+    pars = mag*voltage*density*swspeed/qpr
+    simt = simt*10 + cor #simt in minutes
+    tswap = tswap*1440
+    dt1=float(simt-21)*86400/simt/nperday
+    dt2=float(simt-21)/nperday
+    dt = min(dt1,dt2)
+
+    #parameters set up
+    t = 0
+    exposure_t = 0
+    s = s0
+    traj = pstart
+    invr_old = 1/(m.sqrt(traj[0]**2 + traj[1]**2 + traj[2]**2))
+    beta = h*F_s(s)
+    
+    while (t + dt + 20 < simt) and (s >= sc):
+        
+        #traj update
+        traj = rk4_lorentz(traj, beta, dt, pars,sign) #traj updated
+        t += dt
+        
+        #updating exposure time
+        invr_new = 1/(m.sqrt(traj[0]**2 + traj[1]**2 + traj[2]**2))
+        exposure_t += 0.00034722222222222224*dt*(invr_old*invr_old + invr_new*invr_new)
+        invr_old = invr_new
+        
+        #updating s and beta
+        s = s0*np.exp(-exposure_t/c)
+        beta = h*F_s(s)
+        
+        if t > tswap:
+            sign = -sign
+            
+    while (t + dt + 20 < simt): 
+        
+        traj = rk4_lorentz(traj, bfrag, dt, pars,sign) #traj updated
+        t += dt
+        
+        #updating exposure time
+        invr_new = 1/(m.sqrt(traj[0]**2 + traj[1]**2 + traj[2]**2))
+        exposure_t += 0.00034722222222222224*dt*(invr_old*invr_old + invr_new*invr_new)
+        invr_old = invr_new
+        
+        if t > tswap:
+            sign = -sign
+            
+    dr = np.linalg.norm(traj[0:3] - efinp)
+    tret = t + 8.316746397269274*dr    
+    
+    while (tret < simt):
+        
+        traj = rk4_lorentz(traj, bfrag, ltdt, pars,sign) #traj updated by the ltdt
+        t += ltdt
+        
+        #updating exposure time
+        invr_new = 1/(m.sqrt(traj[0]**2 + traj[1]**2 + traj[2]**2))
+        exposure_t += 0.00034722222222222224*dt*(invr_old*invr_old + invr_new*invr_new)
+        invr_old = invr_new
+        
+        dr = np.linalg.norm(traj[0:3] - efinp)
+        tret = t + 8.316746397269274*dr
+        
+        if t > tswap:
+            sign = -sign
+            
+    return (t,traj,exposure_t)
+
+#%%
+
+'''
+Lorentz force diagnostic model for getting magnetic field diagnostics
+'''
+
+def part_sim_lorentz_diag(beta, simt, nperday, ltdt, pstart, efinp, cor, tswap, mag = 3e-9,  voltage = 2, density = 1000, swspeed =  3e5, qpr = 1, sign = 1): 
+    a = []; times = []
+    pars = mag*voltage*density*swspeed/qpr
+    tswap = tswap*1440
+    simt = simt*10 + cor #simt in minutes
+    dt1=float(simt-21)*86400/simt/nperday
+    dt2=float(simt-21)/nperday
+    dt = min(dt1,dt2)
+    t = 0
+    traj = pstart
+    while (t + dt + 20 < simt) & (t < tswap): #go to up to 20 minutes before current
+        times.append(t)
+        traj = rk4_lorentz(traj, beta, dt, pars,sign,a) #traj updated
+        t += dt
+    sign = -sign
+    while (t + dt + 20 < simt): #go to up to 20 minutes before current
+        times.append(t)
+        traj = rk4_lorentz(traj, beta, dt, pars,sign,a) #traj updated
+        t += dt
+    print(t,dt,simt)
+    dr = np.linalg.norm(traj[0:3] - efinp)
+    tret = t + 8.316746397269274*dr
+    while (tret < simt):
+        times.append(t)
+        traj = rk4_lorentz(traj, beta, ltdt, pars,sign,a) #traj updated b the minute
+        t += ltdt
+        dr = np.linalg.norm(traj[0:3] - efinp)
+        tret = t + 8.316746397269274*dr
+    return (t,traj,a,times)
+    
+def diff_lorentz_diag(pstate,beta,parameters,sign,a,b=False):
+    diff0 = 1.1574074074074073e-05*pstate[3]
+    diff1 = 1.1574074074074073e-05*pstate[4]
+    diff2 = 1.1574074074074073e-05*pstate[5]
+    invr = 1/(m.sqrt(pstate[0]**2 + pstate[1]**2 + pstate[2]**2))
+    rho = m.sqrt(pstate[0]**2 + pstate[1]**2)
+    gravrad = (-3.4249098175024633e-09)*(1-beta)*invr*invr*invr
+    lorentz = sign*1.8495809331145113e-10*parameters*pstate[2]*invr*invr*invr*beta*beta
+    diff3 = (gravrad + pstate[2]*lorentz/rho)*pstate[0]
+    diff4 = (gravrad + pstate[2]*lorentz/rho)*pstate[1]
+    diff5 = gravrad*pstate[2] - rho*lorentz
+    if b == True:
+        a.append(sign*3e-9*pstate[2]*invr*invr)
+    return np.array([diff0,diff1,diff2,diff3,diff4,diff5])
+    
+def rk4_lorentz_diag(pstate, beta, dt, parameters,sign,a): 
+    dt = dt*60 #DT INPUT IN MINUTES
+    k1 = diff_lorentz(pstate, beta,parameters,sign,a,True)*dt
+    k2 = diff_lorentz(pstate+k1*0.5, beta,parameters,sign,a)*dt
+    k3 = diff_lorentz(pstate+k2*0.5, beta,parameters,sign,a)*dt
+    k4 = diff_lorentz(pstate+k3, beta,parameters,sign,a)*dt
+    return pstate + (k1+k2*2+k3*2+k4)*0.16666666666666666

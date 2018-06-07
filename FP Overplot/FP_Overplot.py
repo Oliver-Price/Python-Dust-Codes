@@ -33,7 +33,7 @@ from particle_sim import *
 #************************
 
 #choosing comet data to use
-inputfilefolder = "C:\PhD\Comet_data\Input_files\*pt1.txt"
+inputfilefolder = r"C:\PhD\Comet_data\Input_files\*pt1.txt"
 inputfile = easygui.fileopenbox(default = inputfilefolder)
 
 #reading main comet parameters
@@ -88,7 +88,7 @@ filebase = fitsinfile[:fitsinfile.find('.')]
 with open(last_savefile , 'wb') as f:
     pickle.dump(fitsin, f)
 
-inv = False
+inv = True
 pngdir = os.path.join(imagedir, 'cometplots')
 if not os.path.exists(pngdir): os.makedirs(pngdir)
 #check if image exists already/invert it
@@ -140,7 +140,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     if 'Stereo' in obsloc:
         if comdenom == 'c2011l4':
             w = wcs.WCS(onedimg[0].header)
-        elif comdenom == 'c2006p1':
+        elif comdenom == 'c2006p1' or comdenom == '96P':
             if 'A' in obsloc:
                 try:
                     w = wcs.WCS(onedimg[0].header, key = 'A')
@@ -208,8 +208,8 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         non_zeros_1 = np.where(imagemask == 1)[1]
         no_points = non_zeros_0.size
         
-        if inv == True:
-            colcr = 255-colcb; colcb = 255-colcb; colcg = 255-colcg
+        #if inv == True:
+        #    colcr = 255-colcb; colcb = 255-colcb; colcg = 255-colcg
         
         for xp in range(0,no_points):
             x = non_zeros_0[xp]
@@ -227,8 +227,8 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         non_zeros_1 = np.where(imagemask == 1)[1]
         no_points = non_zeros_0.size
         
-        if inv == True:
-            colcr = 255-colcb; colcb = 255-colcb; colcg = 255-colcg
+        #if inv == True:
+        #    colcr = 255-colcb; colcb = 255-colcb; colcg = 255-colcg
         
         for xp in range(0,no_points):
             x = non_zeros_0[xp]
@@ -369,9 +369,13 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
      
         #setting RGBA colours of lines
         comsunfill = (0,255,0,255)
+        manysunfill = (100,255,200,255)
         
         plot_sunearth_vec(d,comveceq,obsveceq,ltcomcel,axisdata,ra_img_higher,ra_img_lower,
                         border,pixwidth,pixheight,rafmin,decmin,scale,comsunfill,featur_fill,fnt,fixwrapsbool)
+        
+        #plot_many_sunearth_vec(d,comveceq,obsveceq,ctime,ltcomcel,axisdata,ra_img_higher,ra_img_lower,
+        #                border,pixwidth,pixheight,rafmin,decmin,scale,manysunfill,featur_fill,fnt,fixwrapsbool)
         
         if obsloc == 'Earth' and uncertainty_range_exists == True:
             plot_compos_unc(d,idls,vtraj,vtrajcel,border,pixwidth,fnt,trajucfill,featur_fill)
@@ -505,7 +509,7 @@ while test_mode == True:
             simt10min = int(round(144*tvals[tidx]))
             pstart = comveceq10[comcel10-simt10min,6:12]
             while (bidx < bno and point_in_image == 1):
-                sim = part_sim_nearsun(bvals[bidx],simt10min,200,1,pstart,efinp,dtmin)
+                sim = part_sim(bvals[bidx],simt10min,50,1,pstart,efinp,dtmin)
                 simres[tidx,bidx,0] = float(simt10min)/144
                 simres[tidx,bidx,1] = bvals[bidx]
                 simres[tidx,bidx,2] = sim[0] #length of simulation in minutes
@@ -562,7 +566,7 @@ while test_mode == True:
             while (bidx >= 0 and (syn_exited_image == 0 or bidx >= bprev)):
                 simt10min = int(round(144*tvals[tidx]))
                 pstart = comveceq10[comcel10-simt10min,6:12]
-                sim = part_sim_nearsun(bvals[bidx],simt10min,200,3,pstart,efinp,dtmin)
+                sim = part_sim(bvals[bidx],simt10min,50,3,pstart,efinp,dtmin)
                 simres[tidx,bidx,0] = float(simt10min)/144
                 simres[tidx,bidx,1] = bvals[bidx]
                 simres[tidx,bidx,2] = sim[0] #length of simulation in minutes

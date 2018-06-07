@@ -50,7 +50,7 @@ comobs = orb_obs(comdenom, obsloc, pysav, orbitdir, horiztag)
 
 #rdcsav = r'C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\rdc.npy'
 
-outdir = os.path.join(imagedir,'aligned_pngs')
+outdir = os.path.join(imagedir,'aligned_pngs_inv')
 if not os.path.exists(outdir): os.makedirs(outdir)
 
 dir_list = sorted(os.listdir(imagedir))
@@ -127,8 +127,11 @@ for fits_no in range(0,fits_total):
         
         [ra_m, rafmin, rafmax, bool_val] = fixwraps(ra, ramax, ramin)
         
-        backgr_fill = (0,0,0,255)    
-        featur_fill = (255,255,255,255)
+        #backgr_fill = (0,0,0,255)    
+        #featur_fill = (255,255,255,255)
+        
+        backgr_fill = (255,255,255,255)    
+        featur_fill = (0,0,0,255)
         
         pixheight = 800
         pixwidth = int(pixheight*(trafmax - trafmin)/(tdecmax - tdecmin))
@@ -249,7 +252,7 @@ for fits_no in range(0,fits_total):
             fill= featur_fill)
             tick = str(axisdata[3][div])
             d.text((border - len(tick)*5 - 40,axisdata[4][div] - 10 ), \
-            tick, font=fnt, fill=(255,255,255,128))
+            tick, font=fnt, fill=featur_fill)
             
         for div in range(0, (np.size(axisdata[5]))): #DEC axis minor ticks
             b = d.line([(border+mint,axisdata[5][div]),(border,axisdata[5][div])],\
@@ -261,7 +264,7 @@ for fits_no in range(0,fits_total):
         d.text((0.25*border - 10,0.75*border - 20), \
         "Declination (Degrees)", font=fnt, fill= featur_fill)
         
-        plttitle = ('Soho Lasco C3 Clear at: ' + ctime.isot[0:16].replace('T',' at '))
+        plttitle = ('Soho Lasco C3 Blue at: ' + ctime.isot[0:16].replace('T',' at '))
         d.text((1.5*border + pixwidth*0.5 - len(plttitle)*5 - 60,.35*border), \
         plttitle, font=largefnt, fill= featur_fill)
         

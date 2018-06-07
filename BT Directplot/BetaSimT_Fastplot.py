@@ -91,7 +91,11 @@ with open(picklesavefile,'rb') as f:
 #find and import simulation results
 simresdir = os.path.join(pysav, 'simres')
 if "Stereo" in obsloc: simsavbase = filebase[:filebase.find('A')+1]
-elif "Soho" in obsloc: simsavbase = filebase[:filebase.find('Clear')+5]   
+elif "Soho" in obsloc:
+    if inst == 'C3_Clear':
+        simsavbase = filebase[:filebase.find('Clear')+5]
+    if inst == 'C3_Blue':
+        simsavbase = filebase[:filebase.find('Bl')+2]   
 else: simsavbase = filebase
 simresdir = os.path.join(simresdir, obsloc)
 simin = easygui.fileopenbox(default = os.path.join(simresdir, simsavbase + '*'))
@@ -461,7 +465,7 @@ if (reply == 'Base Image'):
     for div in range(0, (np.size(bmajlocs))): #beta axis major ticks
         b = d.line([(border+majt,bmajlocs[div]),(border,bmajlocs[div])],\
         fill = featur_fill)
-        tick = str(bmajticks[div])
+        tick = "%1.1f" % bmajticks[div]
         d.text((border - len(tick)*5 - 40,bmajlocs[div] - 10 ), \
         tick, font=fnt, fill=featur_fill)
         
@@ -620,7 +624,7 @@ if (reply == 'Fixed Image'):
     for div in range(0, (np.size(bmajlocs))): #beta axis major ticks
         b = d.line([(border+majt,bmajlocs[div]),(border,bmajlocs[div])],\
         fill = featur_fill)
-        tick = str(bmajticks[div])
+        tick = "%1.1f" % bmajticks[div]
         d.text((border - len(tick)*5 - 40,bmajlocs[div] - 10 ), \
         tick, font=fnt, fill=featur_fill)
         
@@ -632,14 +636,11 @@ if (reply == 'Fixed Image'):
     d.text((1.5*border+ pixwt*0.5 - 120,0.3*border), \
     "Age of dust (days)", font=fnt, fill=featur_fill)
     
-    '''
     #plot title
     tfnt = ImageFont.truetype(fontloc, 30)
-    plttitle = (comdenom.upper() + ' ' + comname[:-1]+ ' from ' + obsloc
-    + ' on: ' + ctime.isot[0:16].replace('T',' at '))
-    d.text((1.2*border,.5*border), \
+    plttitle = ctime.isot[0:16].replace('T',' at ')
+    d.text((.3*border,.3*border), \
     plttitle, font=tfnt, fill=featur_fill)
-    '''
     
     dustimgfol = os.path.join(imagedir, 'dustplots')
     if not os.path.exists(dustimgfol): os.makedirs(dustimgfol)

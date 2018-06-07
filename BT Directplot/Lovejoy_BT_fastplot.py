@@ -18,8 +18,8 @@ import sys
 sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")  
 
 from BT_io_functions import fixed_image_times,dategetter
-from BT_plot_functions import plotpixel, logplotpixel, bt_setaxisup, rbr_setaxisup
-from BT_plot_functions import logbeta2ypix, simt2xpix, logplotpixelr, plotpixelr
+from BT_plot_functions import plotpixel, logplotpixel, bt_setaxisup, rbr_setaxisup, logplotpixelrbstart, plotpixelrbstart
+from BT_plot_functions import logbeta2ypix, simt2xpix, logplotpixelr, plotpixelr, logplotpixelbstart, plotpixelbstart
 from io_methods import get_obs_loc, get_stereo_instrument, get_soho_instrument, get_hih_low
 from conversion_routines import fixwraps
 
@@ -264,7 +264,7 @@ for tv in range (0,len(tvals10mins)):
     bstartvals[tv,:] = bvals*bdict.get(round(rvals[tv],4),1)
 
 colormsg = "Preview dustplot output?"
-plotchoices=('Eff. Beta Isolines','Orig. Beta vs R','Eff. Beta vs T','Eff. Beta vs R')
+plotchoices=('Eff. Beta Isolines','Orig. Beta vs R','Eff. Beta vs T','Eff. Beta vs R','All')
 reply = easygui.buttonbox(msg=colormsg,choices=plotchoices)
 
 backgr_fill = (255,255,255,255)
@@ -274,7 +274,7 @@ featur_fill = (0,0,0,255)
 #FIFTH CELL - effective beta
 #***************************
 logaxis = True
-if (reply == 'Eff. Beta Isolines'):
+if (reply == 'Eff. Beta Isolines') or (reply == 'All'):
         
     simtl = tvals[0]; simtu = tvals[-1]; betal = bvals[0]; betau = bvals[-1]
     
@@ -322,7 +322,7 @@ if (reply == 'Eff. Beta Isolines'):
             
             for x in range(0, np.size(good_locs[0])):
                 ta = good_locs[0][x]; ba = good_locs[1][x]
-                logplotpixel(d,ta,ba,simres,rvals,dec,border,pixwt,pixhi,betal,simtl,
+                logplotpixel(d,ta,ba,simres,dec,border,pixwt,pixhi,betal,simtl,
                           wscle,hscle,filcols[ta,ba],filcols[ta,ba],filcols[ta,ba])
         else:
             fillco1 = np.clip(255.0/(hih-low)*(srcolors[:,:,1]-low),0,255).astype(int)
@@ -330,7 +330,7 @@ if (reply == 'Eff. Beta Isolines'):
             fillco3 = np.clip(255.0/(hih-low)*(srcolors[:,:,3]-low),0,255).astype(int)
             for x in range(0, np.size(good_locs[0])):
                 ta = good_locs[0][x]; ba = good_locs[1][x]
-                logplotpixel(d,ta,ba,simres,rvals,dec,border,pixwt,pixhi,betal,simtl,
+                logplotpixel(d,ta,ba,simres,dec,border,pixwt,pixhi,betal,simtl,
                               wscle,hscle,fillco1[ta,ba],fillco2[ta,ba],fillco3[ta,ba])
     
     else:
@@ -343,7 +343,7 @@ if (reply == 'Eff. Beta Isolines'):
             
             for x in range(0, np.size(good_locs[0])):
                 ta = good_locs[0][x]; ba = good_locs[1][x]
-                plotpixel(d,ta,ba,simres,rvals,dec,border,pixwt,pixhi,betal,simtl,
+                plotpixel(d,ta,ba,simres,dec,border,pixwt,pixhi,betal,simtl,
                           wscle,hscle,filcols[ta,ba],filcols[ta,ba],filcols[ta,ba])
         else:
             fillco1 = np.clip(255.0/(hih-low)*(srcolors[:,:,1]-low),0,255).astype(int)
@@ -351,7 +351,7 @@ if (reply == 'Eff. Beta Isolines'):
             fillco3 = np.clip(255.0/(hih-low)*(srcolors[:,:,3]-low),0,255).astype(int)
             for x in range(0, np.size(good_locs[0])):
                 ta = good_locs[0][x]; ba = good_locs[1][x]
-                plotpixel(d,ta,ba,simres,rvals,dec,border,pixwt,pixhi,betal,simtl,
+                plotpixel(d,ta,ba,simres,dec,border,pixwt,pixhi,betal,simtl,
                               wscle,hscle,fillco1[ta,ba],fillco2[ta,ba],fillco3[ta,ba])
     
     a = d.polygon([(border,border),(border*2+pixwt,border), \
@@ -427,13 +427,15 @@ if (reply == 'Eff. Beta Isolines'):
     plttitle, font=tfnt, fill=featur_fill)
     
     dustimgfol = os.path.join(imagedir, 'dustplots')
+    if not os.path.exists(dustimgfol): os.makedirs(dustimgfol)    
+    dustimgfol = os.path.join(dustimgfol, 'variations')
     if not os.path.exists(dustimgfol): os.makedirs(dustimgfol)
     simparstr = simin.split('\\')[-1][:-4]
-    dustimgsave = os.path.join(dustimgfol,simparstr + 'effective_beta_isolines.png')
+    dustimgsave = os.path.join(dustimgfol,simparstr + '_effective_beta_isolines.png')
     dustimg.save(dustimgsave,'png')
     
 #%%
-if (reply == 'Orig. Beta vs R'):    
+if (reply == 'Orig. Beta vs R') or (reply == 'All'):    
     
     betal = bvals[0]; betau = bvals[-1]
     rl = rvals.min(); ru = rvals.max()
@@ -566,12 +568,293 @@ if (reply == 'Orig. Beta vs R'):
     d.text((1.2*border,.25*border), \
     plttitle, font=tfnt, fill=featur_fill)
     
-    dustimg.show()
-    
-    '''
     dustimgfol = os.path.join(imagedir, 'dustplots')
+    if not os.path.exists(dustimgfol): os.makedirs(dustimgfol)    
+    dustimgfol = os.path.join(dustimgfol, 'variations')
     if not os.path.exists(dustimgfol): os.makedirs(dustimgfol)
     simparstr = simin.split('\\')[-1][:-4]
-    dustimgsave = os.path.join(dustimgfol,simparstr + 'effective_beta_isolines.png')
+    dustimgsave = os.path.join(dustimgfol,simparstr + '_original_beta_vs_r.png')
     dustimg.save(dustimgsave,'png')
-    '''
+
+#%%   
+if (reply == 'Eff. Beta vs T') or (reply == 'All'):    
+    simtl = tvals[0]; simtu = tvals[-1]
+    betal = np.min((srcolors[...,0]*bstartvals)[np.nonzero(srcolors[...,0]*bstartvals)])
+    betau = (srcolors[...,0]*bstartvals).max()
+    
+    pixhi = 1000
+    pixwt = int(round(float(pixhi)/bno*tno))
+    border = 100
+    wscle = pixwt/(simtu - simtl)
+    
+    if logaxis == True:
+        hscle = pixhi/(np.log(betau) - np.log(betal))
+    else:
+        hscle = pixhi/(betau - betal)        
+        
+    dustimg = Image.new('RGBA', (pixwt+int(2.5*border),
+                                 pixhi+int(3*border)),backgr_fill)
+    d = ImageDraw.Draw(dustimg)
+    
+    imgmax = greyscale_arr.max()
+    if imgmax < 255: imgmax = 255
+
+    if 'Earth' in obsloc:
+        plotmethodlog = False
+    elif 'S' in obsloc:
+        if 'diff' or 'MGN' in inst: plotmethodlog = False
+        else: plotmethodlog = True
+        
+    [hih,low] = get_hih_low(comdenom,obsloc,inst)
+    if inst == 'HI-2-diff':
+        stime = astropy.time.Time(datetime.datetime(2007,1,20,2,1,0))
+        switchval = (ctime.jd - stime.jd)
+        if switchval > 0:
+            low = - 5000 + 900*sorted((0,switchval,999))[1]
+            hih = 5000 - 900*sorted((0,switchval,999))[1]
+        
+    good_bool = srcolors[1:,1:,0] + srcolors[:-1,:-1,0] + srcolors[1:,:-1,0] + srcolors[:-1,1:,0]
+    good_locs = np.where(good_bool==4)
+
+    if logaxis == True:
+        if (plotmethodlog == True):
+            
+            grad = 1/(np.log10(hih) - np.log10(low))
+            fillvals = np.clip(srcolors[:,:,1],1e-20,9999999999)
+            filcols = np.round(255*grad*(np.log10(fillvals) - np.log10(low)))
+            filcols = np.clip(filcols,0,255).astype('int')
+            
+            for x in range(0, np.size(good_locs[0])):
+                ta = good_locs[0][x]; ba = good_locs[1][x]
+                logplotpixelbstart(d,ta,ba,simres,bstartvals,dec,border,pixwt,pixhi,betal,simtl,
+                          wscle,hscle,filcols[ta,ba],filcols[ta,ba],filcols[ta,ba])
+        else:
+            fillco1 = np.clip(255.0/(hih-low)*(srcolors[:,:,1]-low),0,255).astype(int)
+            fillco2 = np.clip(255.0/(hih-low)*(srcolors[:,:,2]-low),0,255).astype(int)
+            fillco3 = np.clip(255.0/(hih-low)*(srcolors[:,:,3]-low),0,255).astype(int)
+            for x in range(0, np.size(good_locs[0])):
+                ta = good_locs[0][x]; ba = good_locs[1][x]
+                logplotpixelbstart(d,ta,ba,simres,bstartvals,dec,border,pixwt,pixhi,betal,simtl,
+                              wscle,hscle,fillco1[ta,ba],fillco2[ta,ba],fillco3[ta,ba])
+    
+    else:
+        if (plotmethodlog == True):
+            
+            grad = 1/(np.log10(hih) - np.log10(low))
+            fillvals = np.clip(srcolors[:,:,1],1e-20,9999999999)
+            filcols = np.round(255*grad*(np.log10(fillvals) - np.log10(low)))
+            filcols = np.clip(filcols,0,255).astype('int')
+            
+            for x in range(0, np.size(good_locs[0])):
+                ta = good_locs[0][x]; ba = good_locs[1][x]
+                plotpixelbstart(d,ta,ba,simres,bstartvals,dec,border,pixwt,pixhi,betal,simtl,
+                          wscle,hscle,filcols[ta,ba],filcols[ta,ba],filcols[ta,ba])
+        else:
+            fillco1 = np.clip(255.0/(hih-low)*(srcolors[:,:,1]-low),0,255).astype(int)
+            fillco2 = np.clip(255.0/(hih-low)*(srcolors[:,:,2]-low),0,255).astype(int)
+            fillco3 = np.clip(255.0/(hih-low)*(srcolors[:,:,3]-low),0,255).astype(int)
+            for x in range(0, np.size(good_locs[0])):
+                ta = good_locs[0][x]; ba = good_locs[1][x]
+                plotpixelbstart(d,ta,ba,simres,bstartvals,dec,border,pixwt,pixhi,betal,simtl,
+                              wscle,hscle,fillco1[ta,ba],fillco2[ta,ba],fillco3[ta,ba])
+  
+    a = d.polygon([(border,border),(border*2+pixwt,border), \
+        (border*2+pixwt,border*2+pixhi),(border,border*2+pixhi)], \
+        outline = featur_fill)
+    
+    [bminlocs,bmajlocs,tminlocs,tmajlocs,tmajticks,bmajticks,tminticks,bminticks] = bt_setaxisup(simtu,simtl,betau,betal,logaxis,border,pixhi,hscle,pixwt,wscle)  
+    
+    majt = 20  #major tick length
+    mint = 10  #minor tick length
+    xaxis = pixhi + border*2
+    fontloc = r'C:\Windows\winsxs\amd64_microsoft-windows-f..etype-lucidaconsole_31bf3856ad364e35_6.1.7600.16385_none_5b3be3e0926bd543\lucon.ttf'
+    fnt = ImageFont.truetype(fontloc, 20)
+    dtime = astropy.time.TimeDelta(1, format='jd')
+    
+    for div in range(0, (np.size(bminlocs))): #beta axis minor ticks
+        b = d.line([(border+mint,bminlocs[div]),(border,bminlocs[div])],\
+        fill = featur_fill)
+        
+    for div in range(0, (np.size(tminlocs))): #beta axis minor ticks
+        b = d.line([(tminlocs[div],xaxis-mint),(tminlocs[div],xaxis)],\
+        fill = featur_fill)
+    
+    for div in range(0, (np.size(tmajlocs))): #simt axis major ticks
+        b = d.line([(tmajlocs[div],xaxis-majt),(tmajlocs[div],xaxis)],\
+        fill = featur_fill)
+        ticktime = ctime - dtime*tmajticks[div]
+        tick = ticktime.isot.replace('T','\n')[0:16]
+        d.text((tmajlocs[div] - len(tick)*5,xaxis + 10), \
+        tick, font=fnt, fill=featur_fill)
+    
+    for div in range(0, (np.size(bmajlocs))): #beta axis major ticks
+        b = d.line([(border+majt,bmajlocs[div]),(border,bmajlocs[div])],\
+        fill = featur_fill)
+        tick = str(bmajticks[div])
+        d.text((border - len(tick)*5 - 40,bmajlocs[div] - 10 ), \
+        tick, font=fnt, fill=featur_fill)
+        
+    #axis labels
+    d.text((1.5*border + pixwt*0.5 - 150,pixhi + 2.7*border), \
+    "Date/Time of Ejection", font=fnt, fill=featur_fill)
+    d.text((0.25*border - 10,border-10), \
+    "Effective beta at time of release", font=fnt, fill=featur_fill)
+    
+    #plot title
+    tfnt = ImageFont.truetype(fontloc, 30)
+    plttitle = (comdenom.upper() + ' ' + comname[:-1] + ' from ' + obsloc
+    + '\n'+ ctime.isot[0:16].replace('T',' at '))
+    d.text((1.2*border,.25*border), \
+    plttitle, font=tfnt, fill=featur_fill)
+    
+    dustimgfol = os.path.join(imagedir, 'dustplots')
+    if not os.path.exists(dustimgfol): os.makedirs(dustimgfol)
+    dustimgfol = os.path.join(dustimgfol, 'variations')
+    if not os.path.exists(dustimgfol): os.makedirs(dustimgfol)
+    simparstr = simin.split('\\')[-1][:-4]
+    dustimgsave = os.path.join(dustimgfol,simparstr + '_effective_beta_vs_emission_time.png')
+    dustimg.save(dustimgsave,'png')
+    
+#%%
+
+if (reply == 'Eff. Beta vs R') or (reply == 'All'):    
+    
+    betal = np.min((srcolors[...,0]*bstartvals)[np.nonzero(srcolors[...,0]*bstartvals)])
+    betau = (srcolors[...,0]*bstartvals).max()
+    rl = rvals.min(); ru = rvals.max()
+    rno = rvals.argmin() - rvals.argmax()
+    
+    pixhi = 1000
+    pixwt = int(round(float(pixhi)/bno*rno))
+    border = 100
+    wscle = pixwt/(ru - rl)
+    
+    if logaxis == True:
+        hscle = pixhi/(np.log(betau) - np.log(betal))
+    else:
+        hscle = pixhi/(betau - betal)        
+        
+    dustimg = Image.new('RGBA', (pixwt+int(2.5*border),
+                                 pixhi+int(3*border)),backgr_fill)
+    d = ImageDraw.Draw(dustimg)
+    
+    imgmax = greyscale_arr.max()
+    if imgmax < 255: imgmax = 255
+
+    if 'Earth' in obsloc:
+        plotmethodlog = False
+    elif 'S' in obsloc:
+        if 'diff' or 'MGN' in inst: plotmethodlog = False
+        else: plotmethodlog = True
+        
+    [hih,low] = get_hih_low(comdenom,obsloc,inst)
+    if inst == 'HI-2-diff':
+        stime = astropy.time.Time(datetime.datetime(2007,1,20,2,1,0))
+        switchval = (ctime.jd - stime.jd)
+        if switchval > 0:
+            low = - 5000 + 900*sorted((0,switchval,999))[1]
+            hih = 5000 - 900*sorted((0,switchval,999))[1]
+    
+    srcolors_slim = np.copy(srcolors[:,:,0])
+    srcolors_slim[rvals.argmin():,...] = 0
+                 
+    good_bool = srcolors_slim[1:,1:] + srcolors_slim[:-1,:-1] + srcolors_slim[1:,:-1] + srcolors_slim[:-1,1:]
+    good_locs = np.where(good_bool==4)
+
+    if logaxis == True:
+        if (plotmethodlog == True):
+            
+            grad = 1/(np.log10(hih) - np.log10(low))
+            fillvals = np.clip(srcolors[:,:,1],1e-20,9999999999)
+            filcols = np.round(255*grad*(np.log10(fillvals) - np.log10(low)))
+            filcols = np.clip(filcols,0,255).astype('int')
+            
+            for x in range(0, np.size(good_locs[0])):
+                ta = good_locs[0][x]; ba = good_locs[1][x]
+                logplotpixelrbstart(d,ta,ba,simres,bstartvals,rvals,dec,border,pixwt,pixhi,betal,rl,
+                          wscle,hscle,filcols[ta,ba],filcols[ta,ba],filcols[ta,ba])
+        else:
+            fillco1 = np.clip(255.0/(hih-low)*(srcolors[:,:,1]-low),0,255).astype(int)
+            fillco2 = np.clip(255.0/(hih-low)*(srcolors[:,:,2]-low),0,255).astype(int)
+            fillco3 = np.clip(255.0/(hih-low)*(srcolors[:,:,3]-low),0,255).astype(int)
+            for x in range(0, np.size(good_locs[0])):
+                ta = good_locs[0][x]; ba = good_locs[1][x]
+                logplotpixelrbstart(d,ta,ba,simres,bstartvals,rvals,dec,border,pixwt,pixhi,betal,rl,
+                              wscle,hscle,fillco1[ta,ba],fillco2[ta,ba],fillco3[ta,ba])
+    
+    else:
+        if (plotmethodlog == True):
+            
+            grad = 1/(np.log10(hih) - np.log10(low))
+            fillvals = np.clip(srcolors[:,:,1],1e-20,9999999999)
+            filcols = np.round(255*grad*(np.log10(fillvals) - np.log10(low)))
+            filcols = np.clip(filcols,0,255).astype('int')
+            
+            for x in range(0, np.size(good_locs[0])):
+                ta = good_locs[0][x]; ba = good_locs[1][x]
+                plotpixelrbstart(d,ta,ba,simres,bstartvals,rvals,dec,border,pixwt,pixhi,betal,rl,
+                          wscle,hscle,filcols[ta,ba],filcols[ta,ba],filcols[ta,ba])
+        else:
+            fillco1 = np.clip(255.0/(hih-low)*(srcolors[:,:,1]-low),0,255).astype(int)
+            fillco2 = np.clip(255.0/(hih-low)*(srcolors[:,:,2]-low),0,255).astype(int)
+            fillco3 = np.clip(255.0/(hih-low)*(srcolors[:,:,3]-low),0,255).astype(int)
+            for x in range(0, np.size(good_locs[0])):
+                ta = good_locs[0][x]; ba = good_locs[1][x]
+                plotpixelrbstart(d,ta,ba,simres,bstartvals,rvals,dec,border,pixwt,pixhi,betal,rl,
+                              wscle,hscle,fillco1[ta,ba],fillco2[ta,ba],fillco3[ta,ba])
+
+    a = d.polygon([(border,border),(border*2+pixwt,border), \
+        (border*2+pixwt,border*2+pixhi),(border,border*2+pixhi)], \
+        outline = featur_fill)
+
+    [bminlocs,bmajlocs,rminlocs,rmajlocs,rmajticks,bmajticks,rminticks,bminticks] = rbr_setaxisup(ru,rl,betau,betal,logaxis,border,pixhi,hscle,pixwt,wscle)
+    
+    majt = 20  #major tick length
+    mint = 10  #minor tick length
+    xaxis = pixhi + border*2
+    fontloc = r'C:\Windows\winsxs\amd64_microsoft-windows-f..etype-lucidaconsole_31bf3856ad364e35_6.1.7600.16385_none_5b3be3e0926bd543\lucon.ttf'
+    fnt = ImageFont.truetype(fontloc, 20)
+    dtime = astropy.time.TimeDelta(1, format='jd')
+    
+    for div in range(0, (np.size(bminlocs))): #beta axis minor ticks
+        b = d.line([(border+mint,bminlocs[div]),(border,bminlocs[div])],\
+        fill = featur_fill)
+        
+    for div in range(0, (np.size(rminlocs))): #beta axis minor ticks
+        b = d.line([(rminlocs[div],xaxis-mint),(rminlocs[div],xaxis)],\
+        fill = featur_fill)
+    
+    for div in range(0, (np.size(rmajlocs))): #simt axis major ticks
+        b = d.line([(rmajlocs[div],xaxis-majt),(rmajlocs[div],xaxis)],\
+        fill = featur_fill)
+        tick = str(rmajticks[div])
+        d.text((rmajlocs[div] - len(tick)*5,xaxis + 10), \
+        tick, font=fnt, fill=featur_fill)
+    
+    for div in range(0, (np.size(bmajlocs))): #beta axis major ticks
+        b = d.line([(border+majt,bmajlocs[div]),(border,bmajlocs[div])],\
+        fill = featur_fill)
+        tick = str(bmajticks[div])
+        d.text((border - len(tick)*5 - 40,bmajlocs[div] - 10 ), \
+        tick, font=fnt, fill=featur_fill)
+        
+    #axis labels
+    d.text((1.5*border + pixwt*0.5 - 150,pixhi + 2.7*border), \
+    "Distance from Sun at dust release (AU)", font=fnt, fill=featur_fill)
+    d.text((0.25*border - 10,border-10), \
+    "Effective beta at time of release", font=fnt, fill=featur_fill)
+    
+    #plot title
+    tfnt = ImageFont.truetype(fontloc, 30)
+    plttitle = (comdenom.upper() + ' ' + comname[:-1] + ' from ' + obsloc
+    + '\n'+ ctime.isot[0:16].replace('T',' at '))
+    d.text((1.2*border,.25*border), \
+    plttitle, font=tfnt, fill=featur_fill)
+    
+    dustimgfol = os.path.join(imagedir, 'dustplots')
+    if not os.path.exists(dustimgfol): os.makedirs(dustimgfol)#
+    dustimgfol = os.path.join(dustimgfol, 'variations')
+    if not os.path.exists(dustimgfol): os.makedirs(dustimgfol)
+    simparstr = simin.split('\\')[-1][:-4]
+    dustimgsave = os.path.join(dustimgfol,simparstr + '_effective_beta_vs_r.png')
+    dustimg.save(dustimgsave,'png')

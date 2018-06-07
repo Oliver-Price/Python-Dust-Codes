@@ -5,8 +5,8 @@ from astropy.io import fits
 import os
 import numpy as np
 
-fits_in_folder = r"C:\Users\op2\Downloads\44601827"
-fits_out_folder = r"C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Soho\C3_Blue\processing\Updated\Renamed"
+fits_in_folder = r"C:\Users\op2\Downloads\86798720"
+fits_out_folder = r"C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Soho\C3_Orange"
 
 #expsave = 'C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Soho\orangeexptimes.npy'
 
@@ -20,7 +20,7 @@ for fits_no in range(0,len(fits_in_list)):
     fits_in_loc = os.path.join(fits_in_folder, fits_in_list[fits_no])
     data_raw, header_raw = fits.getdata(fits_in_loc, header=True)
     
-    fits_new_name = (header_raw['DATE-OBS'].replace('/','') + '_' + header_raw['TIME-OBS'][0:8].replace(':','') + '_Bl.fits')
+    fits_new_name = (header_raw['DATE-OBS'].replace('/','') + '_' + header_raw['TIME-OBS'][0:8].replace(':','') + '_Orange.fits')
     #fits_new_name = header_raw['DATE-OBS'][:19].replace('-','').replace(':','').replace('T','_') + '_Bl.fits'
     
     fits_outfile = os.path.join(fits_out_folder, fits_new_name)     

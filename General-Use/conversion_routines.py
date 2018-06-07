@@ -51,6 +51,20 @@ def pos2radec(position,fixwrapsbool):
         if ra < 180: return (ra + 360,dec)
         if ra >= 180: return (ra,dec)
 
+#%% - converts earth centric ecliptic xyz coord to ra and dec
+    
+def ecliptic_pos2radec(position,fixwrapsbool):
+    cost = 0.91748206206918181; sint = 0.39777715593191371
+    y = position[1]*cost - position[2]*sint
+    z = position[2]*cost + position[1]*sint
+    ra = m.atan2(y,position[0])*360/(2*m.pi)%360
+    r = np.linalg.norm(position)
+    dec = m.asin(z/r)*360/(2*m.pi)
+    if fixwrapsbool == False: return (ra,dec)
+    elif fixwrapsbool == True: 
+        if ra < 180: return (ra + 360,dec)
+        if ra >= 180: return (ra,dec)
+
 #%% - fix occurences where range is incorrect or where data wraps from 360 ra to 0
 
 def fixwraps(ra, ramax, ramin): 

@@ -18,9 +18,11 @@ from conversion_routines import pos2radec
 #%%
 
 #uncalsav = r'C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Soho\C3_Blue\processing'
-uncalsav = r"C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Soho\C3_Blue\processing\Updated\Renamed"
+#uncalsav = r"C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Soho\C3_DeepRed\Uncalibrated"
+uncalsav = r"C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Soho\C3_Orange\Uncalibrated"
 calsav = r'C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Soho\C3_Clear'
-calbluefinal = r'C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Soho\C3_Blue\processing\Updated\Calibrated'
+#calbluefinal = r'C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Soho\C3_DeepRed\Calibrated'
+calbluefinal = r'C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Soho\C3_Orange'
 
 uncal_list = sorted(os.listdir(uncalsav))
 uncal_list = [s for s in uncal_list if ".f" in s]
@@ -111,10 +113,14 @@ for x in range(len(cal_matches)):
     header_nu['DATE-OBS'] = header_un['DATE-OBS']
     header_nu['TIME-OBS'] = header_un['TIME-OBS']
     header_nu['CRPIX1'] = header_un['NAXIS1'] - header_un['CRPIX1'] + header_cal['CRPIX1'] - sun_coords[0][0]
-    header_nu['CRPIX2'] = header_un['NAXIS2'] - header_un['CRPIX2'] + header_cal['CRPIX2'] - sun_coords[0][1]
+    #either one of these may be needed
+    #header_nu['CRPIX2'] = header_un['NAXIS2'] - header_un['CRPIX2'] + header_cal['CRPIX2'] - sun_coords[0][1]
+    header_nu['CRPIX2'] = header_un['CRPIX2'] + header_cal['CRPIX2'] - sun_coords[0][1]
     
     blue_sav = os.path.join(calbluefinal, uncal_matches[x])
-    fits.writeto(blue_sav, np.flipud(np.fliplr(data_un)), header_nu, clobber=True)
+    #again either may be needed
+    #fits.writeto(blue_sav, np.flipud(np.fliplr(data_un)), header_nu, clobber=True)
+    fits.writeto(blue_sav, np.fliplr(data_un), header_nu, clobber=True)
     
 #%%
 '''
