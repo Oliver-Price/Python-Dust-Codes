@@ -6,6 +6,10 @@ import os
 import sys
 from math import log10, floor
 
+def mode(array):
+    a = stats.mode(array)
+    return a[0][0][a[1][0].argmax()]
+
 #%% - converts month text to a number
 
 def mon2num(month):

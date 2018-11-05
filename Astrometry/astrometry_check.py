@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
-#astrometry check
-import requests#
+################################
+#BATCH CHECK ASTROMETRY.NET UPLOADS BY DOWNLOADING ANNOTATED DISPLAY
+################################
+import requests
 import shutil
 import os
 imgout = r'C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\HI-1\redo-astrometry\rg_check'

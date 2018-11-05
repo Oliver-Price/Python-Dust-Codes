@@ -16,8 +16,8 @@ from PIL import Image, ImageDraw, ImageFont
 import webbrowser
 import matplotlib.pyplot as plt
 
-sys.path.append(r"C:\Users\Ollie\Documents\PhD\Python-Dust-Codes-Legacy\General-Use")
-sys.path.append(r"C:\Users\Ollie\Documents\PhD\Python-Dust-Codes-Legacy\FP Overplot")
+sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")
+sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")
 
 from orbitdata_loading_functions import *
 from FP_plot_functions import *
@@ -33,7 +33,7 @@ from particle_sim import *
 #************************
 
 #choosing comet data to use
-inputfilefolder = r"C:\Users\Ollie\Documents\PhD\Comet_Data\Input_files\*pt1.txt"
+inputfilefolder = r"C:\PhD\Comet_data\Input_files\*pt1.txt"
 inputfile = easygui.fileopenbox(default = inputfilefolder)
 
 #reading main comet parameters

@@ -1,6 +1,5 @@
 #*************************************************************
-#Program to visualise fits image of comet and overlay a
-#finson-probstein diagram according to it's orbital parameters
+#Program to find the time at which an image was taken, with hard coding only
 #*************************************************************
 
 import easygui
@@ -16,7 +15,7 @@ from PIL import Image, ImageDraw, ImageFont
 sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\FP Overplot")
 sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")
 
-from orbitdata_loading_functions import orb_vector, orb_obs
+from orbitdata_loading_functions import orb_obs_new
 from FP_plot_functions import ra2xpix, dec2ypix, setaxisup, plotpixel
 from conversion_routines import pos2radec, fixwraps, find_largest_nonzero_block 
 from io_methods import correct_for_imagetype, get_obs_loc, get_hih_low 
@@ -46,7 +45,7 @@ if "Stereo" in obsloc: [inst, imagedir] = get_stereo_instrument(imagedir)
 elif obsloc == "Soho": [inst, imagedir] = get_soho_instrument(imagedir)
 else: inst = ''  
 #import the orbit data
-comobs = orb_obs(comdenom, obsloc, pysav, orbitdir, horiztag)
+comobs = orb_obs_new(comdenom, obsloc, pysav, orbitdir, horiztag)
 
 #choosing fits file to display and getting pathnames
 fitsin = easygui.fileopenbox(default = os.path.join(imagedir,'*'))
@@ -215,7 +214,8 @@ imgsave = os.path.join(os.path.join(imagedir,'imgtime_test'),
                        filebase.split('_')[-1] + '_astrometrytest.png')
 comimg.save(imgsave,'png')
 
-fmon = 11;fday = 8;fhou = 1;fmin = 0
+fmon = 2;fday = 26;fhou = 6;fmin = 0
+
 fcell = np.intersect1d(np.intersect1d(np.where(comobs[:,1]==fmon)[0], np.where(comobs[:,2]==fday)[0]),
 np.intersect1d(np.where(comobs[:,3]==fhou)[0], np.where(comobs[:,4]==fmin)[0]))[0]
 

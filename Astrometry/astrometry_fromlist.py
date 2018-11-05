@@ -1,23 +1,37 @@
+#####################################
+# UPLOADS A BATCH OF IMAGES TO ASTROMETRY.NET FROM FTP SERVER
+#####################################
+
 import requests
-import shutil
-import urllib
 import json 
 import time
-import sys
 import os
 import numpy as np
+import urllib
+import pickle
 
-orig_location = r"C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\HI-1\redo-astrometry\headerless"
-save_loc = r"C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\HI-1\redo-astrometry\cleaned"
+#%%
 
+orig_location = r"C:\PhD\Comet_data\Comet for Deep Learning\Images\Colour\notext"
+save_loc = r"C:\PhD\Comet_data\Comet for Deep Learning\Images\Colour\fits"
+
+badsave = r"C:\PhD\Comet_data\Comet for Deep Learning\Images\Colour\badlist.pickle"
+donesave = r"C:\PhD\Comet_data\Comet for Deep Learning\Images\Colour\donelist.pickle"
+
+with open (badsave, 'rb') as fp:
+    bad_list = pickle.load(fp)
+    
+with open (donesave, 'rb') as fp:
+    done_list = pickle.load(fp)
+    
 session_login = requests.post('http://nova.astrometry.net/api/login',
                   data={'request-json': json.dumps({"apikey": "rqleqqsuqhatwjni"})})
                   
 session_key = session_login.text.split("\"")[-2]
                  
 orig_list = os.listdir(orig_location)
-done_list = os.listdir(save_loc)
-todo_list = np.setdiff1d(np.array(orig_list),np.array(done_list)).tolist()
+not_list = bad_list + done_list
+todo_list = np.setdiff1d(np.array(orig_list),np.array(not_list)).tolist()
 out_list = []
 url_list = []
 submit_list = []
@@ -26,17 +40,17 @@ image_sub_stat_urls = []
 image_sub_stats = []
 image_fits_file_locs = []
 
-start = 0
-for image_no in range(start,len(todo_list)):
+#%%
 
-    out_list.append(os.path.join(save_loc,orig_list[image_no]))
+start = 0; end = 50
+for image_no in range(start,end):#len(todo_list)):
+
+    out_list.append(os.path.join(save_loc,('.').join(todo_list[image_no].split('.')[:-1])+'.fits'))
 
     #fits online
-    url_list.append('ftp://ftp.mssl.ucl.ac.uk/pub/planet/op2/' + orig_list[image_no])
+    url_list.append('http://www.mssl.ucl.ac.uk/~op2/Cometpics/' + todo_list[image_no])
 
-    #png online
-    #url_list.append('ftp://ftp.mssl.ucl.ac.uk/pub/planet/op2/' + orig_list[0][:-5] + '_25_200.png')
-    print (orig_list[image_no-start])   
+    print (todo_list[image_no-start])   
         
     submit_list.append(requests.post("http://nova.astrometry.net/api/url_upload",
                       data={'request-json': json.dumps({"session": session_key,
@@ -48,34 +62,50 @@ for image_no in range(start,len(todo_list)):
     
     print(submit_list[image_no-start].text)
     print('\n')
-    time.sleep(0.5)
+    time.sleep(5)
     
 #%%
-start = 0; end = 25
-for image_no in range(start,len(todo_list)):
-    print('retrieving: ' + orig_list[image_no])
-    while 1:
-        if (len(requests.get(image_sub_stat_urls[image_no-start]).json()['jobs']) == 0):
-            break
+start = 0; end = 50
+for image_no in range(start,end):#len(todo_list)):
+    print('retrieving: ' + todo_list[image_no])
+    
+    if "}" not in image_sub_stat_urls[image_no-start]:
+    
+        while 1:
+            if (len(requests.get(image_sub_stat_urls[image_no-start]).json()['jobs']) == 0):
+                break
+            
+            job_no = requests.get(image_sub_stat_urls[image_no-start]).json()['jobs'][0]
+            image_sub_stat = requests.get('http://nova.astrometry.net/api/jobs/' + str(job_no)).text
+            time.sleep(2)
+            if ("success" in image_sub_stat) or ("failure" in image_sub_stat):
+                break
         
-        job_no = requests.get(image_sub_stat_urls[image_no-start]).json()['jobs'][0]
-        image_sub_stat = requests.get('http://nova.astrometry.net/api/jobs/' + str(job_no)).text
-        time.sleep(1)
-        if ("success" in image_sub_stat) or ("failure" in image_sub_stat):
-            break
-
-    if ("success" in image_sub_stat):
-        image_fits_file_locs = r"http://nova.astrometry.net/new_fits_file/" + str(job_no)
-        response = requests.get(image_fits_file_locs, stream=True)
-        with open(out_list[image_no-start], 'wb') as out_file:
-            shutil.copyfileobj(response.raw, out_file)
-        del response
+        if ("success" in image_sub_stat):
+            image_fits_file_locs = r"http://nova.astrometry.net/new_fits_file/" + str(job_no)
+            print("fetching fits")
+            urllib.request.urlretrieve(image_fits_file_locs,out_list[image_no-start])
+            done_list.append(orig_list[image_no])
+        else:
+            print("Image was no good")
+            bad_list.append(orig_list[image_no])
+            
     else:
         print("Image was no good")
+        bad_list.append(orig_list[image_no])
         
     print('\n')
 
-       
+#%%
+
+with open(badsave, 'wb') as fp:
+    pickle.dump(bad_list, fp)
+    
+with open(donesave, 'wb') as fp:
+    pickle.dump(done_list, fp)
+
+#%%
+
 #{"session": "nlybgrbj2p3bgi3ankmqy9593i5sftb1",
 # "url": "http://imageupper.com/s03/1/2/W14663519672416591_1.png"}
 #urllib.urlretrieve(test, "test.fits")

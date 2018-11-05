@@ -26,8 +26,11 @@ def correct_for_imagetype(imagedir, fitsin, fitsinfile):
         colg = colours[1,:,:]
         colb = colours[2,:,:]
     
+        if not os.path.exists(os.path.join(imagedir,'temporary')):
+            os.makedirs(os.path.join(imagedir,'temporary'))
+    
         #making a 1d image for doing ra/dec coordinates
-        fitstemp = os.path.join(imagedir, 'temporary_' + fitsinfile)
+        fitstemp = os.path.join(os.path.join(imagedir,'temporary'), 'temporary_' + fitsinfile)
         oldtemp = os.path.isfile(fitstemp) #if one doesn't already exist
         if oldtemp == False: 
             hdulist[0].data = hdulist[0].data[0] #makes image from red plane
@@ -145,7 +148,7 @@ def get_hih_low(comdenom,obsloc,inst):
             if 'MGN' in inst:  
                 low = 0; hih = 1
             elif 'diff' in inst:
-                low = -2.5e-13; hih = 8.5e-13
+                low = -7e-13; hih = 7e-13
                 
     elif comdenom == 'c2011w3':
         if obsloc == 'Earth' or obsloc == 'ISS':

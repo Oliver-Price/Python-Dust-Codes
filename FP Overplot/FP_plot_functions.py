@@ -143,6 +143,18 @@ def draw_datap(drfill,d,simres,xsiz = 2):
         d.line( [ ( simres[ta,ba,12] - xsiz , simres[ta,ba,13] + xsiz ) ,
                   ( simres[ta,ba,12] + xsiz , simres[ta,ba,13] - xsiz ) ] ,
                   fill = drfill )
+
+def draw_datap_CME(drfill,d,simres,xsiz = 2):
+
+    all_points = np.where(simres[:,:,17]==1)
+    for pidx in range(0,np.size(all_points[0])):
+        ta = all_points[0][pidx]; ba = all_points[1][pidx]
+        d.line( [ ( simres[ta,ba,12] - xsiz , simres[ta,ba,13] - xsiz ) ,
+                  ( simres[ta,ba,12] + xsiz , simres[ta,ba,13] + xsiz ) ] ,
+                  fill = drfill )  
+        d.line( [ ( simres[ta,ba,12] - xsiz , simres[ta,ba,13] + xsiz ) ,
+                  ( simres[ta,ba,12] + xsiz , simres[ta,ba,13] - xsiz ) ] ,
+                  fill = drfill )
                       
 def draw_data_reg(drfill,d,simres,bmax,bmin,bidx_list,tmax,tmin,tidx_list,border,pixwidth,lwidth = 5):                
     
@@ -261,6 +273,7 @@ def annotate_dustphase(d,border,pixwidth,featur_fill,fnt,smax,smin,grad,colormap
                 ("%.0f" % (smin+grad*l/100)), font=fnt, fill= featur_fill)
 
     return 4
+
 #%%
     
 def getdustphase(sundusvec,sunobsvec):

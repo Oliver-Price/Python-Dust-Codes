@@ -49,6 +49,7 @@ def part_sim(beta, simt, nperday, ltdt, pstart, efinp, cor):
         t += ltdt
         dr = np.linalg.norm(traj[0:3] - efinp)
         tret = t + 8.316746397269274*dr
+    print(dr)
     return (t,traj)
     
 def diff(pstate, beta):
@@ -132,6 +133,7 @@ def diff_lorentz(pstate,beta,parameters,sign):
     diff3 = (gravrad + pstate[2]*lorentz/rho)*pstate[0]
     diff4 = (gravrad + pstate[2]*lorentz/rho)*pstate[1]
     diff5 = gravrad*pstate[2] - rho*lorentz
+    print(pstate[2]*invr)
     return np.array([diff0,diff1,diff2,diff3,diff4,diff5])
     
 def rk4_lorentz(pstate, beta, dt, parameters,sign): 
@@ -441,3 +443,178 @@ def rk4_lorentz_diag(pstate, beta, dt, parameters,sign,a):
     k3 = diff_lorentz(pstate+k2*0.5, beta,parameters,sign,a)*dt
     k4 = diff_lorentz(pstate+k3, beta,parameters,sign,a)*dt
     return pstate + (k1+k2*2+k3*2+k4)*0.16666666666666666
+
+#%%
+
+'''
+Lorentz force diagnostic model for getting magnetic field diagnostics
+'''
+
+def part_sim_rtheta(beta, simt, nperday, ltdt, pstart, efinp): 
+
+	#set up timesteps
+	dt1=float(simt-30)*86400/simt/nperday
+	dt2=float(simt-30)/nperday    
+	dt = min(dt1,dt2)
+
+	#set up polar traj
+	traj = np.empty(4)
+	traj[0] = (pstart[0]**2 + pstart[1]**2)**0.5
+	traj[1] = np.arctan2(pstart[1],pstart[0])%(2*np.pi)
+	traj[2] = (pstart[0]*pstart[3] + pstart[1]*pstart[4])/traj[0]*1.1574074074074073e-05
+	traj[3] = (-pstart[1]*pstart[3] + pstart[0]*pstart[4])/traj[0]/traj[0]*1.1574074074074073e-05
+
+	#set up other things
+	t= 0 
+	mu = (1 - beta)
+	
+	#main simulation
+	while (t + dt + 30 < simt): #go to up to 30 minutes before current
+		traj = rk4_rtheta(traj, mu, dt) #traj updated
+		t += dt
+		  
+	#up to light travel time
+	dr = (efinp[0]**2 + traj[0]**2 + 2*efinp[0]*traj[0]*np.cos(efinp[1]-traj[1]))**0.5
+	tret = t + 8.316746397269274*dr    
+	while (tret < simt):
+		traj = rk4_rtheta(traj, mu, ltdt) #traj updated b the minute
+		t += ltdt
+		dr = (efinp[0]**2 + traj[0]**2 + 2*efinp[0]*traj[0]*np.cos(efinp[1]-traj[1]))**0.5
+		tret = t + 8.316746397269274*dr
+	
+	#back to xyz
+	traj_out = np.zeros(6)
+	traj_out[0] = traj[0]*np.cos(traj[1])
+	traj_out[1] = traj[0]*np.sin(traj[1])
+	traj_out[3] = (traj[2]*np.cos(traj[1]) - traj[0]*traj[3]*np.sin(traj[1]))*86400
+	traj_out[4] = (traj[2]*np.sin(traj[1]) + traj[0]*traj[3]*np.sin(traj[1]))*86400
+		
+	return (t,traj_out)
+    
+def diff_rtheta(pstate, mu):
+	diff0 = pstate[2]
+	diff1 = pstate[0]*pstate[3]
+	invr = 1/pstate[0]
+	acc = (-3.9638468e-14)*mu*invr*invr
+	diff3 = acc - pstate[0]*pstate[3]*pstate[3]
+	diff4 = 2*pstate[3]*pstate[2]
+	return np.array([diff0,diff1,diff3,diff4])   
+	 
+def rk4_rtheta(pstate, mu, dt): 
+	dt = dt*60 #DT INPUT MINUTES TO SECONDS
+	k1 = diff_rtheta(pstate, mu)*dt
+	k2 = diff_rtheta(pstate+k1*0.5, mu)*dt
+	k3 = diff_rtheta(pstate+k2*0.5, mu)*dt
+	k4 = diff_rtheta(pstate+k3, mu)*dt
+	return pstate + (k1+k2*2+k3*2+k4)*0.16666666666666666
+
+#%%
+
+'''
+Lorentz force diagnostic model for getting magnetic field diagnostics
+'''
+import matplotlib.path as mplPath
+
+def part_sim_CME(beta, simt, nperday, ltdt, pstart, efinp, cmedelta):
+    
+    dt1=float(simt-21)*86400/simt/nperday
+    dt2=float(simt-21)/nperday
+    dt = min(dt1,dt2)
+    
+    mult = {True:10,False:1}
+    cmeSpeed = 888*0.000577548327
+    		
+    cmeMiddle = np.radians(310) - np.pi
+    cmeEdge1 = cmeMiddle + np.radians(30)
+    cmeEdge2 = cmeMiddle - np.radians(30)
+    
+    #rs = []
+    #thts = []
+    #crs = []
+    
+    t = 0    
+    traj = pstart
+    x = 0 
+
+    while (t + dt + 20 < simt): #go to up to 30 minutes before current
+        
+        if x == 1: print(traj)
+        
+        cmeR = (cmedelta + t/1440 - simt/1440)*cmeSpeed
+        cmeBack = cmeR - 0.03
+        
+        CME_box =((cmeR,cmeEdge1),
+                  (cmeR,cmeEdge2),
+                  (cmeBack,cmeEdge2),
+                  (cmeBack,cmeEdge1),
+                  (cmeR,cmeEdge1))
+        
+        com_Path = mplPath.Path(CME_box)  
+        
+        rDust = (traj[0]**2 + traj[1]**2 + traj[2]**2)**0.5
+        thtDust = np.arctan2(traj[0],traj[1])%(2*np.pi)
+        
+        #crs.append(cmeR)
+        #rs.append(rDust)
+        #thts.append(thtDust)
+        
+        inCME = com_Path.contains_point((rDust,thtDust))
+
+        betaUse = beta*mult[inCME]
+        
+        traj = rk4(traj, betaUse, dt) #traj updated
+        t += dt
+        
+        x += 1
+        
+    dr = np.linalg.norm(traj[0:3] - efinp)
+    tret = t + 8.316746397269274*dr    
+    
+    while (tret < simt):
+        
+        
+        cmeR = (cmedelta + t/1440- simt/1440)*cmeSpeed
+        cmeBack = cmeR - 0.03
+        
+        CME_box =((cmeR,cmeEdge1),
+                  (cmeR,cmeEdge2),
+                  (cmeBack,cmeEdge2),
+                  (cmeBack,cmeEdge1),
+                  (cmeR,cmeEdge1))
+        
+        com_Path = mplPath.Path(CME_box)  
+        
+        rDust = (traj[0]**2 + traj[1]**2 + traj[2]**2)**0.5
+        thtDust = np.arctan2(traj[0],traj[1])%(2*np.pi)
+        
+        inCME = com_Path.contains_point((rDust,thtDust))
+        
+        betaUse = beta*mult[inCME]
+        
+        traj = rk4(traj, betaUse, ltdt) #traj updated b the minute
+        t += ltdt
+        dr = np.linalg.norm(traj[0:3] - efinp)
+        tret = t + 8.316746397269274*dr
+        
+    return (t,traj)
+
+#%%
+    
+def part_sim_fine(beta, simt, nperday, ltdt, pstart, efinp): 
+    dt1=float(simt-21)*86400/simt/nperday
+    dt2=float(simt-21)/nperday
+    dt = min(dt1,dt2)
+    t = 0
+    traj = pstart
+    while (t + dt + 20 < simt): #go to up to 30 minutes before current
+        traj = rk4(traj, beta, dt) #traj updated
+        t += dt
+    dr = np.linalg.norm(traj[0:3] - efinp)
+    tret = t + 8.316746397269274*dr    
+    while (tret < simt):
+        traj = rk4(traj, beta, ltdt) #traj updated b the minute
+        t += ltdt
+        dr = np.linalg.norm(traj[0:3] - efinp)
+        tret = t + 8.316746397269274*dr
+    return (t,traj)
+    

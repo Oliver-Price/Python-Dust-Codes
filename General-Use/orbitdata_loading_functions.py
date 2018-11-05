@@ -168,7 +168,7 @@ def orb_vector(denom, observer, savefolder, datafolder, horiz, opts = ''):
                 textsavename += '_10'
             
             textsavename += '.txt'
-            print (url)
+            print(url)
             html = requests.get(url).text
             datastart = html.find('$$SOE') + 6 #selects relevant data
             dataend = html.find('$$EOE') - 1
@@ -190,6 +190,8 @@ def orb_vector(denom, observer, savefolder, datafolder, horiz, opts = ''):
             rawdata = dat.readlines()
             datasize = int(len(rawdata)/3)
             data = np.empty((datasize,13),dtype = float)
+            
+            print(rawdata)
             
             #converts string to numpy array
             for hrow in range(0,datasize,1):
@@ -431,4 +433,60 @@ def orb_obs_extra(denom, observer, savefolder, datafolder):
     elif saveexists == True: #if save exists, load that
         data = np.load(savefile)
         print ('Loading saved data')
+    return data
+
+#%%
+
+#*************
+#NEW METHODS
+#*************
+
+def orb_vector_new(denom, observer, savefolder, datafolder, horiz, opts = ''):
+    
+    #gives loading parameters for specific data type requested
+    if "obs" in opts:
+        savename = 'data_' + denom + '_' + observer \
+        + '_orbit_xyzvxvyvz'
+    else:
+        savename = 'data_' + denom + '_cometorbit_xyzvxvyvz'        
+    if "eq" in opts:
+        savename += '_EQ'
+    if "d10" in opts:
+        savename += '_coarse'
+    savename += '.npy'
+                
+    #checks if save data exsits   
+    savefile = os.path.join(savefolder, savename)
+    if not os.path.exists(savefolder): os.makedirs(savefolder)
+    saveexists = os.path.exists(savefile)
+    
+    if saveexists == False: #generate data if it doesn't
+        sys.exit("Please load data via Jupyter notebook")
+        
+    elif saveexists == True: #if save exists, load that
+        data = np.load(savefile)
+        print ('Loading saved data')
+    return data
+
+def orb_obs_new(denom, observer, savefolder, datafolder, horiz, opts = ''):
+
+    #checks if save data exsits
+    if 'v' in opts:
+        savename = 'data_' + denom + '_' + observer + '_venuscoords'
+    if 'm' in opts:
+        savename = 'data_' + denom + '_' + observer + '_mercurycoords'    
+    else:
+        savename = 'data_' + denom + '_' + observer + '_celestialcoords'
+    savename += '.npy'
+    
+    savefile = os.path.join(savefolder, savename)
+    saveexists = os.path.isfile(savefile)
+
+    if saveexists == False:
+        sys.exit("Please load data via Jupyter notebook")
+        
+    elif saveexists == True: #if save exists, load that
+        data = np.load(savefile)
+        print ('Loading saved data')
+        
     return data

@@ -1,4 +1,4 @@
-#*************************************************************
+F#*************************************************************
 #Program to visualise fits image of comet and overlay a
 #finson-probstein diagram according to it's orbital parameters
 #*************************************************************
@@ -55,13 +55,13 @@ elif obsloc == "Soho": [inst, imagedir] = get_soho_instrument(imagedir)
 else: inst = ''
  
 #import the orbit data
-obsveceq = orb_vector(comdenom, obsloc, pysav, orbitdir,
+obsveceq = orb_vector_new(comdenom, obsloc, pysav, orbitdir,
                       horiztag, opts = 'obs,eq')
-comveceq = orb_vector(comdenom, obsloc, pysav, orbitdir,
+comveceq = orb_vector_new(comdenom, obsloc, pysav, orbitdir,
                       horiztag, opts = 'eq')
-comveceq10 = orb_vector(comdenom, obsloc, pysav, orbitdir,
+comveceq10 = orb_vector_new(comdenom, obsloc, pysav, orbitdir,
                         horiztag, opts = 'eq,d10')
-comobs = orb_obs(comdenom, obsloc, pysav, orbitdir, horiztag)
+comobs = orb_obs_new(comdenom, obsloc, pysav, orbitdir, horiztag)
 
 #choosing whether to use last used file
 last_savename = 'last_image.pickle'
@@ -229,7 +229,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         
         #if inv == True:
         #    colcr = 255-colcb; colcb = 255-colcb; colcg = 255-colcg
-        
+    
         for xp in range(0,no_points):
             x = non_zeros_0[xp]
             y = non_zeros_1[xp]
@@ -299,12 +299,16 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     #some amateur images lack times, need to sometimes use yudish imgtimehdr
     if obsloc == 'Earth':
         
-        timemsg = "Choose image time method"
-        timechoices = ["Stereo/Soho Filename","Yudish/Earth Filename","User Entry","Yudish Imagetimeheader"]
+        timemsg = "Choose image time method \n\n" 
+        timemsg += "STEREO filename = yymmdd_hhmmss_platform \n\n"
+        timemsg += "Earth filename = denom_yyyy_mm_dd_hhhmm_observer \n\n"
+        timemsg += "Earth2 filename = denom_yyyymmdd_hhhmm_observer \n\n"
+        timechoices = ["Stereo/Soho Filename","Yudish/Earth Filename","Yudish/Earth Filename 2","User Entry","Yudish Imagetimeheader"]
         reply = easygui.buttonbox(timemsg, choices=timechoices)
         
         if reply == "Stereo/Soho Filename": [ctime,uncertainty_range_exists] = image_time_stereo(filebase)
         if reply == "Yudish/Earth Filename": [ctime,uncertainty_range_exists] = image_time_filename_yuds(filebase)
+        if reply == "Yudish/Earth Filename 2": [ctime,uncertainty_range_exists] = image_time_filename_denom_compact(filebase)
         if reply == "Yudish Imagetimeheader": [idls,ctime,uncertainty_range_exists] = image_time_yudish(comdenom,fitsinfile,idlsav)
         if reply == "User Entry": [ctime,uncertainty_range_exists] = image_time_user()
                                           
@@ -360,7 +364,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     else: ra_img_higher = axisdata[7]
     
     [ltcomcel, vtraj, vtrajcel] = plot_orbit(comobs,comveceq,obsveceq,axisdata,d,comcel,trajfill,ra_img_lower,
-    ra_img_higher,border,pixwidth,rafmin,scale,pixheight,decmin,fnt,featur_fill, com_in_image,fixwrapsbool)      
+    ra_img_higher,border,pixwidth,rafmin,scale,pixheight,decmin,fnt,featur_fill,com_in_image,fixwrapsbool)      
     
     if vtraj is not None:
         plot_orbit_points(d,vtraj,smallfnt,featur_fill,pixheight,pixwidth,border)    
@@ -506,14 +510,14 @@ while test_mode == True:
         while (tidx < tno):
             bidx = 0
             point_in_image = 1
-            simt10min = int(round(144*tvals[tidx]))
-            pstart = comveceq10[comcel10-simt10min,6:12]
+            simt1min = int(round(1440*tvals[tidx]))
+            pstart = comveceq[comcel-simt1min,6:12]
             while (bidx < bno and point_in_image == 1):
-                sim = part_sim(bvals[bidx],simt10min,50,1,pstart,efinp,dtmin)
-                simres[tidx,bidx,0] = float(simt10min)/144
+                sim = part_sim_fine(bvals[bidx],simt1min,50,1,pstart,efinp)
+                simres[tidx,bidx,0] = float(simt1min)/1440
                 simres[tidx,bidx,1] = bvals[bidx]
                 simres[tidx,bidx,2] = sim[0] #length of simulation in minutes
-                simres[tidx,bidx,3] = comcel-10*simt10min+sim[0] #find relevant cell for end of traj
+                simres[tidx,bidx,3] = comcel-simt1min+sim[0] #find relevant cell for end of traj
                 simres[tidx,bidx,4:10] = sim[1] #finishing pos/vel
                 simres[tidx,bidx,10:12] = pos2radec(sim[1][0:3] - 
                 obsveceq[int(simres[tidx,bidx,3]),6:9],fixwrapsbool)
@@ -564,13 +568,13 @@ while test_mode == True:
             syn_exited_image = 0
             prev_stat = 0
             while (bidx >= 0 and (syn_exited_image == 0 or bidx >= bprev)):
-                simt10min = int(round(144*tvals[tidx]))
-                pstart = comveceq10[comcel10-simt10min,6:12]
-                sim = part_sim(bvals[bidx],simt10min,50,3,pstart,efinp,dtmin)
-                simres[tidx,bidx,0] = float(simt10min)/144
+                simt1min = int(round(1440*tvals[tidx]))
+                pstart = comveceq[comcel-simt1min,6:12]
+                sim = part_sim(bvals[bidx],simt1min,50,3,pstart,efinp)
+                simres[tidx,bidx,0] = float(simt1min)/1440
                 simres[tidx,bidx,1] = bvals[bidx]
                 simres[tidx,bidx,2] = sim[0] #length of simulation in minutes
-                simres[tidx,bidx,3] = comcel-10*simt10min+sim[0] #find relevant cell for end of traj
+                simres[tidx,bidx,3] = comcel-simt1min+sim[0] #find relevant cell for end of traj
                 simres[tidx,bidx,4:10] = sim[1] #finishing pos/vel
                 simres[tidx,bidx,10:12] = pos2radec(sim[1][0:3] - 
                 obsveceq[int(simres[tidx,bidx,3]),6:9],fixwrapsbool)

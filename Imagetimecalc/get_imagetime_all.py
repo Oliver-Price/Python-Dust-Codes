@@ -57,7 +57,7 @@ fits_total = len(fits_list)
 
 if not os.path.exists(os.path.join(imagedir,'imgtime_test_venmerc')): os.makedirs(os.path.join(imagedir,'imgtime_test_venmerc'))
         
-for fidx in range (100,fits_total):
+for fidx in range (100,101):#fits_total):
     
     fitsinfile = fits_list[fidx]
     filebase = fits_list[fidx].split('.')[0]

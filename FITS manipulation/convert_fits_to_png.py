@@ -4,7 +4,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from scipy.ndimage.filters import gaussian_filter
 
-fitsdir = r'C:\PhD\Comet_data\Comet_PanSTARRS_C2011L4\Gallery\Stereo_B\HI-2-diff'
+fitsdir = r'C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\HI-2'
 pngdir = os.path.join(fitsdir,'pngs')
 if not os.path.exists(pngdir): os.makedirs(pngdir)
 #mloc = r'C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Soho\processing\filter_MASK.png'
@@ -15,14 +15,14 @@ dir_list = sorted(os.listdir(fitsdir))
 fits_list = [s for s in dir_list if ".f" in s]
 fits_total = len(fits_list)
 
-low = -1000; hih= 1000
-methodlog = False
+low = 50000; hih= 500000
+methodlog = True
 
 fontloc = r'C:\Windows\winsxs\amd64_microsoft-windows-f..etype-lucidaconsole_31bf3856ad364e35_6.1.7600.16385_none_5b3be3e0926bd543\lucon.ttf'
 fnt = ImageFont.truetype(fontloc, 50)
 featur_fill = (255,255,255,255)
 
-for fits_id in range(0,fits_total):
+for fits_id in range(0,24):
     
         fitstemp = os.path.join(fitsdir, fits_list[fits_id])
         pngtemp = os.path.join(pngdir, (fits_list[fits_id].split(".")[0] +
@@ -43,11 +43,11 @@ for fits_id in range(0,fits_total):
 #            cday = os.path.basename(fitstemp)[16:18]
 #            cmonth = os.path.basename(fitstemp)[13:15]
 #            cyear = os.path.basename(fitstemp)[8:12]
-
+            
             hdulist = fits.open(fitstemp)
             data = (hdulist[0].data)
             img_size = np.shape(data)
-            data = np.flipud(np.fliplr(np.nan_to_num(data)))#*maska
+            data = np.nan_to_num(data)
             
             pngimg = Image.new('RGBA', (img_size[0], img_size[1] ) , (0,0,0,255) )
             d = ImageDraw.Draw(pngimg)
@@ -68,6 +68,6 @@ for fits_id in range(0,fits_total):
 
             times = (cday + '/' + cmonth + '/' + cyear + '\n' + chour + ':' + cmin)
             
-            d.text((650,550), times , font=fnt, fill= featur_fill)
+            d.text((50,50), times , font=fnt, fill= featur_fill)
             pngimg.save(pngtemp,'png')
         print (fits_id)

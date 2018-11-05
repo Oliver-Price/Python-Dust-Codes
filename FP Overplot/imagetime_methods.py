@@ -106,3 +106,19 @@ def image_time_filename_yuds(filebase):
     
     uncertainty_range_exists = False
     return ctime,uncertainty_range_exists
+
+#%%Image time from yudish/earth
+def image_time_filename_denom_compact(filebase):
+    
+    spl = filebase.split('_')
+    csec = 0
+    cmin = int(spl[2][2:4])
+    chour = int(spl[2][0:2])
+    cday = int(spl[1][6:])
+    cmonth = int(spl[1][4:6])
+    cyear = int(spl[1][0:4])
+    ctime = astropy.time.Time(datetime.datetime(cyear, cmonth, cday,
+                                                chour , cmin, csec))
+    
+    uncertainty_range_exists = False
+    return ctime,uncertainty_range_exists
