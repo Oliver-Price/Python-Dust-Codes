@@ -1,4 +1,4 @@
-F#*************************************************************
+#*************************************************************
 #Program to visualise fits image of comet and overlay a
 #finson-probstein diagram according to it's orbital parameters
 #*************************************************************
@@ -55,13 +55,10 @@ elif obsloc == "Soho": [inst, imagedir] = get_soho_instrument(imagedir)
 else: inst = ''
  
 #import the orbit data
-obsveceq = orb_vector_new(comdenom, obsloc, pysav, orbitdir,
-                      horiztag, opts = 'obs,eq')
-comveceq = orb_vector_new(comdenom, obsloc, pysav, orbitdir,
-                      horiztag, opts = 'eq')
-comveceq10 = orb_vector_new(comdenom, obsloc, pysav, orbitdir,
-                        horiztag, opts = 'eq,d10')
-comobs = orb_obs_new(comdenom, obsloc, pysav, orbitdir, horiztag)
+obsveceq = orb_vector_new(comdenom, obsloc, pysav, orbitdir, opts = 'obs,eq')
+comveceq = orb_vector_new(comdenom, obsloc, pysav, orbitdir, opts = 'eq')
+comveceq10 = orb_vector_new(comdenom, obsloc, pysav, orbitdir, opts = 'eq,d10')
+comobs = orb_obs_new(comdenom, obsloc, pysav, orbitdir)
 
 #choosing whether to use last used file
 last_savename = 'last_image.pickle'

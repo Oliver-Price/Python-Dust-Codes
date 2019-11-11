@@ -41,9 +41,7 @@ with open(inputfile, "r") as c:
 #import the orbit data
 com_vec = orb_vector(comdenom, 'Stereo_A', pysav, orbitdir,
                       horiztag)
-stera_vec = orb_vector(comdenom, 'Stereo_A', pysav, orbitdir,
-                      horiztag, opts = 'obs')
-sterb_vec = orb_vector(comdenom, 'Stereo_B', pysav, orbitdir,
+sterb_vec = orb_vector(comdenom, 'Soho', pysav, orbitdir,
                       horiztag, opts = 'obs')
 earth_vec = orb_vector(comdenom, 'Earth', pysav, orbitdir,
                       horiztag, opts = 'obs')

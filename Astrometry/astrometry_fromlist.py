@@ -10,13 +10,22 @@ import numpy as np
 import urllib
 import pickle
 
-#%%
-
 orig_location = r"C:\PhD\Comet_data\Comet for Deep Learning\Images\Colour\notext"
 save_loc = r"C:\PhD\Comet_data\Comet for Deep Learning\Images\Colour\fits"
 
-badsave = r"C:\PhD\Comet_data\Comet for Deep Learning\Images\Colour\badlist.pickle"
-donesave = r"C:\PhD\Comet_data\Comet for Deep Learning\Images\Colour\donelist.pickle"
+session_login = requests.post('http://nova.astrometry.net/api/login',
+                  data={'request-json': json.dumps({"apikey": "rqleqqsuqhatwjni"})})
+                  
+session_key = session_login.text.split("\"")[-2]
+
+orig_list = os.listdir(orig_location)
+
+todo_list = orig_list[293:]
+
+#%%
+'''
+badsave = r"C:\PhD\Comet_data\Comet for Deep Learning\Images\Colour\badlist2.pickle"
+donesave = r"C:\PhD\Comet_data\Comet for Deep Learning\Images\Colour\donelist2.pickle"
 
 with open (badsave, 'rb') as fp:
     bad_list = pickle.load(fp)
@@ -24,14 +33,11 @@ with open (badsave, 'rb') as fp:
 with open (donesave, 'rb') as fp:
     done_list = pickle.load(fp)
     
-session_login = requests.post('http://nova.astrometry.net/api/login',
-                  data={'request-json': json.dumps({"apikey": "rqleqqsuqhatwjni"})})
-                  
-session_key = session_login.text.split("\"")[-2]
-                 
-orig_list = os.listdir(orig_location)
 not_list = bad_list + done_list
 todo_list = np.setdiff1d(np.array(orig_list),np.array(not_list)).tolist()
+'''
+#%%
+
 out_list = []
 url_list = []
 submit_list = []
@@ -42,15 +48,15 @@ image_fits_file_locs = []
 
 #%%
 
-start = 0; end = 50
-for image_no in range(start,end):#len(todo_list)):
+start = 0; end = len(todo_list)
+for image_no in range(start,end):
 
     out_list.append(os.path.join(save_loc,('.').join(todo_list[image_no].split('.')[:-1])+'.fits'))
 
     #fits online
     url_list.append('http://www.mssl.ucl.ac.uk/~op2/Cometpics/' + todo_list[image_no])
 
-    print (todo_list[image_no-start])   
+    print (todo_list[image_no])   
         
     submit_list.append(requests.post("http://nova.astrometry.net/api/url_upload",
                       data={'request-json': json.dumps({"session": session_key,
@@ -65,7 +71,9 @@ for image_no in range(start,end):#len(todo_list)):
     time.sleep(5)
     
 #%%
-start = 0; end = 50
+    
+start = 0; end = len(todo_list)
+
 for image_no in range(start,end):#len(todo_list)):
     print('retrieving: ' + todo_list[image_no])
     

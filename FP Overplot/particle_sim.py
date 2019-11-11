@@ -49,7 +49,6 @@ def part_sim(beta, simt, nperday, ltdt, pstart, efinp, cor):
         t += ltdt
         dr = np.linalg.norm(traj[0:3] - efinp)
         tret = t + 8.316746397269274*dr
-    print(dr)
     return (t,traj)
     
 def diff(pstate, beta):
@@ -617,4 +616,3 @@ def part_sim_fine(beta, simt, nperday, ltdt, pstart, efinp):
         dr = np.linalg.norm(traj[0:3] - efinp)
         tret = t + 8.316746397269274*dr
     return (t,traj)
-    

@@ -214,6 +214,7 @@ imgsave = os.path.join(os.path.join(imagedir,'imgtime_test'),
                        filebase.split('_')[-1] + '_astrometrytest.png')
 comimg.save(imgsave,'png')
 
+'''
 fmon = 2;fday = 26;fhou = 6;fmin = 0
 
 fcell = np.intersect1d(np.intersect1d(np.where(comobs[:,1]==fmon)[0], np.where(comobs[:,2]==fday)[0]),
@@ -228,6 +229,8 @@ d.line( [ ( com_ra_loc - xsiz , com_dec_loc - xsiz ) ,
 d.line( [ ( com_ra_loc - xsiz , com_dec_loc + xsiz ) ,
           ( com_ra_loc + xsiz , com_dec_loc - xsiz ) ] ,
           fill = (255,0,255,255) )
+'''
+
 comimg.show()
 
 print ("Done!")

@@ -19,7 +19,7 @@ from conversion_routines import mon2num
 #VECTOR DATA
 #***********
 
-def orb_vector(denom, observer, savefolder, datafolder, horiz, opts = ''):
+def orb_vector(denom, observer, savefolder, datafolder, horiz = '', opts = ''):
     
     #gives loading parameters for specific data type requested
     if "obs" in opts:
@@ -54,6 +54,9 @@ def orb_vector(denom, observer, savefolder, datafolder, horiz, opts = ''):
         reply = easygui.buttonbox(loadmsg, choices=loadchoices)
 
         if reply == "Import from Horizons":
+            
+            if horiz == '':
+                sys.exit("Please supply JPL Horizons tag")
             
             #saving the end date ensures all orbit files match up
             datesavename = denom + '_enddate.pickle'
@@ -441,7 +444,7 @@ def orb_obs_extra(denom, observer, savefolder, datafolder):
 #NEW METHODS
 #*************
 
-def orb_vector_new(denom, observer, savefolder, datafolder, horiz, opts = ''):
+def orb_vector_new(denom, observer, savefolder, datafolder, opts = ''):
     
     #gives loading parameters for specific data type requested
     if "obs" in opts:
@@ -468,7 +471,7 @@ def orb_vector_new(denom, observer, savefolder, datafolder, horiz, opts = ''):
         print ('Loading saved data')
     return data
 
-def orb_obs_new(denom, observer, savefolder, datafolder, horiz, opts = ''):
+def orb_obs_new(denom, observer, savefolder, datafolder, opts = ''):
 
     #checks if save data exsits
     if 'v' in opts:

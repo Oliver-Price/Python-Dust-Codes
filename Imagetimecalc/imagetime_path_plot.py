@@ -12,6 +12,7 @@ import datetime
 import matplotlib.path as mplPath
 import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw, ImageFont
+from scipy.signal import find_peaks
 
 sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\FP Overplot")
 sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")
@@ -135,18 +136,22 @@ decgoodlocs = np.where((comlocdec < (imgheight-border*1.5)) & (comlocdec > borde
 ragoodlocs = np.where((comlocra < (imgwidth-border*2.5)) & (comlocra > border*1.5))[0]
 goodlocs = np.intersect1d(decgoodlocs,ragoodlocs)
 
-traj_pix = w.wcs_world2pix(comobs[goodlocs,5:7],0)
-locs_1 = np.where((traj_pix[:,1]>0)&(traj_pix[:,0]>0))
-traj_pix = traj_pix[locs_1[0],:]
-locs_2 = np.where((traj_pix[:,0]<(colr.shape[0]-1))&(traj_pix[:,1]<(colr.shape[1]-1)))
-traj_pix = traj_pix[locs_2[0],:]
+#%%**************************
+#FIFRTH CELL - Get relavent traj points
+#****************************
 
+goodradecs = comobs[goodlocs,5:7]
+goodradecs_t = tuple(map(tuple, goodradecs))
+goodbois =  np.array(com_Path.contains_points(goodradecs_t))
+goodlocs = goodlocs[np.nonzero(goodbois*goodlocs)]
+
+traj_pix = w.wcs_world2pix(comobs[goodlocs,5:7],0)
 traj_pix_floor = np.floor(traj_pix).astype(int)
 traj_pix_round = np.round(traj_pix).astype(int)
 
 trajvals = np.zeros((traj_pix[:,0].size,4))
 
-for p in range(locs_2[0].size):
+for p in range(goodlocs.size):
     
     x = traj_pix[p,0]
     y = traj_pix[p,1]
@@ -168,3 +173,10 @@ for p in range(locs_2[0].size):
                    colb[y_f+1,x_f+1]*(y - y_f)*(x - x_f))
     trajvals[p,3] = np.mean(trajvals[p,0:3])
 
+#%%
+x = trajvals[:,3]
+peaks, _ = find_peaks(x, width = 100,height = 100)
+plt.plot(x)
+plt.plot(peaks, x[peaks], "x")
+plt.show()
+    
