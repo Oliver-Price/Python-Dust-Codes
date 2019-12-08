@@ -28,6 +28,13 @@ reached accounting for a LT time to earth.
 8.316746397269274 is c in Au/minute.
 
 OUTPUTS: Final location and finishing time
+
+NOTE:
+    This method use a coarse 10 minute interval for the input for the position of the comet e.g. comvec10
+    This means that comets with very extensive and old dust clouds (e.g. hale-bopp) can be measured
+    However it's OTT for the majority of the cases, so I mainly use the part_sim_fine version below
+    You can use the original version here but make sure to include the time correction (dtmin in main script)
+    This method expects a simt in 10s of minutes (weird, I know)
 '''
 import numpy as np
 import math as m
@@ -69,6 +76,30 @@ def rk4(pstate, beta, dt):
     k3 = diff(pstate+k2*0.5, beta)*dt
     k4 = diff(pstate+k3, beta)*dt
     return pstate + (k1+k2*2+k3*2+k4)*0.16666666666666666
+
+
+#%%
+'''
+This Method uses the normal comveceq position
+'''
+
+def part_sim_fine(beta, simt, nperday, ltdt, pstart, efinp): 
+    dt1=float(simt-21)*86400/simt/nperday
+    dt2=float(simt-21)/nperday
+    dt = min(dt1,dt2)
+    t = 0
+    traj = pstart
+    while (t + dt + 20 < simt): #go to up to 30 minutes before current
+        traj = rk4(traj, beta, dt) #traj updated
+        t += dt
+    dr = np.linalg.norm(traj[0:3] - efinp)
+    tret = t + 8.316746397269274*dr    
+    while (tret < simt):
+        traj = rk4(traj, beta, ltdt) #traj updated b the minute
+        t += ltdt
+        dr = np.linalg.norm(traj[0:3] - efinp)
+        tret = t + 8.316746397269274*dr
+    return (t,traj)
 
 #%%
 
@@ -447,6 +478,7 @@ def rk4_lorentz_diag(pstate, beta, dt, parameters,sign,a):
 
 '''
 Lorentz force diagnostic model for getting magnetic field diagnostics
+Note: Fairly sure this doesn't work
 '''
 
 def part_sim_rtheta(beta, simt, nperday, ltdt, pstart, efinp): 
@@ -595,24 +627,4 @@ def part_sim_CME(beta, simt, nperday, ltdt, pstart, efinp, cmedelta):
         dr = np.linalg.norm(traj[0:3] - efinp)
         tret = t + 8.316746397269274*dr
         
-    return (t,traj)
-
-#%%
-    
-def part_sim_fine(beta, simt, nperday, ltdt, pstart, efinp): 
-    dt1=float(simt-21)*86400/simt/nperday
-    dt2=float(simt-21)/nperday
-    dt = min(dt1,dt2)
-    t = 0
-    traj = pstart
-    while (t + dt + 20 < simt): #go to up to 30 minutes before current
-        traj = rk4(traj, beta, dt) #traj updated
-        t += dt
-    dr = np.linalg.norm(traj[0:3] - efinp)
-    tret = t + 8.316746397269274*dr    
-    while (tret < simt):
-        traj = rk4(traj, beta, ltdt) #traj updated b the minute
-        t += ltdt
-        dr = np.linalg.norm(traj[0:3] - efinp)
-        tret = t + 8.316746397269274*dr
     return (t,traj)

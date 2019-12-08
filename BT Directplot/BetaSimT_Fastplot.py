@@ -196,7 +196,6 @@ for x in range(0,no_points):
                              colr[rflo+1,dflo]*(rval - rflo)*(dflo - dval + 1) +
                              colr[rflo,dflo+1]*(rflo - rval + 1)*(dval - dflo) + 
                              colr[rflo+1,dflo+1]*(rval - rflo)*(dval - dflo))
-    #print (colr[rflo,dflo]*(rflo - rval + 1)*(dflo - dval + 1))
     srcolors[tidx,bidx,2] = (colg[rflo,dflo]*(rflo - rval + 1)*(dflo - dval + 1) + 
                              colg[rflo+1,dflo]*(rval - rflo)*(dflo - dval + 1) +
                              colg[rflo,dflo+1]*(rflo - rval + 1)*(dval - dflo) + 

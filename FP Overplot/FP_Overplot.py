@@ -108,7 +108,8 @@ picklesavefile = os.path.join(picklesavefile, filebase + '_plot_param.pickle')
  
 picklexists = os.path.exists(picklesavefile)
 
-forceredraw = False
+#the pre-processing is only carried out if the pickle containing information on the image or the processed image does not exist
+forceredraw = False #set this to True to force a redraw (for debugging)
 if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     print ("preparing image")
     
@@ -134,6 +135,18 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     #get RA/DEC data    
     onedimg = fits.open(fitscoords)
 
+    ##### Receive RA and Dec location storedin the header
+    #This is the case for fits files from astrometry.net, from earth and the ISS
+    #SOHO files do not have RA and DEC, as they are in some kind of solar coordinates
+    #I've never been able to convert SOHO to RA and DEC so I usually just run them through astrometry.net
+    #Stereo A and B have RA and DEC in the 'A' key header, however this is not 100% reliable, particularly for B
+    #Therefore we try and load the 'A' key where possible, otherwise if it's bad run it through astrometry and use the default
+    
+    #The pixel values vary between normal 0-255 RGB and the higher bit values for Stereo and SOHO
+    #Stereo (I think) is a raw integr pixel count which can get up into the millions
+    #SOHO must be some sort of normalised intensity, which is usually a small decimal number
+    #SOHO and STEREO are best viewed with a log brightness scale - plotmethodlog
+    
     if 'Stereo' in obsloc:
         if comdenom == 'c2011l4':
             w = wcs.WCS(onedimg[0].header)
@@ -176,7 +189,9 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     decmin = np.amin(dec)
     decmax = np.amax(dec)
     
+    #this function sets up a few extra variables thaht deal with images that wrap around from 360 degree RA to 0 degree
     [ra_m, rafmin, rafmax, fixwrapsbool] = fixwraps(ra, ramax, ramin)
+    #if fixwrapsbool is negative, no need to worry
     
     #make a canvas with a fixed pixel height and border
     pixheight = 800
@@ -188,12 +203,16 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     comimg = Image.new('RGBA', ( imgwidth , imgheight ) ,backgr_fill)
     d = ImageDraw.Draw(comimg)
     
+    #Stereo HI2 comes with an image mask for bits of the image blocked by the camera, so this sets those to 0
     if ("Stereo" in obsloc) and ('2' in inst):
         maskedimg = fits.open('C:\PhD\Comet_data\Comet_McNaught_C2006P1\Gallery\Stereo_A\hi2A_mask.fts')
         imagemask  = maskedimg[0].data[::2,::2][:-1,:-1]
     else: imagemask = np.ones_like(colr)[:-1,:-1]
     
+    #this controls the scale values for various image displays, feel free to edit to get the best images
     [hih,low] = get_hih_low(comdenom,obsloc,inst)
+    
+    #these convert the raw data to plottable pixel values
     
     if plotmethodlog == True:
         
@@ -201,13 +220,12 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         colcr = (np.clip(np.round((np.log10(np.clip(colr,1e-20,999999999))- np.log10(low))*grad),0,255)).astype(int)
         colcg = (np.clip(np.round((np.log10(np.clip(colg,1e-20,999999999))- np.log10(low))*grad),0,255)).astype(int)
         colcb = (np.clip(np.round((np.log10(np.clip(colb,1e-20,999999999))- np.log10(low))*grad),0,255)).astype(int)
+        
         non_zeros_0 = np.where(imagemask == 1)[0]
         non_zeros_1 = np.where(imagemask == 1)[1]
         no_points = non_zeros_0.size
-        
-        #if inv == True:
-        #    colcr = 255-colcb; colcb = 255-colcb; colcg = 255-colcg
-        
+       
+        #slow, pixel by pixel plotting
         for xp in range(0,no_points):
             x = non_zeros_0[xp]
             y = non_zeros_1[xp]
@@ -223,9 +241,6 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         non_zeros_0 = np.where(imagemask == 1)[0]
         non_zeros_1 = np.where(imagemask == 1)[1]
         no_points = non_zeros_0.size
-        
-        #if inv == True:
-        #    colcr = 255-colcb; colcb = 255-colcb; colcg = 255-colcg
     
         for xp in range(0,no_points):
             x = non_zeros_0[xp]
@@ -249,6 +264,7 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     mint = 10  #minor tick length
     rdaxis = pixheight + border*2
     
+    #you may have to reset this font location
     fontloc = r'C:\Windows\winsxs\amd64_microsoft-windows-f..etype-lucidaconsole_31bf3856ad364e35_6.1.7600.16385_none_5b3be3e0926bd543\lucon.ttf'
     fnt = ImageFont.truetype(fontloc, 25)
     smallfnt = ImageFont.truetype(fontloc, 20)
@@ -287,13 +303,14 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     d.text((1.5*border + pixwidth*0.5 - len(plttitle)*5 - 60,.35*border), \
     plttitle, font=largefnt, fill= featur_fill)
     
+    #can't remember why this is here!
     pix = comimg.load()
     
 #%%**************************
 #FOURTH CELL - Get Imgtimehdr
 #****************************
     
-    #some amateur images lack times, need to sometimes use yudish imgtimehdr
+    #deciding how to get image time
     if obsloc == 'Earth':
         
         timemsg = "Choose image time method \n\n" 
@@ -336,6 +353,12 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     obsveceq[comcel,6:9])*8.316746397269274))
     com_ra_dec = pos2radec(comveceq[comcel - LT_cor,6:9] - obsveceq[comcel,6:9],fixwrapsbool)
     
+    '''
+    This sets up a 'Path' object that defines that Ra and Dec area contained by the image
+    We can use a nice algorithm from mpl to check if any point with a given (RA,DEC) is within the image
+    See this for details: http://alienryderflex.com/polygon/
+    '''
+    
     #check if comet is within image
     com_box_path = np.zeros((2*sum(np.shape(ra_m))-3,2),dtype =float)
     len1 = np.shape(ra_m)[0]; len0 = np.shape(ra_m)[1]
@@ -360,24 +383,25 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
         ra_img_higher = axisdata[7] + 360
     else: ra_img_higher = axisdata[7]
     
+    #plot orbit
     [ltcomcel, vtraj, vtrajcel] = plot_orbit(comobs,comveceq,obsveceq,axisdata,d,comcel,trajfill,ra_img_lower,
     ra_img_higher,border,pixwidth,rafmin,scale,pixheight,decmin,fnt,featur_fill,com_in_image,fixwrapsbool)      
     
+    #plot some points along the orbit, to get a sense of speed
     if vtraj is not None:
         plot_orbit_points(d,vtraj,smallfnt,featur_fill,pixheight,pixwidth,border)    
     
     if com_in_image == True:
      
-        #setting RGBA colours of lines
-        comsunfill = (0,255,0,255)
-        manysunfill = (100,255,200,255)
-        
+        #setting RGBA colours of lines + plot        comsunfill = (0,255,0,255)
         plot_sunearth_vec(d,comveceq,obsveceq,ltcomcel,axisdata,ra_img_higher,ra_img_lower,
                         border,pixwidth,pixheight,rafmin,decmin,scale,comsunfill,featur_fill,fnt,fixwrapsbool)
-        
+ 
+        # manysunfill = (100,255,200,255)       
         #plot_many_sunearth_vec(d,comveceq,obsveceq,ctime,ltcomcel,axisdata,ra_img_higher,ra_img_lower,
         #                border,pixwidth,pixheight,rafmin,decmin,scale,manysunfill,featur_fill,fnt,fixwrapsbool)
         
+        #yudish's old imagetimeheaders include an uncertainty in the nucleus location, which can be plotted
         if obsloc == 'Earth' and uncertainty_range_exists == True:
             plot_compos_unc(d,idls,vtraj,vtrajcel,border,pixwidth,fnt,trajucfill,featur_fill)
     
@@ -391,14 +415,18 @@ if (imgexists == False) or (picklexists == False) or (forceredraw == True):
             sun_x = ra2xpix(sun_pos[0],border,pixwidth,rafmin,scale)
             sun_y = dec2ypix(sun_pos[1],border,pixheight,decmin,scale)
             d.ellipse((sun_x-2, sun_y-2, sun_x+2, sun_y+2), fill = (255,255,0,255))
+            
 #%%***********************************************************
 #SIXTH CELL - Save image and parameters or load existing image
 #*************************************************************
 
+    #this is ra and dec pixel location of the comet
     rapixl = ra2xpix(com_ra_dec[0],border,pixwidth,rafmin,scale)
     decpixl = dec2ypix(com_ra_dec[1],border,pixheight,decmin,scale)
 
     comimg.save(imgsav,'png')
+    
+    #I prefer to use the webbrowser image display, as the default PIL one hangs until you close it
     webbrowser.open(imgsav)
     
     with open(picklesavefile, 'wb') as f:
@@ -435,6 +463,7 @@ while test_mode == True:
     comimg = Image.open(imgsav)
     d = ImageDraw.Draw(comimg)
     
+    #checking for save directories, and creating them
     simsavefile = os.path.join(pysav, 'simsetupsavs')
     if not os.path.exists(simsavefile ): os.makedirs(simsavefile)
     simsavefile = os.path.join(simsavefile, obsloc)
@@ -443,8 +472,11 @@ while test_mode == True:
     if "Soho" in obsloc: simsavefile = os.path.join(simsavefile, inst)
     if not os.path.exists(simsavefile ): os.makedirs(simsavefile)
     simsavefile  = os.path.join(simsavefile, filebase + '_simsetup.pickle')
+    
+    #user input simulation parameters
     [betau, betal, bno, simtu, simtl, tno, drawopts, sav_bool, test_mode] = simulation_setup(simsavefile)
     
+    #fix wrappings from 0 - 360 if needed
     [ra_m, rafmin, rafmax, fixwrapsbool] = fixwraps(ra, ramax, ramin)    
     
     #finds maximum possible simulateable time and ensure simtu is bounded by this
@@ -465,8 +497,20 @@ while test_mode == True:
     else:
         bvals = np.logspace(np.log10(betal), np.log10(betau), num=(bno))
 
+    #"earth" finishing position, used to account for light travel time
     efinp = obsveceq[comcel,6:9]
 
+    '''
+    Checking for what to simulate (to save time, essentially)
+    IMAGE CASES:
+        Comet in image, no checks needed - CASE 1
+        IF comet not in image. do a rough check of every possible synchrone:
+          - simulate each end of the synchrone
+          - check for interaction with image box
+        If some synchrones interact - CASE 2, and save list of "good" synchrones
+        If no evidence of simulation data being in comet - CASE 3
+    '''
+    
     if com_in_image == True: image_case = 1
     elif com_in_image == False:
         sync_intersects = np.zeros(tno,dtype = int)
@@ -502,12 +546,49 @@ while test_mode == True:
 #EIGHT CELL - Simulating Dust Motion
 #***********************************
     
+    '''
+    ITERATION RULES:
+    - iterate through every beta value for each synchrone (constant T)
+    - keep iterating until the location of the dust is out of the image
+    - for image case 1, always note we will start within the image
+    - for image case 2, more complex:
+        * only study t values between the highest and lowest t value which
+            corresponds to an interacting syncrhone
+        * we're looking for the point where the synchrone exits the image
+        * i.e. two points where we go from inside the image -> outside
+    - these choices ensure we minimise number of simulations for max efficiency
+    
+    SIMRES TABLE:
+    # Simres[...,0] - simulated t value in hours
+    # Simres[...,1] - simulated beta value
+    # Simres[...,2] - length of simulation in minutes
+        * (this may differ from sim[...,0] by light travel time)
+    # Simres[...,3] - cell in comet trajectory table corresponding to the time at the end of simulation
+    # Simres[...,4:10] - finishing position of dust end
+    # Simres[...,10:12] - RA and DEC of finishing position
+    # Simres[...,12] & Simres[...,13] - pixel location for plotting dust
+    # Simres[...,14] - boolean value if dust location in image
+    # Simres[...,15] & Simres[...,16] - X and Y pixel location in original FITS of dust
+    # Simres[...,17] - phase angle to dust finishing position
+        * https://en.wikipedia.org/wiki/Phase_angle_(astronomy)
+        * https://asteroid.lowell.edu/comet/dustphase_details.html
+        * possibly might be useful to normalise brightness
+        
+    BMAX, BMIN, TMAX, TMIN, tidx_tt, bidx_tt
+         - These are used for plotting
+         - We are interested in the largest "continuous" synchrones and syndynes that we can plot
+         - We can get bmax and bmin as we iterate through t values
+         - For tmax and tmin we have to interrogate the data a bit more
+         - This is what "find_largest_nonzero_block" does etc
+         - tt tables list the synchrones and syndynes that can be plotted
+    '''
+    
     if image_case == 1:
         
         while (tidx < tno):
             bidx = 0
             point_in_image = 1
-            simt1min = int(round(1440*tvals[tidx]))
+            simt1min = int(round(1440*tvals[tidx])) #t value rounded to nearest number of minutes
             pstart = comveceq[comcel-simt1min,6:12]
             while (bidx < bno and point_in_image == 1):
                 sim = part_sim_fine(bvals[bidx],simt1min,50,1,pstart,efinp)
@@ -525,13 +606,18 @@ while test_mode == True:
                 simres[tidx,bidx,14] = point_in_image
                 simres[tidx,bidx,17] = getdustphase(sim[1][0:3],obsveceq[int(simres[tidx,bidx,3]),6:9])
                 bidx += 1
-            try:simres[tidx,bidx - 1 + point_in_image,15] = 0
+            # if we fail, we want to set that point back to zero
+            # unless we successfully went through the whole b range without failing
+            #in which case this statement will simply fail
+            try:simres[tidx,bidx - 1 + point_in_image,14] = 0
             except: pass
+            #finding bmax, if there is one
             try:bmax[tidx] = simres[tidx,:,14].nonzero()[0][-1]
             except: bmax[tidx] = 0            
             tidx += 1
-            print (float(tidx)*100/tno)
-            
+            print (float(tidx)*100/tno) #progress bar - this can deleted for a minor speed increase
+        
+        #some stuff to find tmin and tmax
         simres[np.where(simres[:,:,14]==0)] = 0
         bidx_list = np.arange(bno)
         deletions = 0
@@ -567,7 +653,7 @@ while test_mode == True:
             while (bidx >= 0 and (syn_exited_image == 0 or bidx >= bprev)):
                 simt1min = int(round(1440*tvals[tidx]))
                 pstart = comveceq[comcel-simt1min,6:12]
-                sim = part_sim(bvals[bidx],simt1min,50,3,pstart,efinp)
+                sim = part_sim_fine(bvals[bidx],simt1min,50,3,pstart,efinp)
                 simres[tidx,bidx,0] = float(simt1min)/1440
                 simres[tidx,bidx,1] = bvals[bidx]
                 simres[tidx,bidx,2] = sim[0] #length of simulation in minutes
@@ -609,7 +695,8 @@ while test_mode == True:
         bidx_tt = np.zeros_like(bvals,dtype = int) 
         tidx_tt[tidx_list] = 1
         bidx_tt[bidx_list] = 1         
-                        
+    
+    #In case of no relevant points, declare an image case 3 and exit
     if simres[:,:,12].max() == 0:
         sys.exit("Image " + fitsinfile + " was no good.")
         image_case = 3
@@ -617,6 +704,10 @@ while test_mode == True:
     if image_case == 3:
         sys.exit("Image " + fitsinfile + " was no good.")
         
+    # This section converts RA and DEC values back to X and Y coordinates on the input FITS image
+    # Essentially we fiddle the data around then use w.wcs_world2pix
+    # This makes mapping the brightness data onto the mapped image 1000 times easier
+    
     non_zeros_0 = simres[:,:,14].nonzero()[0]
     non_zeros_1 = simres[:,:,14].nonzero()[1]
     no_points = non_zeros_0.size
@@ -639,7 +730,8 @@ while test_mode == True:
     for x in range(0,no_points):
         simres[non_zeros_0[x],non_zeros_1[x],15] = pixlocs[x][0]
         simres[non_zeros_0[x],non_zeros_1[x],16] = pixlocs[x][1]
-        
+     
+    #save simres datas
     if (sav_bool == True):
         simressavefile = os.path.join(pysav, 'simres')
         if not os.path.exists(simressavefile): os.makedirs(simressavefile)
@@ -661,32 +753,40 @@ while test_mode == True:
 #NINTH CELL - Plot dust motion
 #*****************************
 
+    #set some pretty colours
     dynfill = (255,0,0,255) #syndynes
     chrfill = (255,192,0,255) #synchrones
     drfill = (255,0,255,255) #data points and data
     
+    #font location may need updating
     fontloc = r'C:\Windows\winsxs\amd64_microsoft-windows-f..etype-lucidaconsole_31bf3856ad364e35_6.1.7600.16385_none_5b3be3e0926bd543\lucon.ttf'
-    fnt = ImageFont.truetype(fontloc, 20)  
+    fnt = ImageFont.truetype(fontloc, 20)
+    
+    #this keeps track of how far down to write beta/simt info
     bt_anno_idx = 0
     
+    #for wide mode for clearer viewing of synchrones and syndynes
     if "Wide" in drawopts:
         tspacing = int(tno/5); bspacing = int(bno/5)
     else:
         tspacing = 1; bspacing = 1
+    
+    #draw diagnostic bits
     if "Syndynes" in drawopts: draw_syndynes(dynfill,d,simres,bno,rapixl,decpixl,tmin,tmax,bidx_list,bspacing,bvals)
     if "Synchrones" in drawopts: draw_synchrones(chrfill,d,simres,tno,rapixl,decpixl,bmin,bmax,tidx_list,tspacing,tvals)
     if "Data Points" in drawopts: draw_datap(drfill,d,simres)
     if "Dust Phase Angles" in drawopts: [smax, smin, grad, colormap] = draw_phase_points(d,simres)
     if "Data Region Enclosed" in drawopts: draw_data_reg(drfill,d,simres,bmax,bmin,bidx_list,tmax,tmin,tidx_list,border,pixwidth)
-
     if not "Dust Phase Angles" in drawopts:
         bt_anno_idx = annotate_plotting(d,drawopts,border,pixwidth,fnt,featur_fill,dynfill,chrfill,drfill)        
     else:
         bt_anno_idx = annotate_dustphase(d,border,pixwidth,featur_fill,fnt,smax,smin,grad,colormap)
-        
+    
+    #write sim range on image
     write_bt_ranges(d,border, pixwidth, fnt, featur_fill,
                     betau, betal, simtu, simtl, bt_anno_idx)
-
+    
+    #save and display
     if (drawopts != "No Image"):
         cimgdir = os.path.join(imagedir, 'FPplots')
         if not os.path.exists(cimgdir): os.makedirs(cimgdir)
