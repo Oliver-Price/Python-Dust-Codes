@@ -1,5 +1,5 @@
 #*************************************************************
-#Plots a graph of nucleus brightness over a whole dataset
+#Uses the orbital data of the comet to find the values for brightness of the nucleus for each images
 #*************************************************************
 
 import easygui

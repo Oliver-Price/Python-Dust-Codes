@@ -11,6 +11,7 @@ from astropy.io import fits
 from astropy import wcs
 from astropy.time import Time
 import matplotlib.pyplot as plt
+import datetime
 
 sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")
 sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\FP Overplot")
@@ -49,6 +50,16 @@ obsveceq = orb_vector(comdenom, obsloc, pysav, orbitdir,
                       horiztag, opts = 'obs')
 comveceq = orb_vector(comdenom, obsloc, pysav, orbitdir,
                       horiztag)
+comobs = orb_obs_new(comdenom, obsloc, pysav, orbitdir)
 
 #%%
 times = Time(obsveceq[:,0],format='jd')
+
+t_img1 = astropy.time.Time(datetime.datetime(2013, 3, 12, 5, 0, 0))
+t_img2 = astropy.time.Time(datetime.datetime(2013, 3, 13, 17, 30, 0))
+
+tcell1 = abs(comveceq[:,0] - t_img1.jd).argmin()
+tcell2 = abs(comveceq[:,0] - t_img2.jd).argmin()
+
+r = np.linalg.norm(comveceq[:,6:9],axis=1)
+rs = np.linalg.norm(comveceq[:,6:9] - obsveceq[:,6:9],axis=1)

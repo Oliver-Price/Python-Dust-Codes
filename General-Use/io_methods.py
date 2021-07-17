@@ -110,9 +110,9 @@ def get_hih_low(comdenom,obsloc,inst):
         if obsloc == 'Stereo_B':
             low = 30000; hih = 800000
             if 'MGN' in inst:
-                low = -0.15; hih = 0.45
+                low = -0.25; hih = 0.5
             if 'diff' in inst:
-                low = -180; hih = 240
+                low = -270; hih = 240
         elif obsloc == 'Stereo_A':
             low = 3000; hih = 70000
         elif obsloc == 'Earth':
