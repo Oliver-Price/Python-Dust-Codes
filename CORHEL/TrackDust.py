@@ -7,7 +7,7 @@ import sys
 import matplotlib.pyplot as plt
 
 sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")
-sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\FP Overplot")
+sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\FP Overplot Variations")
 sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\Orbitplotting")
 
 from orbitdata_loading_functions import *
@@ -18,7 +18,7 @@ from conversion_routines import *
 from io_methods import *
 from simulation_setup import *
 from particle_sim import *
-from enlil_cooordinate_transform import xyz2rlatlon
+from spherical2cartesian import xyz2rlatlon
 from astropy.coordinates import SkyCoord
 from sunpy.coordinates import frames
 import astropy.units as u

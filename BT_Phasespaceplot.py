@@ -14,7 +14,8 @@ from PIL import Image, ImageDraw, ImageFont
 import webbrowser
 import datetime
 
-sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")  
+sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")
+sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\BT Phasespaceplot Variations")  
 
 from BT_io_functions import fixed_image_times,dategetter
 from BT_plot_functions import plotpixel, logplotpixel, bt_setaxisup
@@ -455,14 +456,20 @@ if (reply == 'Base Image'):
     for div in range(0, (np.size(tminlocs))): #beta axis minor ticks
         b = d.line([(tminlocs[div],xaxis-mint),(tminlocs[div],xaxis)],\
         fill = featur_fill)
+        b = d.line([(tminlocs[div],border+mint),(tminlocs[div],border)],\
+        fill = featur_fill)
     
     for div in range(0, (np.size(tmajlocs))): #simt axis major ticks
         b = d.line([(tmajlocs[div],xaxis-majt),(tmajlocs[div],xaxis)],\
+        fill = featur_fill)
+        b = d.line([(tmajlocs[div],border+majt),(tmajlocs[div],border)],\
         fill = featur_fill)
         ticktime = ctime - dtime*tmajticks[div]
         tick = ticktime.isot.replace('T','\n')[0:16]
         d.text((tmajlocs[div] - len(tick)*5,xaxis + 10), \
         tick, font=fnt, fill=featur_fill)
+        d.text((tmajlocs[div] - 15,border - 25), \
+        ('{0:.2f}'.format(tmajticks[div])), font=fnt, fill=featur_fill)
     
     for div in range(0, (np.size(bmajlocs))): #beta axis major ticks
         b = d.line([(border+majt,bmajlocs[div]),(border,bmajlocs[div])],\
@@ -474,15 +481,19 @@ if (reply == 'Base Image'):
     #axis labels
     d.text((1.5*border + pixwt*0.5 - 150,pixhi + 2.7*border), \
     "Date/Time of Ejection", font=fnt, fill=featur_fill)
+    d.text((1.5*border + pixwt*0.5 - 120,0.3*border), \
+    "Dust Age (Days)", font=fnt, fill=featur_fill)
     d.text((0.25*border - 10,border-10), \
     "Beta", font=fnt, fill=featur_fill)
     
+    '''
     #plot title
     tfnt = ImageFont.truetype(fontloc, 30)
     plttitle = (comdenom.upper() + ' ' + comname[:-1] + ' from ' + obsloc
     + '\n'+ ctime.isot[0:16].replace('T',' at '))
     d.text((1.2*border,.25*border), \
     plttitle, font=tfnt, fill=featur_fill)
+    '''
     
     dustimgfol = os.path.join(imagedir, 'dustplots')
     if not os.path.exists(dustimgfol): os.makedirs(dustimgfol)

@@ -50,7 +50,11 @@ obsveceq = orb_vector(comdenom, obsloc, pysav, orbitdir,
                       horiztag, opts = 'obs')
 comveceq = orb_vector(comdenom, obsloc, pysav, orbitdir,
                       horiztag)
-comobs = orb_obs_new(comdenom, obsloc, pysav, orbitdir)
+#comobs = orb_obs_new(comdenom, obsloc, pysav, orbitdir)
+
+#%%
+vr = np.linalg.norm(comveceq[:,9:12],axis=1)*1.731e+3
+print(vr.max())
 
 #%%
 times = Time(obsveceq[:,0],format='jd')

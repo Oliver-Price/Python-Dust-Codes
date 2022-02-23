@@ -17,7 +17,7 @@ import webbrowser
 import matplotlib.pyplot as plt
 
 sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\General-Use")
-sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\FP Overplot")
+sys.path.append(r"C:\PhD\Python\Python-Dust-Codes\FP Overplot Variations")
 
 from orbitdata_loading_functions import *
 from FP_plot_functions import *
@@ -109,7 +109,7 @@ picklesavefile = os.path.join(picklesavefile, filebase + '_plot_param.pickle')
 picklexists = os.path.exists(picklesavefile)
 
 #the pre-processing is only carried out if the pickle containing information on the image or the processed image does not exist
-forceredraw = True #set this to True to force a redraw (for debugging)
+forceredraw = False #set this to True to force a redraw (for debugging)
 if (imgexists == False) or (picklexists == False) or (forceredraw == True):
     print ("preparing image")
     

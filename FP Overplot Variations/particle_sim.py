@@ -119,6 +119,19 @@ def part_sim_fine_track(beta, simt, nperday, pstart):
     return (times,total)
 
 #%%
+def part_sim_fine_basic(beta, simt, nperday, pstart): 
+    simt = simt*1440 #simt input in days, convert to minutes
+    dt1=1440/nperday
+    dt2=float(simt)/nperday
+    dt = min(dt1,dt2)
+    t = 0
+    traj = pstart
+    while (t < simt):
+        traj = rk4(traj, beta, dt) #traj updated
+        t += dt
+    return traj
+
+#%%
 
 '''
 BASIC LORENTZ FORCE SIM
